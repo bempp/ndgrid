@@ -10,4 +10,3 @@ pub trait Point {
     /// Get the coordinates of the point
     fn coords(&self, data: &mut [Self::T]);
 }
-

@@ -1,27 +1,35 @@
 //! Traits for a mesh entity
-use crate::types::Ownership;
-use std::iter::Iterator;
-use rlst::RlstScalar;
 use super::Point;
+use crate::types::Ownership;
+use rlst::RlstScalar;
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::iter::Iterator;
 
 /// The topology of an entity
 pub trait EntityTopology {
     /// Entity index iterator
-    type EntityIndexIter<'a>: Iterator<Item=usize> where Self: 'a;
+    type EntityIndexIter<'a>: Iterator<Item = usize>
+    where
+        Self: 'a;
 
     /// Topological dimension
     fn dim(&self) -> usize;
-    /// Iterator over sub-entity indices
-    fn sub_entity_indices(&self, dim: usize) -> Self::EntityIndexIter<'_>;
+    /// Iterator over indices of connected entities
+    fn entity_indices(&self, dim: usize) -> Self::EntityIndexIter<'_>;
 }
 /// The geometry of an entity
 pub trait EntityGeometry {
     /// Type used for coordinate values
     type T: RlstScalar;
     /// Point type
-    type Point<'a>: Point<T=Self::T> where Self: 'a;
+    type Point<'a>: Point<T = Self::T>
+    where
+        Self: 'a;
     /// Point iterator
-    type PointIter<'a>: Iterator<Item=Self::Point<'a>> where Self:'a;
+    type PointIter<'a>: Iterator<Item = Self::Point<'a>>
+    where
+        Self: 'a;
 
     /// Geometric dimension
     fn dim(&self) -> usize;
@@ -36,20 +44,26 @@ pub trait EntityGeometry {
 /// An entity
 pub trait Entity {
     /// Topology type
-    type Topology<'a>: EntityTopology where Self: 'a;
+    type Topology<'a>: EntityTopology
+    where
+        Self: 'a;
     /// Geometry type
-    type Geometry<'a>: EntityGeometry where Self: 'a;
+    type Geometry<'a>: EntityGeometry
+    where
+        Self: 'a;
     /// Type used as identifier of different entity types
-    type EntityType;
+    type EntityType: Debug + PartialEq + Eq + Clone + Copy + Hash;
     /// Iterator over sub-entities
-    type SubentityIter<'a>: Iterator<Item=Self> where Self: 'a;
+    type EntityIter<'a>: Iterator<Item = Self>
+    where
+        Self: 'a;
 
     /// The entity type (eg triangle, quadrilateral) of this entity
     fn entity_type(&self) -> Self::EntityType;
     /// A sub-entity of this entity
     fn sub_entity(&self, dim: usize, index: usize) -> Self;
     /// Iterator over sub-entities
-    fn sub_entity_iter(&self, dim: usize) -> Self::SubentityIter<'_>;
+    fn sub_entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
     /// The local index of this entity on the current process
     fn local_index(&self) -> usize;
     /// The global index of this entity on the current process

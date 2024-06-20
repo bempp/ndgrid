@@ -1,7 +1,9 @@
 //! Traits
 
 mod entity;
+mod grid;
 mod point;
 
-pub use entity::{EntityTopology, EntityGeometry, Entity, EntityId};
+pub use entity::{Entity, EntityGeometry, EntityId, EntityTopology};
+pub use grid::{Grid, GridGeometry, GridTopology};
 pub use point::Point;
