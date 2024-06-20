@@ -1,12 +1,17 @@
 //! Point
 
-use rlst::RlstScalar;
+use super::Grid;
 
 /// A point
 pub trait Point {
     /// The floating point type used for coordinates
-    type T: RlstScalar;
+    type Grid: Grid;
 
-    /// Get the coordinates of the point
-    fn coords(&self, data: &mut [Self::T]);
+    /// Return the dimension of the point.
+    fn dim(&self) -> usize {
+        <Self::Grid as Grid>::world_dim()
+    }
+
+    /// Get the coordinates of the point.
+    fn coords(&self, data: &mut [<Self::Grid as Grid>::T]);
 }

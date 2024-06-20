@@ -1,77 +1,51 @@
 //! Traits for a mesh entity
-use super::Point;
+use super::Grid;
 use crate::types::Ownership;
-use rlst::RlstScalar;
-use std::fmt::Debug;
-use std::hash::Hash;
 use std::iter::Iterator;
-
-/// The topology of an entity
-pub trait EntityTopology {
-    /// Entity index iterator
-    type EntityIndexIter<'a>: Iterator<Item = usize>
-    where
-        Self: 'a;
-
-    /// Topological dimension
-    fn dim(&self) -> usize;
-    /// Iterator over indices of connected entities
-    fn entity_indices(&self, dim: usize) -> Self::EntityIndexIter<'_>;
-}
-/// The geometry of an entity
-pub trait EntityGeometry {
-    /// Type used for coordinate values
-    type T: RlstScalar;
-    /// Point type
-    type Point<'a>: Point<T = Self::T>
-    where
-        Self: 'a;
-    /// Point iterator
-    type PointIter<'a>: Iterator<Item = Self::Point<'a>>
-    where
-        Self: 'a;
-
-    /// Geometric dimension
-    fn dim(&self) -> usize;
-    /// Volume of the entity
-    fn volume(&self) -> Self::T;
-    /// Diameter of the entity
-    fn diameter(&self) -> Self::T;
-    /// The points of the entity
-    fn points(&self) -> Self::PointIter<'_>;
-}
 
 /// An entity
 pub trait Entity {
-    /// Topology type
-    type Topology<'a>: EntityTopology
+    type Grid: Grid;
+
+    /// Point Iterator
+    type PointIterator<'a>: Iterator<Item = <Self::Grid as Grid>::Point<'a>>
     where
         Self: 'a;
-    /// Geometry type
-    type Geometry<'a>: EntityGeometry
-    where
-        Self: 'a;
-    /// Type used as identifier of different entity types
-    type EntityType: Debug + PartialEq + Eq + Clone + Copy + Hash;
+
     /// Iterator over sub-entities
     type EntityIter<'a>: Iterator<Item = Self>
     where
         Self: 'a;
 
+    /// Iterator over connected entities
+    type ConnectedEntityIter<'a>: Iterator<Item = Self>
+    where
+        Self: 'a;
+
     /// The entity type (eg triangle, quadrilateral) of this entity
-    fn entity_type(&self) -> Self::EntityType;
+    fn entity_type(&self) -> <Self::Grid as Grid>::EntityDescriptor;
+
     /// A sub-entity of this entity
     fn sub_entity(&self, dim: usize, index: usize) -> Self;
+
     /// Iterator over sub-entities
     fn sub_entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
+
+    /// Returns connected entities that are either on the same process or are ghost entities.
+    fn connected_entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
+
     /// The local index of this entity on the current process
     fn local_index(&self) -> usize;
+
     /// The global index of this entity on the current process
     fn global_index(&self) -> usize;
-    /// The topology of this entity
-    fn topology(&self) -> Self::Topology<'_>;
+
     /// The geometry of this entity
-    fn geometry(&self) -> Self::Geometry<'_>;
+    fn geometry(
+        &self,
+        eval_points: &[<Self::Grid as Grid>::T],
+    ) -> <Self::Grid as Grid>::Geometry<'_>;
+
     /// The ownership of this entity
     fn ownership(&self) -> Ownership;
 }
