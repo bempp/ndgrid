@@ -11,8 +11,13 @@ pub trait Topology {
     where
         Self: 'a;
 
+    /// Entity iterator
+    type ConnectedEntityIter<'a>: Iterator<Item = <Self::Grid as Grid>::Entity<'a>>
+    where
+        Self: 'a;
+
     /// Iterator over indices of connected entities
-    fn connected_entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
+    fn connected_entity_iter(&self, dim: usize) -> Self::ConnectedEntityIter<'_>;
 
     /// Iterator over sub-entities
     fn sub_entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
