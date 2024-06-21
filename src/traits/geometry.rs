@@ -4,6 +4,7 @@ use super::Grid;
 
 /// The geometry of a grid
 pub trait Geometry {
+    /// Grid type
     type Grid: Grid;
 
     /// Point iterator

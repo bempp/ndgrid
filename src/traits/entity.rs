@@ -5,12 +5,8 @@ use std::iter::Iterator;
 
 /// An entity
 pub trait Entity {
+    /// Grid type
     type Grid: Grid;
-
-    /// Point Iterator
-    type PointIterator<'a>: Iterator<Item = <Self::Grid as Grid>::Point<'a>>
-    where
-        Self: 'a;
 
     /// Iterator over sub-entities
     type EntityIter<'a>: Iterator<Item = Self>

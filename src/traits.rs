@@ -6,7 +6,7 @@ mod grid;
 mod point;
 mod topology;
 
-pub use entity::{Entity, EntityGeometry, EntityId, EntityTopology};
+pub use entity::{Entity, EntityId};
 pub use geometry::Geometry;
 pub use grid::Grid;
 pub use point::Point;
