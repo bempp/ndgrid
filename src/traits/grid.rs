@@ -66,5 +66,5 @@ pub trait Grid {
     fn entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
 
     /// An entity in this grid from an insertion id
-    fn entity_from_id(&self, dim: usize, local_index: usize) -> Option<Self::Entity<'_>>;
+    fn entity_from_id(&self, dim: usize, id: usize) -> Option<Self::Entity<'_>>;
 }
