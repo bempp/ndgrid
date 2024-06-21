@@ -1,34 +1,14 @@
 //! Traits for a mesh entity
 use super::Grid;
 use crate::types::Ownership;
-use std::iter::Iterator;
 
 /// An entity
 pub trait Entity {
     /// Grid type
     type Grid: Grid;
 
-    /// Iterator over sub-entities
-    type EntityIter<'a>: Iterator<Item = Self>
-    where
-        Self: 'a;
-
-    /// Iterator over connected entities
-    type ConnectedEntityIter<'a>: Iterator<Item = Self>
-    where
-        Self: 'a;
-
     /// The entity type (eg triangle, quadrilateral) of this entity
     fn entity_type(&self) -> <Self::Grid as Grid>::EntityDescriptor;
-
-    /// A sub-entity of this entity
-    fn sub_entity(&self, dim: usize, index: usize) -> Self;
-
-    /// Iterator over sub-entities
-    fn sub_entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
-
-    /// Returns connected entities that are either on the same process or are ghost entities
-    fn connected_entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
 
     /// The local index of this entity on the current process
     fn local_index(&self) -> usize;
@@ -37,10 +17,10 @@ pub trait Entity {
     fn global_index(&self) -> usize;
 
     /// The geometry of this entity
-    fn geometry(
-        &self,
-        eval_points: &[<Self::Grid as Grid>::T],
-    ) -> <Self::Grid as Grid>::Geometry<'_>;
+    fn geometry(&self) -> <Self::Grid as Grid>::Geometry<'_>;
+
+    /// The topology of this entity
+    fn topology(&self) -> <Self::Grid as Grid>::Topology<'_>;
 
     /// The ownership of this entity
     fn ownership(&self) -> Ownership;

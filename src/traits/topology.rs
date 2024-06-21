@@ -1,6 +1,6 @@
 use super::Grid;
 
-/// The topology of a grid
+/// The topology of an entity
 
 pub trait Topology {
     /// Grid type
@@ -12,5 +12,12 @@ pub trait Topology {
         Self: 'a;
 
     /// Iterator over indices of connected entities
-    fn connected_entities(&self, dim: usize) -> Self::EntityIter<'_>;
+    fn connected_entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
+
+    /// Iterator over sub-entities
+    fn sub_entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
+
+    /// A sub-entity of this entity
+    fn sub_entity(&self, dim: usize, index: usize) -> <Self::Grid as Grid>::Entity<'_>;
+
 }
