@@ -24,5 +24,4 @@ pub trait Topology {
 
     /// A sub-entity of this entity
     fn sub_entity(&self, dim: usize, index: usize) -> <Self::Grid as Grid>::Entity<'_>;
-
 }
