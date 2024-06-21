@@ -27,7 +27,7 @@ pub trait Entity {
     /// Iterator over sub-entities
     fn sub_entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
 
-    /// Returns connected entities that are either on the same process or are ghost entities.
+    /// Returns connected entities that are either on the same process or are ghost entities
     fn connected_entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
 
     /// The local index of this entity on the current process

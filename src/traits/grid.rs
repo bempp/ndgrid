@@ -8,10 +8,10 @@ use std::iter::Iterator;
 /// A grid
 pub trait Grid {
     /// World dimension
-    const WORLD_DIM: usize;
+    const GDIM: usize;
 
     /// Grid dimension
-    const GRID_DIM: usize;
+    const TDIM: usize;
 
     /// Scalar type
     type T: RlstScalar;
@@ -49,14 +49,14 @@ pub trait Grid {
     where
         Self: 'a;
 
-    /// World dimension
-    fn world_dim() -> usize {
-        Self::WORLD_DIM
+    /// Dimension of the geometry of this grid
+    fn geometry_dim() -> usize {
+        Self::GDIM
     }
 
-    /// Grid dimension
-    fn grid_dim() -> usize {
-        Self::GRID_DIM
+    /// Dimension of the topology of this grid
+    fn topology_dim() -> usize {
+        Self::TDIM
     }
 
     /// An entity in this grid

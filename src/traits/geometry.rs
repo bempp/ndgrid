@@ -1,8 +1,8 @@
-//! Grid geometry
+//! Entity geometry
 
 use super::Grid;
 
-/// The geometry of a grid
+/// The geometry of an entity
 pub trait Geometry {
     /// Grid type
     type Grid: Grid;

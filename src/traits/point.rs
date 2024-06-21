@@ -9,7 +9,7 @@ pub trait Point {
 
     /// Return the dimension of the point.
     fn dim(&self) -> usize {
-        <Self::Grid as Grid>::world_dim()
+        <Self::Grid as Grid>::geometry_dim()
     }
 
     /// Get the coordinates of the point.
