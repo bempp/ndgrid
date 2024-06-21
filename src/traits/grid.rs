@@ -1,6 +1,6 @@
 //! Traits for a mesh entity
 use super::{Entity, Geometry, Point, Topology};
-use rlst::RlstScalar;
+use crate::types::RealScalar;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter::Iterator;
@@ -14,7 +14,7 @@ pub trait Grid {
     const TDIM: usize;
 
     /// Scalar type
-    type T: RlstScalar;
+    type T: RealScalar;
 
     /// Point Type
     type Point<'a>: Point
