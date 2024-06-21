@@ -4,6 +4,6 @@ mod ownership;
 pub use ownership::Ownership;
 
 use num::Float;
-use rlst::{Linalg, RlstScalar};
+use rlst::{LinAlg, RlstScalar};
 
 pub trait RealScalar: Float + LinAlg + RlstScalar<Real = Self> {}
