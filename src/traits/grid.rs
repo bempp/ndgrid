@@ -17,22 +17,26 @@ pub trait Grid {
     type T: RealScalar;
 
     /// Point Type
-    type Point<'a>: Point
+    type Point<'a>: Point<T = Self::T>
     where
         Self: 'a;
 
     /// Type used as identifier of different entity types
-    type Entity<'a>: Entity
+    type Entity<'a>: Entity<
+        EntityDescriptor = Self::EntityDescriptor,
+        Topology<'a> = Self::Topology<'a>,
+        Geometry<'a> = Self::Geometry<'a>,
+    >
     where
         Self: 'a;
 
     /// Topology type
-    type Topology<'a>: Topology
+    type Topology<'a>: Topology<Entity<'a> = Self::Entity<'a>>
     where
         Self: 'a;
 
     /// Geometry type
-    type Geometry<'a>: Geometry
+    type Geometry<'a>: Geometry<Point<'a> = Self::Point<'a>>
     where
         Self: 'a;
 
