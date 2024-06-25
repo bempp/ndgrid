@@ -17,5 +17,3 @@ impl<IndexType: std::fmt::Debug + Eq + Copy> CellLocalIndexPair<IndexType> {
         Self { cell, local_index }
     }
 }
-
-
