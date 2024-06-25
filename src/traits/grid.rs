@@ -31,7 +31,7 @@ pub trait Grid {
         Self: 'a;
 
     /// Topology type
-    type Topology<'a>: Topology<Entity<'a> = Self::Entity<'a>>
+    type Topology<'a>: Topology
     where
         Self: 'a;
 

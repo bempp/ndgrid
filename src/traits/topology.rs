@@ -3,27 +3,22 @@ use crate::traits::Entity;
 
 /// The topology of an entity
 pub trait Topology {
-    /// Type used as identifier of different entity types
-    type Entity<'a>: Entity<Topology<'a> = Self>
+    /// Entity iterator
+    type EntityIndexIter<'a>: Iterator<Item = usize>
     where
         Self: 'a;
 
     /// Entity iterator
-    type EntityIter<'a>: Iterator<Item = Self::Entity<'a>>
-    where
-        Self: 'a;
-
-    /// Entity iterator
-    type ConnectedEntityIter<'a>: Iterator<Item = Self::Entity<'a>>
+    type ConnectedEntityIndexIter<'a>: Iterator<Item = usize>
     where
         Self: 'a;
 
     /// Iterator over indices of connected entities
-    fn connected_entity_iter(&self, dim: usize) -> Self::ConnectedEntityIter<'_>;
+    fn connected_entity_iter(&self, dim: usize) -> Self::ConnectedEntityIndexIter<'_>;
 
     /// Iterator over sub-entities
-    fn sub_entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
+    fn sub_entity_iter(&self, dim: usize) -> Self::EntityIndexIter<'_>;
 
-    /// A sub-entity of this entity
-    fn sub_entity(&self, dim: usize, index: usize) -> Self::Entity<'_>;
+    /// An index of a sub-entity of this entity
+    fn sub_entity(&self, dim: usize, index: usize) -> usize;
 }

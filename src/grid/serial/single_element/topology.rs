@@ -1,6 +1,7 @@
 //! Implementation of grid topology
 
-use crate::types::{CellLocalIndexPair, Ownership};
+use crate::traits::Topology;
+use crate::types::{CellLocalIndexPair, Ownership, IntegerArray2};
 use ndelement::reference_cell;
 use ndelement::types::ReferenceCellType;
 use std::collections::HashMap;
@@ -41,18 +42,76 @@ pub struct SingleElementTopology {
 
 unsafe impl Sync for SingleElementTopology {}
 
+fn orient_entity(entity_type: ReferenceCellType, vertices: &mut [usize]) {
+    match entity_type {
+        ReferenceCellType::Point => {},
+        ReferenceCellType::Interval => {
+            if vertices[0] > vertices[1] {
+                vertices.swap(0, 1);
+            }
+        },
+        _ => { unimplemented!(); }
+    }
+}
+
 impl SingleElementTopology {
     /// Create a topology
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        cells_input: &[usize],
+        cells: &[usize],
         cell_type: ReferenceCellType,
-        point_indices_to_ids: &[usize],
-        grid_cell_indices_to_ids: &[usize],
-        edge_ids: Option<HashMap<[usize; 2], usize>>,
+        point_ids: Option<&[usize]>,
+        cell_ids: Option<&[usize]>,
     ) -> Self {
+        // Cells where faces are mixture of triangles and quads not supported
+        if cell_type != ReferenceCellType::Point && cell_type != ReferenceCellType::Triangle && cell_type != ReferenceCellType::Quadrilateral && cell_type != ReferenceCellType::Tetrahedron && cell_type != ReferenceCellType::Hexahedron {
+            panic!("Unsupported cell type for SingleElementTopology: {cell_type:?}");
+        }
         let size = reference_cell::entity_counts(cell_type)[0];
-        let ncells = cells_input.len() / size;
+        let ncells = cells.len() / size;
+        let dim = reference_cell::dim(cell_type);
+        let ref_conn = reference_cell::connectivity(cell_type);
+        let etypes = reference_cell::entity_types(cell_type);
+
+        let mut nentities = vec![0; dim + 1];
+        nentities[0] = cells.iter().max().unwrap() + 1;
+        nentities[dim] = ncells;
+        let mut entities = vec![vec![]; dim - 1];
+        for cell_i in 0..ncells {
+            let cell = cells[cell_i * size..(cell_i+1)*size].to_vec();
+            for d in 1..dim {
+                println!("{d}");
+                for (c, et) in ref_conn[d].iter().zip(&etypes[d]) {
+                    let mut entity = c[0].iter().map(|i| cell[*i]).collect::<Vec<_>>();
+                    orient_entity(*et, &mut entity);
+                    println!("{:?} {:?}", et, entity);
+                    if !entities[d - 1].contains(&entity) {
+                        entities[d - 1].push(entity);
+                    }
+                }
+            }
+        }
+        for d in 1..dim {
+            nentities[d] = entities[d - 1].len();
+        }
+
+        let mut downward_connectivity = nentities.iter().enumerate().map(
+            |(i, j)| ref_conn[i][0].iter().take(i + 1).map(|r| IntegerArray2::new([r.len(), *j])).collect::<Vec<_>>()
+        ).collect::<Vec<_>>();
+
+        for d in 0..dim + 1 {
+            for (i, j) in downward_connectivity[d][d].col_iter_mut().enumerate() {
+                j[0] = i;
+            }
+        }
+
+        println!("{:?}", entities);
+        for d in 0..dim + 1 {
+            println!("{:?}", downward_connectivity[d]);
+        }
+        panic!();
+/*
+        
 
         let mut vertex_indices_to_ids = vec![];
         let mut vertex_ids_to_indices = HashMap::new();
@@ -61,7 +120,6 @@ impl SingleElementTopology {
 
         let mut index_map = vec![0; ncells];
         let mut vertices = vec![];
-        let dim = reference_cell::dim(cell_type);
 
         let entity_types = reference_cell::entity_types(cell_type)
             .iter()
@@ -194,6 +252,54 @@ impl SingleElementTopology {
             cell_ids_to_indices,
             cell_types: [cell_type],
         }
+        */
+    }
+}
+
+pub struct IndexIter {}
+impl std::iter::Iterator for IndexIter {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        None
+    }
+}
+
+use std::iter::Copied;
+
+struct SingleElementCellTopology<'a> {
+    topology: &'a SingleElementTopology,
+    entity_type: ReferenceCellType,
+    entity_index: usize,
+}
+
+impl<'t> Topology for SingleElementCellTopology<'t> {
+    type EntityIndexIter<'a> = Copied<std::slice::Iter<'a, usize>>
+    where
+        Self: 'a;
+
+    type ConnectedEntityIndexIter<'a> = IndexIter
+    where
+        Self: 'a;
+
+    fn connected_entity_iter(&self, dim: usize) -> IndexIter {
+        unimplemented!();
+    }
+
+    fn sub_entity_iter(&self, dim: usize) -> Copied<std::slice::Iter<'_, usize>> {
+        if dim == 0 {
+            self.topology.entity_vertices(reference_cell::dim(self.entity_type), self.entity_index).unwrap().iter().copied()
+        } else {
+            unimplemented!();
+        }
+    }
+
+    fn sub_entity(&self, dim: usize, index: usize) -> usize {
+        if dim == 0 {
+            self.topology.entity_vertices(reference_cell::dim(self.entity_type), self.entity_index).unwrap()[index]
+        } else {
+            unimplemented!();
+        }
     }
 }
 
@@ -318,8 +424,7 @@ mod test {
         SingleElementTopology::new(
             &[0, 1, 2, 2, 1, 3],
             ReferenceCellType::Triangle,
-            &[0, 1, 2, 3],
-            &[0, 1],
+            None,
             None,
         )
     }

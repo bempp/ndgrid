@@ -12,6 +12,7 @@ use rlst::{LinAlg, RlstScalar};
 pub trait RealScalar: Float + LinAlg + RlstScalar<Real = Self> {}
 
 /// A simple integer matrix type for storing indices
+#[derive(Debug)]
 pub struct IntegerArray2 {
     data: Vec<usize>,
     dim: [usize; 2],
@@ -86,7 +87,7 @@ impl<'a> std::iter::Iterator for ColIter<'a> {
         let nrows = self.arr.dim()[0];
         let index = self.index;
         self.index += 1;
-        if self.index < self.arr.dim[1] {
+        if index < self.arr.dim[1] {
             Some(&self.arr.data[index * nrows..(1 + index) * nrows])
         } else {
             None
@@ -107,7 +108,7 @@ impl<'a> std::iter::Iterator for ColIterMut<'a> {
         let nrows = self.arr.dim()[0];
         let index = self.index;
         self.index += 1;
-        if self.index < self.arr.dim[1] {
+        if index < self.arr.dim[1] {
             Some(unsafe {
                 std::mem::transmute(&mut self.arr.data[index * nrows..(1 + index) * nrows])
             })
