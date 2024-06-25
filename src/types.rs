@@ -2,6 +2,8 @@
 
 mod ownership;
 pub use ownership::Ownership;
+mod connectivity;
+pub use connectivity::CellLocalIndexPair;
 
 use num::Float;
 use rlst::{LinAlg, RlstScalar};
@@ -9,14 +11,14 @@ use rlst::{LinAlg, RlstScalar};
 /// A real scalar
 pub trait RealScalar: Float + LinAlg + RlstScalar<Real = Self> {}
 
-// A simple Integer Matrix type for storing indices.
-
+/// A simple integer matrix type for storing indices
 pub struct IntegerArray2 {
     data: Vec<usize>,
     dim: [usize; 2],
 }
 
 impl IntegerArray2 {
+    /// Create a new integer array
     pub fn new(dim: [usize; 2]) -> Self {
         let nelems = dim.iter().product();
         Self {
@@ -25,6 +27,7 @@ impl IntegerArray2 {
         }
     }
 
+    /// Create a new integer array from a slice
     pub fn new_from_slice(data: &[usize], dim: [usize; 2]) -> Self {
         let nelems = dim.iter().product();
         assert_eq!(data.len(), nelems);
@@ -34,10 +37,12 @@ impl IntegerArray2 {
         }
     }
 
+    /// The shape of the array
     pub fn dim(&self) -> [usize; 2] {
         self.dim
     }
 
+    /// Column iterator
     pub fn col_iter(&self) -> ColIter<'_> {
         ColIter {
             arr: self,
@@ -45,6 +50,7 @@ impl IntegerArray2 {
         }
     }
 
+    /// Mutable column iterator
     pub fn col_iter_mut(&mut self) -> ColIterMut<'_> {
         ColIterMut {
             arr: self,
@@ -67,6 +73,7 @@ impl std::ops::IndexMut<[usize; 2]> for IntegerArray2 {
     }
 }
 
+/// Column iterator
 pub struct ColIter<'a> {
     arr: &'a IntegerArray2,
     index: usize,
@@ -87,6 +94,7 @@ impl<'a> std::iter::Iterator for ColIter<'a> {
     }
 }
 
+/// Mutable column iterator
 pub struct ColIterMut<'a> {
     arr: &'a mut IntegerArray2,
     index: usize,

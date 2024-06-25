@@ -1,3 +1,3 @@
 //! Serial grids
 
-pub mod triangle;
+pub mod single_element;
