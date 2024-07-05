@@ -32,7 +32,7 @@ log = "0.4"
 ndelement = { git="https://github.com/bempp/ndelement.git" }
 rayon = "1.9"
 rand = "0.8.5"
-rlst = { git="https://github.com/linalg-rs/rlst.git", branch="bempp_adaptions"}
+rlst = { git="https://github.com/linalg-rs/rlst.git" }
 thiserror="1.*"
 
 

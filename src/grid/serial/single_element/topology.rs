@@ -1,10 +1,11 @@
-//! Implementation of grid topology
+    //! Implementation of grid topology
 
 use crate::traits::Topology;
-use crate::types::{CellLocalIndexPair, Ownership, IntegerArray2};
+use crate::types::{CellLocalIndexPair, Ownership, Array2D};
 use ndelement::reference_cell;
 use ndelement::types::ReferenceCellType;
 use std::collections::HashMap;
+use rlst::{rlst_dynamic_array2, RawAccess, Shape};
 
 fn all_equal<T: Eq>(a: &[T], b: &[T]) -> bool {
     if a.len() != b.len() {
@@ -26,18 +27,20 @@ fn all_in<T: Eq>(a: &[T], b: &[T]) -> bool {
 /// Topology of a single element grid
 pub struct SingleElementTopology {
     dim: usize,
-    index_map: Vec<usize>,
-    entities_to_vertices: Vec<Vec<Vec<usize>>>,
-    cells_to_entities: Vec<Vec<Vec<usize>>>,
-    entities_to_cells: Vec<Vec<Vec<CellLocalIndexPair<usize>>>>,
-    entity_types: Vec<ReferenceCellType>,
-    vertex_indices_to_ids: Vec<usize>,
-    vertex_ids_to_indices: HashMap<usize, usize>,
-    edge_indices_to_ids: Vec<usize>,
-    edge_ids_to_indices: HashMap<usize, usize>,
-    cell_indices_to_ids: Vec<usize>,
-    cell_ids_to_indices: HashMap<usize, usize>,
-    cell_types: [ReferenceCellType; 1],
+//    index_map: Vec<usize>,
+    //entity_types: Vec<ReferenceCellType>,
+    pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,
+    //upward_connectivity: Vec<Vec<IntegerArray2>>,
+//    entities_to_vertices: Vec<Vec<Vec<usize>>>,
+//    cells_to_entities: Vec<Vec<Vec<usize>>>,
+//    entities_to_cells: Vec<Vec<Vec<CellLocalIndexPair<usize>>>>,
+//    vertex_indices_to_ids: Vec<usize>,
+//    vertex_ids_to_indices: HashMap<usize, usize>,
+//    edge_indices_to_ids: Vec<usize>,
+//    edge_ids_to_indices: HashMap<usize, usize>,
+//    cell_indices_to_ids: Vec<usize>,
+//    cell_ids_to_indices: HashMap<usize, usize>,
+//    cell_types: [ReferenceCellType; 1],
 }
 
 unsafe impl Sync for SingleElementTopology {}
@@ -80,11 +83,9 @@ impl SingleElementTopology {
         for cell_i in 0..ncells {
             let cell = cells[cell_i * size..(cell_i+1)*size].to_vec();
             for d in 1..dim {
-                println!("{d}");
                 for (c, et) in ref_conn[d].iter().zip(&etypes[d]) {
                     let mut entity = c[0].iter().map(|i| cell[*i]).collect::<Vec<_>>();
                     orient_entity(*et, &mut entity);
-                    println!("{:?} {:?}", et, entity);
                     if !entities[d - 1].contains(&entity) {
                         entities[d - 1].push(entity);
                     }
@@ -96,20 +97,30 @@ impl SingleElementTopology {
         }
 
         let mut downward_connectivity = nentities.iter().enumerate().map(
-            |(i, j)| ref_conn[i][0].iter().take(i + 1).map(|r| IntegerArray2::new([r.len(), *j])).collect::<Vec<_>>()
+            |(i, j)| ref_conn[i][0].iter().take(i + 1).map(|r| rlst_dynamic_array2!(usize, [r.len(), *j])).collect::<Vec<_>>()
         ).collect::<Vec<_>>();
 
         for d in 0..dim + 1 {
-            for (i, j) in downward_connectivity[d][d].col_iter_mut().enumerate() {
-                j[0] = i;
+            for (i, mut j) in downward_connectivity[d][d].col_iter_mut().enumerate() {
+                j[[0]] = i;
             }
         }
 
         println!("{:?}", entities);
+        println!("<<");
         for d in 0..dim + 1 {
-            println!("{:?}", downward_connectivity[d]);
+            for i in &downward_connectivity[d] {
+                println!("{:?}", i.data());
+            }
+            println!();
         }
-        panic!();
+        println!(">>");
+
+        Self {
+            dim,
+            downward_connectivity,
+        }
+//        panic!();
 /*
         
 
@@ -271,8 +282,18 @@ struct SingleElementCellTopology<'a> {
     topology: &'a SingleElementTopology,
     entity_type: ReferenceCellType,
     entity_index: usize,
+    dim: usize,
 }
 
+impl<'t> SingleElementCellTopology<'t> {
+    pub fn new(topology: &'t SingleElementTopology,
+    entity_type: ReferenceCellType,
+    entity_index: usize) -> Self {
+        Self {
+            topology, entity_type, entity_index, dim: reference_cell::dim(entity_type)
+        }
+    }
+}
 impl<'t> Topology for SingleElementCellTopology<'t> {
     type EntityIndexIter<'a> = Copied<std::slice::Iter<'a, usize>>
     where
@@ -287,131 +308,12 @@ impl<'t> Topology for SingleElementCellTopology<'t> {
     }
 
     fn sub_entity_iter(&self, dim: usize) -> Copied<std::slice::Iter<'_, usize>> {
-        if dim == 0 {
-            self.topology.entity_vertices(reference_cell::dim(self.entity_type), self.entity_index).unwrap().iter().copied()
-        } else {
-            unimplemented!();
-        }
+        let rows = self.topology.downward_connectivity[self.dim][dim].shape()[0];
+        self.topology.downward_connectivity[self.dim][dim].data()[rows * self.entity_index..rows * (self.entity_index + 1)].iter().copied()
     }
 
     fn sub_entity(&self, dim: usize, index: usize) -> usize {
-        if dim == 0 {
-            self.topology.entity_vertices(reference_cell::dim(self.entity_type), self.entity_index).unwrap()[index]
-        } else {
-            unimplemented!();
-        }
-    }
-}
-
-impl SingleElementTopology {
-    fn dim(&self) -> usize {
-        self.dim
-    }
-    fn index_map(&self) -> &[usize] {
-        &self.index_map
-    }
-    fn entity_count(&self, etype: ReferenceCellType) -> usize {
-        if self.entity_types.contains(&etype) {
-            self.entities_to_cells[reference_cell::dim(etype)].len()
-        } else {
-            0
-        }
-    }
-    fn entity_count_by_dim(&self, dim: usize) -> usize {
-        self.entity_count(self.entity_types[dim])
-    }
-    fn cell(&self, index: usize) -> Option<&[usize]> {
-        if index < self.cells_to_entities[self.dim].len() {
-            Some(&self.cells_to_entities[self.dim][index])
-        } else {
-            None
-        }
-    }
-    fn cell_type(&self, index: usize) -> Option<ReferenceCellType> {
-        if index < self.cells_to_entities[self.dim].len() {
-            Some(self.entity_types[self.dim])
-        } else {
-            None
-        }
-    }
-
-    fn entity_types(&self, dim: usize) -> &[ReferenceCellType] {
-        &self.entity_types[dim..dim + 1]
-    }
-
-    fn cell_ownership(&self, _index: usize) -> Ownership {
-        Ownership::Owned
-    }
-    fn vertex_ownership(&self, _index: usize) -> Ownership {
-        Ownership::Owned
-    }
-    fn edge_ownership(&self, _index: usize) -> Ownership {
-        Ownership::Owned
-    }
-
-    fn cell_to_entities(&self, index: usize, dim: usize) -> Option<&[usize]> {
-        if dim <= self.dim && index < self.cells_to_entities[dim].len() {
-            Some(&self.cells_to_entities[dim][index])
-        } else {
-            None
-        }
-    }
-    fn entity_to_cells(&self, dim: usize, index: usize) -> Option<&[CellLocalIndexPair<usize>]> {
-        if dim <= self.dim && index < self.entities_to_cells[dim].len() {
-            Some(&self.entities_to_cells[dim][index])
-        } else {
-            None
-        }
-    }
-
-    fn entity_to_flat_cells(
-        &self,
-        dim: usize,
-        index: usize,
-    ) -> Option<&[CellLocalIndexPair<usize>]> {
-        self.entity_to_cells(dim, index)
-    }
-
-    fn entity_vertices(&self, dim: usize, index: usize) -> Option<&[usize]> {
-        if dim == self.dim {
-            self.cell_to_entities(index, 0)
-        } else if dim < self.dim && index < self.entities_to_vertices[dim].len() {
-            Some(&self.entities_to_vertices[dim][index])
-        } else {
-            None
-        }
-    }
-
-    fn vertex_index_to_id(&self, index: usize) -> usize {
-        self.vertex_indices_to_ids[index]
-    }
-    fn cell_index_to_id(&self, index: usize) -> usize {
-        self.cell_indices_to_ids[index]
-    }
-    fn vertex_id_to_index(&self, id: usize) -> usize {
-        if self.vertex_ids_to_indices.contains_key(&id) {
-            self.vertex_ids_to_indices[&id]
-        } else {
-            panic!("Vertex with id {} not found", id);
-        }
-    }
-    fn edge_id_to_index(&self, id: usize) -> usize {
-        self.edge_ids_to_indices[&id]
-    }
-    fn edge_index_to_id(&self, index: usize) -> usize {
-        self.edge_indices_to_ids[index]
-    }
-    fn cell_id_to_index(&self, id: usize) -> usize {
-        self.cell_ids_to_indices[&id]
-    }
-    fn face_index_to_flat_index(&self, index: usize) -> usize {
-        index
-    }
-    fn face_flat_index_to_index(&self, index: usize) -> usize {
-        index
-    }
-    fn cell_types(&self) -> &[ReferenceCellType] {
-        &self.cell_types
+        self.topology.downward_connectivity[self.dim][dim][[index, self.entity_index]]
     }
 }
 
@@ -430,14 +332,90 @@ mod test {
     }
 
     #[test]
-    fn test_counts() {
+    fn test_sub_entities() {
         //! Test entity counts
         let t = example_topology();
-        assert_eq!(t.dim(), 2);
-        assert_eq!(t.entity_count(ReferenceCellType::Point), 4);
-        assert_eq!(t.entity_count(ReferenceCellType::Interval), 5);
-        assert_eq!(t.entity_count(ReferenceCellType::Triangle), 2);
+        let cell0 = SingleElementCellTopology::new(&t, ReferenceCellType::Triangle, 0);
+        //assert_eq!(cell0.sub_entity(0, 0), 0);
+        //assert_eq!(cell0.sub_entity(0, 1), 1);
+        //assert_eq!(cell0.sub_entity(0, 2), 2);
+        //assert_eq!(cell0.sub_entity(1, 0), 0);
+        //assert_eq!(cell0.sub_entity(1, 1), 1);
+        //assert_eq!(cell0.sub_entity(1, 2), 2);
+        assert_eq!(cell0.sub_entity(2, 0), 0);
+        let cell1 = SingleElementCellTopology::new(&t, ReferenceCellType::Triangle, 1);
+        //assert_eq!(cell1.sub_entity(0, 0), 2);
+        //assert_eq!(cell1.sub_entity(0, 1), 1);
+        //assert_eq!(cell1.sub_entity(0, 2), 3);
+        //assert_eq!(cell1.sub_entity(1, 0), 3);
+        //assert_eq!(cell1.sub_entity(1, 1), 4);
+        //assert_eq!(cell1.sub_entity(1, 2), 0);
+        assert_eq!(cell1.sub_entity(2, 0), 1);
+
+        let edge0 = SingleElementCellTopology::new(&t, ReferenceCellType::Interval, 0);
+        //assert_eq!(edge0.sub_entity(0, 0), 1);
+        //assert_eq!(edge0.sub_entity(0, 1), 2);
+        assert_eq!(edge0.sub_entity(1, 0), 0);
+        let edge1 = SingleElementCellTopology::new(&t, ReferenceCellType::Interval, 1);
+        //assert_eq!(edge1.sub_entity(0, 0), 0);
+        //assert_eq!(edge1.sub_entity(0, 1), 2);
+        assert_eq!(edge1.sub_entity(1, 0), 1);
+        let edge2 = SingleElementCellTopology::new(&t, ReferenceCellType::Interval, 2);
+        //assert_eq!(edge2.sub_entity(0, 0), 0);
+        //assert_eq!(edge2.sub_entity(0, 1), 1);
+        assert_eq!(edge2.sub_entity(1, 0), 2);
+        let edge3 = SingleElementCellTopology::new(&t, ReferenceCellType::Interval, 3);
+        //assert_eq!(edge3.sub_entity(0, 0), 1);
+        //assert_eq!(edge3.sub_entity(0, 1), 3);
+        assert_eq!(edge3.sub_entity(1, 0), 3);
+        let edge4 = SingleElementCellTopology::new(&t, ReferenceCellType::Interval, 4);
+        //assert_eq!(edge4.sub_entity(0, 0), 2);
+        //assert_eq!(edge4.sub_entity(0, 1), 3);
+        assert_eq!(edge4.sub_entity(1, 0), 4);
+
+        let vertex0 = SingleElementCellTopology::new(&t, ReferenceCellType::Point, 0);
+        assert_eq!(vertex0.sub_entity(0, 0), 0);
+        let vertex1 = SingleElementCellTopology::new(&t, ReferenceCellType::Point, 1);
+        assert_eq!(vertex1.sub_entity(0, 0), 1);
+        let vertex2 = SingleElementCellTopology::new(&t, ReferenceCellType::Point, 2);
+        assert_eq!(vertex2.sub_entity(0, 0), 2);
+        let vertex3 = SingleElementCellTopology::new(&t, ReferenceCellType::Point, 3);
+        assert_eq!(vertex3.sub_entity(0, 0), 3);
+
     }
+
+    #[test]
+    fn test_sub_entity_iter() {
+        //! Test entity counts
+        let t = example_topology();
+        for index in 0..2 {
+            let cell = SingleElementCellTopology::new(&t, ReferenceCellType::Triangle, index);
+            for dim in 0..3 {
+                for (i, j) in cell.sub_entity_iter(dim).enumerate() {
+                    assert_eq!(j, cell.sub_entity(dim, i));
+                }
+            }
+        }
+        for index in 0..5 {
+            let edge = SingleElementCellTopology::new(&t, ReferenceCellType::Interval, index);
+            for dim in 0..2 {
+                for (i, j) in edge.sub_entity_iter(dim).enumerate() {
+                    assert_eq!(j, edge.sub_entity(dim, i));
+                }
+            }
+        }
+        for index in 0..4 {
+            let vertex = SingleElementCellTopology::new(&t, ReferenceCellType::Point, index);
+            for dim in 0..1 {
+                for (i, j) in vertex.sub_entity_iter(dim).enumerate() {
+                    assert_eq!(j, vertex.sub_entity(dim, i));
+                }
+            }
+        }
+    }
+
+
+/*
 
     #[test]
     fn test_cell_entities_vertices() {
@@ -529,4 +507,5 @@ mod test {
             }
         }
     }
+    */
 }

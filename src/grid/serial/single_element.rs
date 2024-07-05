@@ -5,11 +5,11 @@
 use rlst::prelude::*;
 mod topology;
 
-use crate::types::{IntegerArray2, RealScalar};
+use crate::types::{RealScalar, Array2D};
 use topology::SingleElementTopology;
 
 pub struct SingleElementGrid<T: RealScalar> {
     points: DynamicArray<T, 2>,
-    cells: IntegerArray2,
+    cells: Array2D<usize>,
     topology: SingleElementTopology,
 }
