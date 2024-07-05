@@ -6,7 +6,7 @@ mod connectivity;
 pub use connectivity::CellLocalIndexPair;
 
 use num::Float;
-use rlst::{LinAlg, RlstScalar, RlstBase, Array, BaseArray, VectorContainer};
+use rlst::{Array, BaseArray, LinAlg, RlstBase, RlstScalar, VectorContainer};
 
 /// A real scalar
 pub trait RealScalar: Float + LinAlg + RlstScalar<Real = Self> {}

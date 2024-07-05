@@ -5,7 +5,7 @@
 use rlst::prelude::*;
 mod topology;
 
-use crate::types::{RealScalar, Array2D};
+use crate::types::{Array2D, RealScalar};
 use topology::SingleElementTopology;
 
 pub struct SingleElementGrid<T: RealScalar> {
