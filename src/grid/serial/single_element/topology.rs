@@ -5,7 +5,7 @@ use crate::types::{CellLocalIndexPair, Ownership, Array2D};
 use ndelement::reference_cell;
 use ndelement::types::ReferenceCellType;
 use std::collections::HashMap;
-use rlst::{rlst_dynamic_array2, RawAccess, Shape};
+use rlst::{rlst_dynamic_array2, RawAccess, Shape, DefaultIteratorMut};
 
 fn all_equal<T: Eq>(a: &[T], b: &[T]) -> bool {
     if a.len() != b.len() {
@@ -105,6 +105,20 @@ impl SingleElementTopology {
                 j[[0]] = i;
             }
         }
+
+        for (i, mut j) in downward_connectivity[dim][0].col_iter_mut().enumerate() {
+            for (mut k, l) in j.iter_mut().zip(&cells[i * size..(i + 1) * size]) {
+                *k = *l;
+            }
+        }
+        for (es, mut dc) in entities.iter().zip(downward_connectivity.iter_mut().skip(1)) {
+            for (e, mut c) in es.iter().zip(dc[0].col_iter_mut()) {
+                for (i, mut j) in e.iter().zip(c.iter_mut()) {
+                    *j = *i;
+                }
+            }
+        }
+
 
         println!("{:?}", entities);
         println!("<<");
@@ -336,41 +350,41 @@ mod test {
         //! Test entity counts
         let t = example_topology();
         let cell0 = SingleElementCellTopology::new(&t, ReferenceCellType::Triangle, 0);
-        //assert_eq!(cell0.sub_entity(0, 0), 0);
-        //assert_eq!(cell0.sub_entity(0, 1), 1);
-        //assert_eq!(cell0.sub_entity(0, 2), 2);
+        assert_eq!(cell0.sub_entity(0, 0), 0);
+        assert_eq!(cell0.sub_entity(0, 1), 1);
+        assert_eq!(cell0.sub_entity(0, 2), 2);
         //assert_eq!(cell0.sub_entity(1, 0), 0);
         //assert_eq!(cell0.sub_entity(1, 1), 1);
         //assert_eq!(cell0.sub_entity(1, 2), 2);
         assert_eq!(cell0.sub_entity(2, 0), 0);
         let cell1 = SingleElementCellTopology::new(&t, ReferenceCellType::Triangle, 1);
-        //assert_eq!(cell1.sub_entity(0, 0), 2);
-        //assert_eq!(cell1.sub_entity(0, 1), 1);
-        //assert_eq!(cell1.sub_entity(0, 2), 3);
+        assert_eq!(cell1.sub_entity(0, 0), 2);
+        assert_eq!(cell1.sub_entity(0, 1), 1);
+        assert_eq!(cell1.sub_entity(0, 2), 3);
         //assert_eq!(cell1.sub_entity(1, 0), 3);
         //assert_eq!(cell1.sub_entity(1, 1), 4);
         //assert_eq!(cell1.sub_entity(1, 2), 0);
         assert_eq!(cell1.sub_entity(2, 0), 1);
 
         let edge0 = SingleElementCellTopology::new(&t, ReferenceCellType::Interval, 0);
-        //assert_eq!(edge0.sub_entity(0, 0), 1);
-        //assert_eq!(edge0.sub_entity(0, 1), 2);
+        assert_eq!(edge0.sub_entity(0, 0), 1);
+        assert_eq!(edge0.sub_entity(0, 1), 2);
         assert_eq!(edge0.sub_entity(1, 0), 0);
         let edge1 = SingleElementCellTopology::new(&t, ReferenceCellType::Interval, 1);
-        //assert_eq!(edge1.sub_entity(0, 0), 0);
-        //assert_eq!(edge1.sub_entity(0, 1), 2);
+        assert_eq!(edge1.sub_entity(0, 0), 0);
+        assert_eq!(edge1.sub_entity(0, 1), 2);
         assert_eq!(edge1.sub_entity(1, 0), 1);
         let edge2 = SingleElementCellTopology::new(&t, ReferenceCellType::Interval, 2);
-        //assert_eq!(edge2.sub_entity(0, 0), 0);
-        //assert_eq!(edge2.sub_entity(0, 1), 1);
+        assert_eq!(edge2.sub_entity(0, 0), 0);
+        assert_eq!(edge2.sub_entity(0, 1), 1);
         assert_eq!(edge2.sub_entity(1, 0), 2);
         let edge3 = SingleElementCellTopology::new(&t, ReferenceCellType::Interval, 3);
-        //assert_eq!(edge3.sub_entity(0, 0), 1);
-        //assert_eq!(edge3.sub_entity(0, 1), 3);
+        assert_eq!(edge3.sub_entity(0, 0), 1);
+        assert_eq!(edge3.sub_entity(0, 1), 3);
         assert_eq!(edge3.sub_entity(1, 0), 3);
         let edge4 = SingleElementCellTopology::new(&t, ReferenceCellType::Interval, 4);
-        //assert_eq!(edge4.sub_entity(0, 0), 2);
-        //assert_eq!(edge4.sub_entity(0, 1), 3);
+        assert_eq!(edge4.sub_entity(0, 0), 2);
+        assert_eq!(edge4.sub_entity(0, 1), 3);
         assert_eq!(edge4.sub_entity(1, 0), 4);
 
         let vertex0 = SingleElementCellTopology::new(&t, ReferenceCellType::Point, 0);
