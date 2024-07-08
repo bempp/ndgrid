@@ -121,8 +121,8 @@ impl SingleElementTopology {
             .collect::<Vec<_>>();
 
         // downward_connectivity[d][d][i] = [i] (ie each entity is a sub-entity of itself)
-        for d in 0..dim + 1 {
-            for (i, mut j) in downward_connectivity[d][d].col_iter_mut().enumerate() {
+        for (d, dc) in downward_connectivity.iter_mut().enumerate() {
+            for (i, mut j) in dc[d].col_iter_mut().enumerate() {
                 j[[0]] = i;
             }
         }
