@@ -183,6 +183,10 @@ impl SingleElementTopology {
             downward_connectivity,
         }
     }
+    /// Topological dimension
+    pub fn dim(&self) -> usize {
+        self.dim
+    }
 }
 
 pub struct IndexIter {}

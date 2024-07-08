@@ -10,7 +10,7 @@ pub use topology::{SingleElementCellTopology, SingleElementTopology};
 
 /// Single element grid
 pub struct SingleElementGrid<T: RealScalar> {
-    points: DynamicArray<T, 2>,
-    cells: Array2D<usize>,
-    topology: SingleElementTopology,
+    _points: DynamicArray<T, 2>,
+    _cells: Array2D<usize>,
+    _topology: SingleElementTopology,
 }
