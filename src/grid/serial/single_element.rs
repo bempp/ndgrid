@@ -6,8 +6,9 @@ use rlst::prelude::*;
 mod topology;
 
 use crate::types::{Array2D, RealScalar};
-use topology::SingleElementTopology;
+pub use topology::{SingleElementTopology, SingleElementCellTopology};
 
+/// Single element grid
 pub struct SingleElementGrid<T: RealScalar> {
     points: DynamicArray<T, 2>,
     cells: Array2D<usize>,

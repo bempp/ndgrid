@@ -1,5 +1,4 @@
 //! The topology of an entity
-use crate::traits::Entity;
 
 /// The topology of an entity
 pub trait Topology {

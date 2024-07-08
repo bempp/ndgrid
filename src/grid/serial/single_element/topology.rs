@@ -2,29 +2,12 @@
 //! Implementation of grid topology
 
 use crate::traits::Topology;
-use crate::types::{Array2D, CellLocalIndexPair, Ownership};
+use crate::types::Array2D;
 use itertools::izip;
 use ndelement::reference_cell;
 use ndelement::types::ReferenceCellType;
 use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
-use std::collections::HashMap;
-
-fn all_equal<T: Eq>(a: &[T], b: &[T]) -> bool {
-    if a.len() != b.len() {
-        false
-    } else {
-        all_in(a, b)
-    }
-}
-
-fn all_in<T: Eq>(a: &[T], b: &[T]) -> bool {
-    for i in a {
-        if !b.contains(i) {
-            return false;
-        }
-    }
-    true
-}
+// use std::collections::HashMap;
 
 /// Topology of a single element grid
 pub struct SingleElementTopology {
@@ -78,8 +61,8 @@ impl SingleElementTopology {
     pub fn new(
         cells: &[usize],
         cell_type: ReferenceCellType,
-        point_ids: Option<&[usize]>,
-        cell_ids: Option<&[usize]>,
+        _point_ids: Option<&[usize]>,
+        _cell_ids: Option<&[usize]>,
     ) -> Self {
         // Cells where faces are mixture of triangles and quads not supported
         if cell_type != ReferenceCellType::Point
@@ -139,16 +122,16 @@ impl SingleElementTopology {
         }
 
         for (i, mut j) in downward_connectivity[dim][0].col_iter_mut().enumerate() {
-            for (mut k, l) in j.iter_mut().zip(&cells[i * size..(i + 1) * size]) {
+            for (k, l) in j.iter_mut().zip(&cells[i * size..(i + 1) * size]) {
                 *k = *l;
             }
         }
-        for (es, mut dc) in entities
+        for (es, dc) in entities
             .iter()
             .zip(downward_connectivity.iter_mut().skip(1))
         {
             for (e, mut c) in es.iter().zip(dc[0].col_iter_mut()) {
-                for (i, mut j) in e.iter().zip(c.iter_mut()) {
+                for (i, j) in e.iter().zip(c.iter_mut()) {
                     *j = *i;
                 }
             }
@@ -214,14 +197,16 @@ impl std::iter::Iterator for IndexIter {
 
 use std::iter::Copied;
 
-struct SingleElementCellTopology<'a> {
+/// Topology of a cell
+pub struct SingleElementCellTopology<'a> {
     topology: &'a SingleElementTopology,
-    entity_type: ReferenceCellType,
+    //entity_type: ReferenceCellType,
     entity_index: usize,
     dim: usize,
 }
 
 impl<'t> SingleElementCellTopology<'t> {
+    /// Create new
     pub fn new(
         topology: &'t SingleElementTopology,
         entity_type: ReferenceCellType,
@@ -229,7 +214,7 @@ impl<'t> SingleElementCellTopology<'t> {
     ) -> Self {
         Self {
             topology,
-            entity_type,
+            //entity_type,
             entity_index,
             dim: reference_cell::dim(entity_type),
         }
@@ -244,7 +229,7 @@ impl<'t> Topology for SingleElementCellTopology<'t> {
     where
         Self: 'a;
 
-    fn connected_entity_iter(&self, dim: usize) -> IndexIter {
+    fn connected_entity_iter(&self, _dim: usize) -> IndexIter {
         unimplemented!();
     }
 
