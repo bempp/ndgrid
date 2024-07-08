@@ -13,7 +13,7 @@ pub struct SingleElementTopology {
     dim: usize,
     //    index_map: Vec<usize>,
     //entity_types: Vec<ReferenceCellType>,
-    pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,
+    downward_connectivity: Vec<Vec<Array2D<usize>>>,
     //upward_connectivity: Vec<Vec<IntegerArray2>>,
     //    entities_to_vertices: Vec<Vec<Vec<usize>>>,
     //    cells_to_entities: Vec<Vec<Vec<usize>>>,
@@ -78,17 +78,17 @@ impl SingleElementTopology {
         let ref_conn = reference_cell::connectivity(cell_type);
         let etypes = reference_cell::entity_types(cell_type);
 
-        let mut nentities = vec![0; dim + 1];
-        nentities[0] = cells.iter().max().unwrap() + 1;
-        nentities[dim] = ncells;
+        // List of entities by dimension
         let mut entities = vec![vec![]; dim - 1];
         for cell_index in 0..ncells {
             let cell = &cells[cell_index * size..(cell_index + 1) * size];
+            // Iterate over topological dimension
             for (e_i, rc_i, et_i) in izip!(
                 entities.iter_mut(),
                 ref_conn.iter().take(dim).skip(1),
                 etypes.iter().take(dim).skip(1)
             ) {
+                // For each entity of the given dimension
                 for (c_ij, et_ij) in izip!(rc_i, et_i) {
                     let mut entity = c_ij[0].iter().map(|i| cell[*i]).collect::<Vec<_>>();
                     orient_entity(*et_ij, &mut entity);
@@ -98,10 +98,16 @@ impl SingleElementTopology {
                 }
             }
         }
+        // Number of entities by dimension
+        let mut nentities = vec![0; dim + 1];
+        nentities[0] = cells.iter().max().unwrap() + 1;
+        nentities[dim] = ncells;
         for d in 1..dim {
             nentities[d] = entities[d - 1].len();
         }
 
+        // Downward connectivity: The entities of dimension dim1 that are subentities of entities of dimension dim0 (with dim0>dim1) (eg edges of a triangle, vertices of a tetrahedron, etc)
+        // indices: downward_connectivity[dim0][dim1][[dim1_entity_index, dim0_entity_index]]
         let mut downward_connectivity = nentities
             .iter()
             .enumerate()
@@ -114,20 +120,23 @@ impl SingleElementTopology {
             })
             .collect::<Vec<_>>();
 
+        // downward_connectivity[d][d][i] = [i] (ie each entity is a sub-entity of itself)
         for d in 0..dim + 1 {
             for (i, mut j) in downward_connectivity[d][d].col_iter_mut().enumerate() {
                 j[[0]] = i;
             }
         }
 
+        // downward_connectivity[dim][0] = vertices of each cell
         for (i, mut j) in downward_connectivity[dim][0].col_iter_mut().enumerate() {
             for (k, l) in j.iter_mut().zip(&cells[i * size..(i + 1) * size]) {
                 *k = *l;
             }
         }
+        // downward_connectivity[i][0] = vertices of entity
         for (es, dc) in entities
             .iter()
-            .zip(downward_connectivity.iter_mut().skip(1))
+            .zip(downward_connectivity.iter_mut().take(dim).skip(1))
         {
             for (e, mut c) in es.iter().zip(dc[0].col_iter_mut()) {
                 for (i, j) in e.iter().zip(c.iter_mut()) {
@@ -142,6 +151,7 @@ impl SingleElementTopology {
             .map(|i| vec![0; i.len()])
             .collect::<Vec<_>>();
         for cell_index in 0..ncells {
+            // Collect indices of each subentity of the cell
             cell_entities[dim - 1][0] = cell_index;
             let cell = &cells[cell_index * size..(cell_index + 1) * size];
             for (e_i, ce_i, rc_i, et_i) in izip!(
@@ -156,7 +166,8 @@ impl SingleElementTopology {
                     *ce_ij = e_i.iter().position(|r| *r == entity).unwrap();
                 }
             }
-
+            // Copy these indices into connectivity for each dim
+            // Loop over dim0
             for (i, (dc_i, rc_i, ce_i)) in izip!(
                 downward_connectivity.iter_mut().skip(2),
                 ref_conn.iter().skip(2),
@@ -164,12 +175,15 @@ impl SingleElementTopology {
             )
             .enumerate()
             {
+                // Loop over entities of dimension dim0
                 for (ce_ij, rc_ij) in izip!(ce_i, rc_i) {
+                    // Loop over dim1
                     for (dc_ik, rc_ijk, ce_k) in izip!(
                         dc_i.iter_mut().take(i + 2).skip(1),
                         rc_ij.iter().take(i + 2).skip(1),
                         &cell_entities
                     ) {
+                        // Loop over entities of dimension dim1
                         for (l, rc_ijkl) in rc_ijk.iter().enumerate() {
                             dc_ik[[l, *ce_ij]] = ce_k[*rc_ijkl];
                         }
