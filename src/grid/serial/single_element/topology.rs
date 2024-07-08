@@ -1,4 +1,3 @@
-
 //! Implementation of grid topology
 
 use crate::traits::Topology;
