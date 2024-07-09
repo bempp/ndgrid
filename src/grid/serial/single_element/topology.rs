@@ -6,25 +6,17 @@ use itertools::izip;
 use ndelement::reference_cell;
 use ndelement::types::ReferenceCellType;
 use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
+use std::iter::Copied;
 
 /// Topology of a single element grid
 pub struct SingleElementTopology {
     dim: usize,
+    // TODO: do we need an index map? Will we ever reorder the cells?
     //    index_map: Vec<usize>,
     entity_types: Vec<ReferenceCellType>,
     entity_counts: Vec<usize>,
-    pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,
-    pub(crate) upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
-    //    entities_to_vertices: Vec<Vec<Vec<usize>>>,
-    //    cells_to_entities: Vec<Vec<Vec<usize>>>,
-    //    entities_to_cells: Vec<Vec<Vec<CellLocalIndexPair<usize>>>>,
-    //    vertex_indices_to_ids: Vec<usize>,
-    //    vertex_ids_to_indices: HashMap<usize, usize>,
-    //    edge_indices_to_ids: Vec<usize>,
-    //    edge_ids_to_indices: HashMap<usize, usize>,
-    //    cell_indices_to_ids: Vec<usize>,
-    //    cell_ids_to_indices: HashMap<usize, usize>,
-    //    cell_types: [ReferenceCellType; 1],
+    downward_connectivity: Vec<Vec<Array2D<usize>>>,
+    upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
 }
 
 unsafe impl Sync for SingleElementTopology {}
@@ -57,12 +49,7 @@ fn orient_entity(entity_type: ReferenceCellType, vertices: &mut [usize]) {
 impl SingleElementTopology {
     /// Create a topology
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        cells: &[usize],
-        cell_type: ReferenceCellType,
-        _point_ids: Option<&[usize]>,
-        _cell_ids: Option<&[usize]>,
-    ) -> Self {
+    pub fn new(cells: &[usize], cell_type: ReferenceCellType) -> Self {
         let size = reference_cell::entity_counts(cell_type)[0];
         let ncells = cells.len() / size;
         let dim = reference_cell::dim(cell_type);
@@ -112,7 +99,9 @@ impl SingleElementTopology {
             entity_counts[d] = entities[d - 1].len();
         }
 
-        // Downward connectivity: The entities of dimension dim1 that are subentities of entities of dimension dim0 (with dim0>=dim1) (eg edges of a triangle, vertices of a tetrahedron, etc)
+        // Downward connectivity: The entities of dimension dim1 that are subentities of
+        // entities  of dimension dim0 (with dim0>=dim1) (eg edges of a triangle, vertices
+        // of a tetrahedron, etc)
         // downward_connectivity[dim0][dim1][[.., dim0_entity_index]] = [dim1_entity_index]
         let mut downward_connectivity = entity_counts
             .iter()
@@ -126,7 +115,9 @@ impl SingleElementTopology {
             })
             .collect::<Vec<_>>();
 
-        // Upward connectivity: The entities of dimension dim1 that are superentities of entities of dimension dim0 (with dim0<dim1) (eg triangles connected to an edge, tetrahedra connected to a vertex, etc)
+        // Upward connectivity: The entities of dimension dim1 that are superentities of
+        // entities of dimension dim0 (with dim0<dim1) (eg triangles connected to an edge,
+        // tetrahedra connected to a vertex, etc)
         // upward_connectivity[dim0][dim1 - dim0 - 1][dim0_entity_index][..] = [dim1_entity_index]
         let mut upward_connectivity = entity_counts
             .iter()
@@ -250,17 +241,6 @@ impl SingleElementTopology {
     }
 }
 
-pub struct IndexIter {}
-impl std::iter::Iterator for IndexIter {
-    type Item = usize;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        None
-    }
-}
-
-use std::iter::Copied;
-
 /// Topology of a cell
 pub struct SingleElementCellTopology<'a> {
     topology: &'a SingleElementTopology,
@@ -319,39 +299,33 @@ mod test {
 
     fn example_topology_point() -> SingleElementTopology {
         //! An example topology
-        SingleElementTopology::new(&[0, 1], ReferenceCellType::Point, None, None)
+        SingleElementTopology::new(&[0, 1], ReferenceCellType::Point)
     }
 
     fn example_topology_interval() -> SingleElementTopology {
         //! An example topology
-        SingleElementTopology::new(&[0, 1, 1, 2], ReferenceCellType::Interval, None, None)
+        SingleElementTopology::new(&[0, 1, 1, 2], ReferenceCellType::Interval)
     }
 
     fn example_topology_triangle() -> SingleElementTopology {
         //! An example topology
-        SingleElementTopology::new(&[0, 1, 2, 2, 1, 3], ReferenceCellType::Triangle, None, None)
+        SingleElementTopology::new(&[0, 1, 2, 2, 1, 3], ReferenceCellType::Triangle)
     }
 
     fn example_topology_tetrahedron() -> SingleElementTopology {
         //! An example topology
-        SingleElementTopology::new(
-            &[0, 1, 2, 3, 4, 0, 2, 3],
-            ReferenceCellType::Tetrahedron,
-            None,
-            None,
-        )
+        SingleElementTopology::new(&[0, 1, 2, 3, 4, 0, 2, 3], ReferenceCellType::Tetrahedron)
     }
 
     #[test]
     #[should_panic]
     fn test_prism() {
-        let _ =
-            SingleElementTopology::new(&[0, 1, 2, 3, 4, 5], ReferenceCellType::Prism, None, None);
+        let _ = SingleElementTopology::new(&[0, 1, 2, 3, 4, 5], ReferenceCellType::Prism);
     }
     #[test]
     #[should_panic]
     fn test_pyramid() {
-        let _ = SingleElementTopology::new(&[0, 1, 2, 3, 4], ReferenceCellType::Prism, None, None);
+        let _ = SingleElementTopology::new(&[0, 1, 2, 3, 4], ReferenceCellType::Prism);
     }
 
     #[test]
