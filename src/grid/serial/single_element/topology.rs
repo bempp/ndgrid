@@ -14,7 +14,6 @@ pub struct SingleElementTopology {
     //entity_types: Vec<ReferenceCellType>,
     pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,
     pub(crate) upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
-    //upward_connectivity: Vec<Vec<IntegerArray2>>,
     //    entities_to_vertices: Vec<Vec<Vec<usize>>>,
     //    cells_to_entities: Vec<Vec<Vec<usize>>>,
     //    entities_to_cells: Vec<Vec<Vec<CellLocalIndexPair<usize>>>>,
