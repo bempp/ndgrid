@@ -126,7 +126,8 @@ impl SingleElementTopology {
             .iter()
             .take(dim)
             .enumerate()
-            .map(|(i, j)| vec![vec![vec![]; *j]; dim - i]).collect::<Vec<Vec<Vec<Vec<usize>>>>>();
+            .map(|(i, j)| vec![vec![vec![]; *j]; dim - i])
+            .collect::<Vec<Vec<Vec<Vec<usize>>>>>();
 
         // downward_connectivity[d][d][i] = [i] (ie each entity is a sub-entity of itself)
         for (d, dc) in downward_connectivity.iter_mut().enumerate() {
@@ -145,8 +146,11 @@ impl SingleElementTopology {
             }
         }
         // downward_connectivity[i][0] = vertices of entity
-        for (i, (es_i, dc_i)) in izip!(entities
-            .iter(), downward_connectivity.iter_mut().take(dim).skip(1)).enumerate()
+        for (i, (es_i, dc_i)) in izip!(
+            entities.iter(),
+            downward_connectivity.iter_mut().take(dim).skip(1)
+        )
+        .enumerate()
         {
             for (j, (es_ij, mut dc_i0j)) in izip!(es_i.iter(), dc_i[0].col_iter_mut()).enumerate() {
                 for (es_ijk, dc_i0jk) in izip!(es_ij.iter(), dc_i0j.iter_mut()) {
@@ -191,30 +195,24 @@ impl SingleElementTopology {
                 // Loop over entities of dimension dim0
                 for (ce_ij, rc_ij) in izip!(ce_i, rc_i) {
                     // Loop over dim1
-                    for (dc_ik, rc_ijk, ce_k) in izip!(
+                    for (k, (dc_ik, rc_ijk, ce_k)) in izip!(
                         dc_i.iter_mut().take(i + 2).skip(1),
                         rc_ij.iter().take(i + 2).skip(1),
                         &cell_entities
-                    ) {
+                    )
+                    .enumerate()
+                    {
                         // Loop over entities of dimension dim1
                         for (l, rc_ijkl) in rc_ijk.iter().enumerate() {
                             dc_ik[[l, *ce_ij]] = ce_k[*rc_ijkl];
+                            if !upward_connectivity[k + 1][i - k][ce_k[*rc_ijkl]].contains(ce_ij) {
+                                upward_connectivity[k + 1][i - k][ce_k[*rc_ijkl]].push(*ce_ij);
+                            }
                         }
                     }
                 }
             }
         }
-
-        print!("[\n   ");
-        for i in &upward_connectivity {
-            print!(" [\n       ");
-            for j in i {
-                print!("{j:?}\n       ");
-            }
-            print!("\n    ],");
-        }
-        println!("\n]");
-        println!("{upward_connectivity:?}");
 
         Self {
             dim,
@@ -267,12 +265,14 @@ impl<'t> Topology for SingleElementCellTopology<'t> {
     where
         Self: 'a;
 
-    type ConnectedEntityIndexIter<'a> = IndexIter
+    type ConnectedEntityIndexIter<'a> = Copied<std::slice::Iter<'a, usize>>
     where
         Self: 'a;
 
-    fn connected_entity_iter(&self, _dim: usize) -> IndexIter {
-        unimplemented!();
+    fn connected_entity_iter(&self, dim: usize) -> Copied<std::slice::Iter<'_, usize>> {
+        self.topology.upward_connectivity[dim][self.dim - dim - 1][self.entity_index]
+            .iter()
+            .copied()
     }
 
     fn sub_entity_iter(&self, dim: usize) -> Copied<std::slice::Iter<'_, usize>> {
@@ -581,7 +581,6 @@ mod test {
                 if i != j {
                     let uc_ji = &t.upward_connectivity[j][i - j - 1];
                     for (c, col) in dc_ij.col_iter().enumerate() {
-                        println!("{:?}", col.data());
                         for value in col.iter() {
                             assert!(uc_ji[value].contains(&c));
                         }
@@ -606,7 +605,6 @@ mod test {
                 if i != j {
                     let uc_ji = &t.upward_connectivity[j][i - j - 1];
                     for (c, col) in dc_ij.col_iter().enumerate() {
-                        println!("{:?}", col.data());
                         for value in col.iter() {
                             assert!(uc_ji[value].contains(&c));
                         }
@@ -621,4 +619,3 @@ mod test {
         }
     }
 }
-
