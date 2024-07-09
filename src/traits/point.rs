@@ -1,17 +1,14 @@
 //! Point
-
-use super::Grid;
+use crate::types::RealScalar;
 
 /// A point
 pub trait Point {
-    /// The floating point type used for coordinates
-    type Grid: Grid;
+    /// Scalar type
+    type T: RealScalar;
 
     /// Return the dimension of the point.
-    fn dim(&self) -> usize {
-        <Self::Grid as Grid>::geometry_dim()
-    }
+    fn dim(&self) -> usize;
 
     /// Get the coordinates of the point.
-    fn coords(&self, data: &mut [<Self::Grid as Grid>::T]);
+    fn coords(&self, data: &mut [Self::T]);
 }

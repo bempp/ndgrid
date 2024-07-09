@@ -1,14 +1,15 @@
 //! Entity geometry
-
-use super::Grid;
+use crate::traits::Point;
 
 /// The geometry of an entity
 pub trait Geometry {
-    /// Grid type
-    type Grid: Grid;
+    /// Point Type
+    type Point<'a>: Point
+    where
+        Self: 'a;
 
     /// Point iterator
-    type PointIter<'a>: Iterator<Item = <Self::Grid as Grid>::Point<'a>>
+    type PointIter<'a>: Iterator<Item = Self::Point<'a>>
     where
         Self: 'a;
 
