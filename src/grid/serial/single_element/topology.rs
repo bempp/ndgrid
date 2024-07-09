@@ -6,14 +6,14 @@ use itertools::izip;
 use ndelement::reference_cell;
 use ndelement::types::ReferenceCellType;
 use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
-// use std::collections::HashMap;
 
 /// Topology of a single element grid
 pub struct SingleElementTopology {
     dim: usize,
     //    index_map: Vec<usize>,
     //entity_types: Vec<ReferenceCellType>,
-    downward_connectivity: Vec<Vec<Array2D<usize>>>,
+    pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,
+    pub(crate) upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
     //upward_connectivity: Vec<Vec<IntegerArray2>>,
     //    entities_to_vertices: Vec<Vec<Vec<usize>>>,
     //    cells_to_entities: Vec<Vec<Vec<usize>>>,
@@ -106,8 +106,8 @@ impl SingleElementTopology {
             nentities[d] = entities[d - 1].len();
         }
 
-        // Downward connectivity: The entities of dimension dim1 that are subentities of entities of dimension dim0 (with dim0>dim1) (eg edges of a triangle, vertices of a tetrahedron, etc)
-        // indices: downward_connectivity[dim0][dim1][[dim1_entity_index, dim0_entity_index]]
+        // Downward connectivity: The entities of dimension dim1 that are subentities of entities of dimension dim0 (with dim0>=dim1) (eg edges of a triangle, vertices of a tetrahedron, etc)
+        // downward_connectivity[dim0][dim1][[.., dim0_entity_index]] = [dim1_entity_index]
         let mut downward_connectivity = nentities
             .iter()
             .enumerate()
@@ -120,6 +120,14 @@ impl SingleElementTopology {
             })
             .collect::<Vec<_>>();
 
+        // Upward connectivity: The entities of dimension dim1 that are superentities of entities of dimension dim0 (with dim0<dim1) (eg triangles connected to an edge, tetrahedra connected to a vertex, etc)
+        // upward_connectivity[dim0][dim1 - dim0 - 1][dim0_entity_index][..] = [dim1_entity_index]
+        let mut upward_connectivity = nentities
+            .iter()
+            .take(dim)
+            .enumerate()
+            .map(|(i, j)| vec![vec![vec![]; *j]; dim - i]).collect::<Vec<Vec<Vec<Vec<usize>>>>>();
+
         // downward_connectivity[d][d][i] = [i] (ie each entity is a sub-entity of itself)
         for (d, dc) in downward_connectivity.iter_mut().enumerate() {
             for (i, mut j) in dc[d].col_iter_mut().enumerate() {
@@ -128,19 +136,24 @@ impl SingleElementTopology {
         }
 
         // downward_connectivity[dim][0] = vertices of each cell
-        for (i, mut j) in downward_connectivity[dim][0].col_iter_mut().enumerate() {
-            for (k, l) in j.iter_mut().zip(&cells[i * size..(i + 1) * size]) {
-                *k = *l;
+        for (i, mut dc_d0i) in downward_connectivity[dim][0].col_iter_mut().enumerate() {
+            for (dc_d0ij, c_j) in izip!(dc_d0i.iter_mut(), &cells[i * size..(i + 1) * size]) {
+                *dc_d0ij = *c_j;
+                if !upward_connectivity[0][dim - 1][*c_j].contains(&i) {
+                    upward_connectivity[0][dim - 1][*c_j].push(i);
+                }
             }
         }
         // downward_connectivity[i][0] = vertices of entity
-        for (es, dc) in entities
-            .iter()
-            .zip(downward_connectivity.iter_mut().take(dim).skip(1))
+        for (i, (es_i, dc_i)) in izip!(entities
+            .iter(), downward_connectivity.iter_mut().take(dim).skip(1)).enumerate()
         {
-            for (e, mut c) in es.iter().zip(dc[0].col_iter_mut()) {
-                for (i, j) in e.iter().zip(c.iter_mut()) {
-                    *j = *i;
+            for (j, (es_ij, mut dc_i0j)) in izip!(es_i.iter(), dc_i[0].col_iter_mut()).enumerate() {
+                for (es_ijk, dc_i0jk) in izip!(es_ij.iter(), dc_i0j.iter_mut()) {
+                    *dc_i0jk = *es_ijk;
+                    if !upward_connectivity[0][i][*es_ijk].contains(&j) {
+                        upward_connectivity[0][i][*es_ijk].push(j);
+                    }
                 }
             }
         }
@@ -192,9 +205,21 @@ impl SingleElementTopology {
             }
         }
 
+        print!("[\n   ");
+        for i in &upward_connectivity {
+            print!(" [\n       ");
+            for j in i {
+                print!("{j:?}\n       ");
+            }
+            print!("\n    ],");
+        }
+        println!("\n]");
+        println!("{upward_connectivity:?}");
+
         Self {
             dim,
             downward_connectivity,
+            upward_connectivity,
         }
     }
     /// Topological dimension
@@ -266,6 +291,7 @@ impl<'t> Topology for SingleElementCellTopology<'t> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use rlst::DefaultIterator;
 
     fn example_topology_triangle() -> SingleElementTopology {
         //! An example topology
@@ -544,4 +570,55 @@ mod test {
             }
         }
     }
+
+    #[test]
+    fn test_up_and_down_triangle() {
+        //! Test that upward and downward connectivities agree
+        let t = example_topology_triangle();
+
+        for (i, dc_i) in t.downward_connectivity.iter().enumerate() {
+            for (j, dc_ij) in dc_i.iter().enumerate() {
+                if i != j {
+                    let uc_ji = &t.upward_connectivity[j][i - j - 1];
+                    for (c, col) in dc_ij.col_iter().enumerate() {
+                        println!("{:?}", col.data());
+                        for value in col.iter() {
+                            assert!(uc_ji[value].contains(&c));
+                        }
+                    }
+                    for (k, uc_jik) in uc_ji.iter().enumerate() {
+                        for value in uc_jik {
+                            assert!(dc_ij.view().slice(1, *value).data().contains(&k));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_up_and_down_tetrahedron() {
+        //! Test that upward and downward connectivities agree
+        let t = example_topology_tetrahedron();
+
+        for (i, dc_i) in t.downward_connectivity.iter().enumerate() {
+            for (j, dc_ij) in dc_i.iter().enumerate() {
+                if i != j {
+                    let uc_ji = &t.upward_connectivity[j][i - j - 1];
+                    for (c, col) in dc_ij.col_iter().enumerate() {
+                        println!("{:?}", col.data());
+                        for value in col.iter() {
+                            assert!(uc_ji[value].contains(&c));
+                        }
+                    }
+                    for (k, uc_jik) in uc_ji.iter().enumerate() {
+                        for value in uc_jik {
+                            assert!(dc_ij.view().slice(1, *value).data().contains(&k));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
+
