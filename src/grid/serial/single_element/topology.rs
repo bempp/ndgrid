@@ -67,7 +67,7 @@ impl SingleElementTopology {
 
         let entity_types = etypes
             .iter()
-            .filter(|i| i.len() > 0)
+            .filter(|i| !i.is_empty())
             .map(|i| i[0])
             .collect::<Vec<_>>();
 
