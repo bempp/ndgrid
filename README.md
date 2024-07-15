@@ -1,6 +1,6 @@
 # ndgrid
 
-ndgrid is an open-source library written in Rust for n-dimensional grids.
+ndgrid is an open-source library written in Rust for n-dimensional grids/meshes.
 
 ## Documentation
 The latest documentation of the main branch of this repo is available at [bempp.github.io/ndgrid/](https://bempp.github.io/ndgrid/).
