@@ -9,7 +9,7 @@ use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
 use std::iter::Copied;
 
 /// Topology of a single element grid
-pub struct SingleEntityTypeTopology {
+pub struct SingleTypeTopology {
     dim: usize,
     // TODO: do we need an index map? Will we ever reorder the cells?
     //    index_map: Vec<usize>,
@@ -19,7 +19,7 @@ pub struct SingleEntityTypeTopology {
     upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
 }
 
-unsafe impl Sync for SingleEntityTypeTopology {}
+unsafe impl Sync for SingleTypeTopology {}
 
 fn orient_entity(entity_type: ReferenceCellType, vertices: &mut [usize]) {
     match entity_type {
@@ -46,9 +46,8 @@ fn orient_entity(entity_type: ReferenceCellType, vertices: &mut [usize]) {
     }
 }
 
-impl SingleEntityTypeTopology {
+impl SingleTypeTopology {
     /// Create a topology
-    #[allow(clippy::too_many_arguments)]
     pub fn new(cells: &[usize], cell_type: ReferenceCellType) -> Self {
         let size = reference_cell::entity_counts(cell_type)[0];
         let ncells = cells.len() / size;
@@ -60,7 +59,7 @@ impl SingleEntityTypeTopology {
         for t in &etypes {
             for i in t {
                 if *i != t[0] {
-                    panic!("Unsupported cell type for SingleEntityTypeTopology: {cell_type:?}");
+                    panic!("Unsupported cell type for SingleTypeTopology: {cell_type:?}");
                 }
             }
         }
@@ -242,17 +241,17 @@ impl SingleEntityTypeTopology {
 }
 
 /// Topology of a cell
-pub struct SingleEntityTypeCellTopology<'a> {
-    topology: &'a SingleEntityTypeTopology,
+pub struct SingleTypeEntityTopology<'a> {
+    topology: &'a SingleTypeTopology,
     //entity_type: ReferenceCellType,
     entity_index: usize,
     dim: usize,
 }
 
-impl<'t> SingleEntityTypeCellTopology<'t> {
+impl<'t> SingleTypeEntityTopology<'t> {
     /// Create new
     pub fn new(
-        topology: &'t SingleEntityTypeTopology,
+        topology: &'t SingleTypeTopology,
         entity_type: ReferenceCellType,
         entity_index: usize,
     ) -> Self {
@@ -264,7 +263,7 @@ impl<'t> SingleEntityTypeCellTopology<'t> {
         }
     }
 }
-impl<'t> Topology for SingleEntityTypeCellTopology<'t> {
+impl<'t> Topology for SingleTypeEntityTopology<'t> {
     type EntityIndexIter<'a> = Copied<std::slice::Iter<'a, usize>>
     where
         Self: 'a;
@@ -297,44 +296,44 @@ mod test {
     use super::*;
     use rlst::DefaultIterator;
 
-    fn example_topology_point() -> SingleEntityTypeTopology {
+    fn example_topology_point() -> SingleTypeTopology {
         //! An example topology
-        SingleEntityTypeTopology::new(&[0, 1], ReferenceCellType::Point)
+        SingleTypeTopology::new(&[0, 1], ReferenceCellType::Point)
     }
 
-    fn example_topology_interval() -> SingleEntityTypeTopology {
+    fn example_topology_interval() -> SingleTypeTopology {
         //! An example topology
-        SingleEntityTypeTopology::new(&[0, 1, 1, 2], ReferenceCellType::Interval)
+        SingleTypeTopology::new(&[0, 1, 1, 2], ReferenceCellType::Interval)
     }
 
-    fn example_topology_triangle() -> SingleEntityTypeTopology {
+    fn example_topology_triangle() -> SingleTypeTopology {
         //! An example topology
-        SingleEntityTypeTopology::new(&[0, 1, 2, 2, 1, 3], ReferenceCellType::Triangle)
+        SingleTypeTopology::new(&[0, 1, 2, 2, 1, 3], ReferenceCellType::Triangle)
     }
 
-    fn example_topology_tetrahedron() -> SingleEntityTypeTopology {
+    fn example_topology_tetrahedron() -> SingleTypeTopology {
         //! An example topology
-        SingleEntityTypeTopology::new(&[0, 1, 2, 3, 4, 0, 2, 3], ReferenceCellType::Tetrahedron)
+        SingleTypeTopology::new(&[0, 1, 2, 3, 4, 0, 2, 3], ReferenceCellType::Tetrahedron)
     }
 
     #[test]
     #[should_panic]
     fn test_prism() {
-        let _ = SingleEntityTypeTopology::new(&[0, 1, 2, 3, 4, 5], ReferenceCellType::Prism);
+        let _ = SingleTypeTopology::new(&[0, 1, 2, 3, 4, 5], ReferenceCellType::Prism);
     }
     #[test]
     #[should_panic]
     fn test_pyramid() {
-        let _ = SingleEntityTypeTopology::new(&[0, 1, 2, 3, 4], ReferenceCellType::Prism);
+        let _ = SingleTypeTopology::new(&[0, 1, 2, 3, 4], ReferenceCellType::Prism);
     }
 
     #[test]
     fn test_sub_entities_point() {
         //! Test sub-entities of a point
         let t = example_topology_point();
-        let cell0 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 0);
+        let cell0 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 0);
         assert_eq!(cell0.sub_entity(0, 0), 0);
-        let cell1 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 1);
+        let cell1 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 1);
         assert_eq!(cell1.sub_entity(0, 0), 1);
     }
 
@@ -342,20 +341,20 @@ mod test {
     fn test_sub_entities_interval() {
         //! Test sub-entities of an interval
         let t = example_topology_interval();
-        let cell0 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 0);
+        let cell0 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 0);
         assert_eq!(cell0.sub_entity(0, 0), 0);
         assert_eq!(cell0.sub_entity(0, 1), 1);
         assert_eq!(cell0.sub_entity(1, 0), 0);
-        let cell1 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 1);
+        let cell1 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 1);
         assert_eq!(cell1.sub_entity(0, 0), 1);
         assert_eq!(cell1.sub_entity(0, 1), 2);
         assert_eq!(cell1.sub_entity(1, 0), 1);
 
-        let vertex0 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 0);
+        let vertex0 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 0);
         assert_eq!(vertex0.sub_entity(0, 0), 0);
-        let vertex1 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 1);
+        let vertex1 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 1);
         assert_eq!(vertex1.sub_entity(0, 0), 1);
-        let vertex2 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 2);
+        let vertex2 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 2);
         assert_eq!(vertex2.sub_entity(0, 0), 2);
     }
 
@@ -363,7 +362,7 @@ mod test {
     fn test_sub_entities_triangle() {
         //! Test sub-entities of a triangle
         let t = example_topology_triangle();
-        let cell0 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Triangle, 0);
+        let cell0 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Triangle, 0);
         assert_eq!(cell0.sub_entity(0, 0), 0);
         assert_eq!(cell0.sub_entity(0, 1), 1);
         assert_eq!(cell0.sub_entity(0, 2), 2);
@@ -371,7 +370,7 @@ mod test {
         assert_eq!(cell0.sub_entity(1, 1), 1);
         assert_eq!(cell0.sub_entity(1, 2), 2);
         assert_eq!(cell0.sub_entity(2, 0), 0);
-        let cell1 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Triangle, 1);
+        let cell1 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Triangle, 1);
         assert_eq!(cell1.sub_entity(0, 0), 2);
         assert_eq!(cell1.sub_entity(0, 1), 1);
         assert_eq!(cell1.sub_entity(0, 2), 3);
@@ -380,34 +379,34 @@ mod test {
         assert_eq!(cell1.sub_entity(1, 2), 0);
         assert_eq!(cell1.sub_entity(2, 0), 1);
 
-        let edge0 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 0);
+        let edge0 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 0);
         assert_eq!(edge0.sub_entity(0, 0), 1);
         assert_eq!(edge0.sub_entity(0, 1), 2);
         assert_eq!(edge0.sub_entity(1, 0), 0);
-        let edge1 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 1);
+        let edge1 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 1);
         assert_eq!(edge1.sub_entity(0, 0), 0);
         assert_eq!(edge1.sub_entity(0, 1), 2);
         assert_eq!(edge1.sub_entity(1, 0), 1);
-        let edge2 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 2);
+        let edge2 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 2);
         assert_eq!(edge2.sub_entity(0, 0), 0);
         assert_eq!(edge2.sub_entity(0, 1), 1);
         assert_eq!(edge2.sub_entity(1, 0), 2);
-        let edge3 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 3);
+        let edge3 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 3);
         assert_eq!(edge3.sub_entity(0, 0), 1);
         assert_eq!(edge3.sub_entity(0, 1), 3);
         assert_eq!(edge3.sub_entity(1, 0), 3);
-        let edge4 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 4);
+        let edge4 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 4);
         assert_eq!(edge4.sub_entity(0, 0), 2);
         assert_eq!(edge4.sub_entity(0, 1), 3);
         assert_eq!(edge4.sub_entity(1, 0), 4);
 
-        let vertex0 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 0);
+        let vertex0 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 0);
         assert_eq!(vertex0.sub_entity(0, 0), 0);
-        let vertex1 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 1);
+        let vertex1 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 1);
         assert_eq!(vertex1.sub_entity(0, 0), 1);
-        let vertex2 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 2);
+        let vertex2 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 2);
         assert_eq!(vertex2.sub_entity(0, 0), 2);
-        let vertex3 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 3);
+        let vertex3 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 3);
         assert_eq!(vertex3.sub_entity(0, 0), 3);
     }
 
@@ -415,7 +414,7 @@ mod test {
     fn test_sub_entities_tetrahedron() {
         //! Test sub-entities of a tetrahedron
         let t = example_topology_tetrahedron();
-        let cell0 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Tetrahedron, 0);
+        let cell0 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Tetrahedron, 0);
         assert_eq!(cell0.sub_entity(0, 0), 0);
         assert_eq!(cell0.sub_entity(0, 1), 1);
         assert_eq!(cell0.sub_entity(0, 2), 2);
@@ -431,7 +430,7 @@ mod test {
         assert_eq!(cell0.sub_entity(2, 2), 2);
         assert_eq!(cell0.sub_entity(2, 3), 3);
         assert_eq!(cell0.sub_entity(3, 0), 0);
-        let cell1 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Tetrahedron, 1);
+        let cell1 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Tetrahedron, 1);
         assert_eq!(cell1.sub_entity(0, 0), 4);
         assert_eq!(cell1.sub_entity(0, 1), 0);
         assert_eq!(cell1.sub_entity(0, 2), 2);
@@ -448,7 +447,7 @@ mod test {
         assert_eq!(cell1.sub_entity(2, 3), 6);
         assert_eq!(cell1.sub_entity(3, 0), 1);
 
-        let face0 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Triangle, 0);
+        let face0 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Triangle, 0);
         assert_eq!(face0.sub_entity(0, 0), 1);
         assert_eq!(face0.sub_entity(0, 1), 2);
         assert_eq!(face0.sub_entity(0, 2), 3);
@@ -456,7 +455,7 @@ mod test {
         assert_eq!(face0.sub_entity(1, 1), 1);
         assert_eq!(face0.sub_entity(1, 2), 2);
         assert_eq!(face0.sub_entity(2, 0), 0);
-        let face1 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Triangle, 1);
+        let face1 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Triangle, 1);
         assert_eq!(face1.sub_entity(0, 0), 0);
         assert_eq!(face1.sub_entity(0, 1), 2);
         assert_eq!(face1.sub_entity(0, 2), 3);
@@ -464,7 +463,7 @@ mod test {
         assert_eq!(face1.sub_entity(1, 1), 3);
         assert_eq!(face1.sub_entity(1, 2), 4);
         assert_eq!(face1.sub_entity(2, 0), 1);
-        let face2 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Triangle, 2);
+        let face2 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Triangle, 2);
         assert_eq!(face2.sub_entity(0, 0), 0);
         assert_eq!(face2.sub_entity(0, 1), 1);
         assert_eq!(face2.sub_entity(0, 2), 3);
@@ -472,7 +471,7 @@ mod test {
         assert_eq!(face2.sub_entity(1, 1), 3);
         assert_eq!(face2.sub_entity(1, 2), 5);
         assert_eq!(face2.sub_entity(2, 0), 2);
-        let face3 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Triangle, 3);
+        let face3 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Triangle, 3);
         assert_eq!(face3.sub_entity(0, 0), 0);
         assert_eq!(face3.sub_entity(0, 1), 1);
         assert_eq!(face3.sub_entity(0, 2), 2);
@@ -480,7 +479,7 @@ mod test {
         assert_eq!(face3.sub_entity(1, 1), 4);
         assert_eq!(face3.sub_entity(1, 2), 5);
         assert_eq!(face3.sub_entity(2, 0), 3);
-        let face4 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Triangle, 4);
+        let face4 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Triangle, 4);
         assert_eq!(face4.sub_entity(0, 0), 2);
         assert_eq!(face4.sub_entity(0, 1), 3);
         assert_eq!(face4.sub_entity(0, 2), 4);
@@ -488,7 +487,7 @@ mod test {
         assert_eq!(face4.sub_entity(1, 1), 6);
         assert_eq!(face4.sub_entity(1, 2), 7);
         assert_eq!(face4.sub_entity(2, 0), 4);
-        let face5 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Triangle, 5);
+        let face5 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Triangle, 5);
         assert_eq!(face5.sub_entity(0, 0), 0);
         assert_eq!(face5.sub_entity(0, 1), 3);
         assert_eq!(face5.sub_entity(0, 2), 4);
@@ -496,7 +495,7 @@ mod test {
         assert_eq!(face5.sub_entity(1, 1), 6);
         assert_eq!(face5.sub_entity(1, 2), 8);
         assert_eq!(face5.sub_entity(2, 0), 5);
-        let face6 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Triangle, 6);
+        let face6 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Triangle, 6);
         assert_eq!(face6.sub_entity(0, 0), 0);
         assert_eq!(face6.sub_entity(0, 1), 2);
         assert_eq!(face6.sub_entity(0, 2), 4);
@@ -505,52 +504,52 @@ mod test {
         assert_eq!(face6.sub_entity(1, 2), 8);
         assert_eq!(face6.sub_entity(2, 0), 6);
 
-        let edge0 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 0);
+        let edge0 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 0);
         assert_eq!(edge0.sub_entity(0, 0), 2);
         assert_eq!(edge0.sub_entity(0, 1), 3);
         assert_eq!(edge0.sub_entity(1, 0), 0);
-        let edge1 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 1);
+        let edge1 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 1);
         assert_eq!(edge1.sub_entity(0, 0), 1);
         assert_eq!(edge1.sub_entity(0, 1), 3);
         assert_eq!(edge1.sub_entity(1, 0), 1);
-        let edge2 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 2);
+        let edge2 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 2);
         assert_eq!(edge2.sub_entity(0, 0), 1);
         assert_eq!(edge2.sub_entity(0, 1), 2);
         assert_eq!(edge2.sub_entity(1, 0), 2);
-        let edge3 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 3);
+        let edge3 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 3);
         assert_eq!(edge3.sub_entity(0, 0), 0);
         assert_eq!(edge3.sub_entity(0, 1), 3);
         assert_eq!(edge3.sub_entity(1, 0), 3);
-        let edge4 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 4);
+        let edge4 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 4);
         assert_eq!(edge4.sub_entity(0, 0), 0);
         assert_eq!(edge4.sub_entity(0, 1), 2);
         assert_eq!(edge4.sub_entity(1, 0), 4);
-        let edge5 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 5);
+        let edge5 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 5);
         assert_eq!(edge5.sub_entity(0, 0), 0);
         assert_eq!(edge5.sub_entity(0, 1), 1);
         assert_eq!(edge5.sub_entity(1, 0), 5);
-        let edge6 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 6);
+        let edge6 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 6);
         assert_eq!(edge6.sub_entity(0, 0), 3);
         assert_eq!(edge6.sub_entity(0, 1), 4);
         assert_eq!(edge6.sub_entity(1, 0), 6);
-        let edge7 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 7);
+        let edge7 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 7);
         assert_eq!(edge7.sub_entity(0, 0), 2);
         assert_eq!(edge7.sub_entity(0, 1), 4);
         assert_eq!(edge7.sub_entity(1, 0), 7);
-        let edge8 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Interval, 8);
+        let edge8 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Interval, 8);
         assert_eq!(edge8.sub_entity(0, 0), 0);
         assert_eq!(edge8.sub_entity(0, 1), 4);
         assert_eq!(edge8.sub_entity(1, 0), 8);
 
-        let vertex0 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 0);
+        let vertex0 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 0);
         assert_eq!(vertex0.sub_entity(0, 0), 0);
-        let vertex1 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 1);
+        let vertex1 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 1);
         assert_eq!(vertex1.sub_entity(0, 0), 1);
-        let vertex2 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 2);
+        let vertex2 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 2);
         assert_eq!(vertex2.sub_entity(0, 0), 2);
-        let vertex3 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 3);
+        let vertex3 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 3);
         assert_eq!(vertex3.sub_entity(0, 0), 3);
-        let vertex4 = SingleEntityTypeCellTopology::new(&t, ReferenceCellType::Point, 4);
+        let vertex4 = SingleTypeEntityTopology::new(&t, ReferenceCellType::Point, 4);
         assert_eq!(vertex4.sub_entity(0, 0), 4);
     }
 
@@ -586,7 +585,7 @@ mod test {
                     let t = [< example_topology_ $cellname >]();
                     for cell_type in t.entity_types() {
                         for index in 0..t.entity_count(*cell_type) {
-                            let cell = SingleEntityTypeCellTopology::new(&t, *cell_type, index);
+                            let cell = SingleTypeEntityTopology::new(&t, *cell_type, index);
                             for dim in 0..reference_cell::dim(*cell_type) + 1 {
                                 for (i, j) in cell.sub_entity_iter(dim).enumerate() {
                                     assert_eq!(j, cell.sub_entity(dim, i));

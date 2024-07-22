@@ -5,6 +5,9 @@ use rlst::{Array, BaseArray, LinAlg, RlstScalar, VectorContainer};
 /// A real scalar
 pub trait RealScalar: Float + LinAlg + RlstScalar<Real = Self> {}
 
+impl RealScalar for f32 {}
+impl RealScalar for f64 {}
+
 /// A 2-dimensional array
 pub type Array2D<T> = Array<T, BaseArray<T, VectorContainer<T>, 2>, 2>;
 
