@@ -1,6 +1,7 @@
 //! Geometry where each entity of a given dimension is represented by the same element
 use crate::{
-    traits::{Geometry, Point as PointTrait},
+    geometry::{Point, PointIter},
+    traits::Geometry,
     types::{Array2D, RealScalar},
 };
 use ndelement::{
@@ -68,55 +69,6 @@ impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
     }
 }
 
-#[derive(Clone, Copy)]
-// TODO: move this
-/// A points
-pub struct Point<'a, T: RealScalar> {
-    coordinates: &'a [T],
-}
-
-impl<'a, T: RealScalar> Point<'a, T> {
-    /// Create new
-    pub fn new(coordinates: &'a [T]) -> Self {
-        Self { coordinates }
-    }
-}
-impl<'a, T: RealScalar> PointTrait for Point<'a, T> {
-    type T = T;
-
-    fn dim(&self) -> usize {
-        self.coordinates.len()
-    }
-
-    fn coords(&self, data: &mut [T]) {
-        data.copy_from_slice(self.coordinates);
-    }
-}
-
-/// Iterator over points
-pub struct PointIter<'a, T: RealScalar> {
-    points: Vec<&'a [T]>,
-    index: usize,
-}
-impl<'a, T: RealScalar> PointIter<'a, T> {
-    /// Create new
-    pub fn new(points: Vec<&'a [T]>) -> Self {
-        Self { points, index: 0 }
-    }
-}
-impl<'a, T: RealScalar> Iterator for PointIter<'a, T> {
-    type Item = Point<'a, T>;
-
-    fn next(&mut self) -> Option<Point<'a, T>> {
-        self.index += 1;
-        if self.index <= self.points.len() {
-            Some(Point::new(self.points[self.index - 1]))
-        } else {
-            None
-        }
-    }
-}
-
 /// Geometry of a cell
 pub struct SingleElementEntityGeometry<'a, T: RealScalar, E: FiniteElement> {
     geometry: &'a SingleElementGeometry<T, E>,
@@ -175,6 +127,7 @@ impl<'g, T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeomet
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::traits::Point;
     use approx::assert_relative_eq;
     use itertools::izip;
     use ndelement::{
