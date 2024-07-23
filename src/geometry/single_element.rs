@@ -58,9 +58,13 @@ impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
     pub fn cells(&self) -> &Array2D<usize> {
         &self.cells
     }
-    /// Element
-    pub fn element(&self, tdim: usize) -> &E {
-        &self.elements[tdim]
+    /// Element for a sub-entity
+    pub fn entity_element(&self, tdim: usize) -> &E {
+        &self.elements[tdim - 1]
+    }
+    /// Element for a cell
+    pub fn element(&self) -> &E {
+        &self.elements[self.elements.len() - 1]
     }
 }
 
@@ -91,18 +95,13 @@ impl<'a, T: RealScalar> PointTrait for Point<'a, T> {
 
 /// Iterator over points
 pub struct PointIter<'a, T: RealScalar> {
-    points: &'a Array2D<T>,
-    point_indices: &'a [usize],
+    points: Vec<&'a [T]>,
     index: usize,
 }
 impl<'a, T: RealScalar> PointIter<'a, T> {
     /// Create new
-    pub fn new(points: &'a Array2D<T>, point_indices: &'a [usize]) -> Self {
-        Self {
-            points,
-            point_indices,
-            index: 0,
-        }
+    pub fn new(points: Vec<&'a [T]>) -> Self {
+        Self { points, index: 0 }
     }
 }
 impl<'a, T: RealScalar> Iterator for PointIter<'a, T> {
@@ -110,12 +109,8 @@ impl<'a, T: RealScalar> Iterator for PointIter<'a, T> {
 
     fn next(&mut self) -> Option<Point<'a, T>> {
         self.index += 1;
-        if self.index <= self.point_indices.len() {
-            let nrows = self.points.shape()[0];
-            Some(Point::new(
-                &self.points.data()[(self.point_indices[self.index - 1]) * nrows
-                    ..(self.point_indices[self.index - 1] + 1) * nrows],
-            ))
+        if self.index <= self.points.len() {
+            Some(Point::new(self.points[self.index - 1]))
         } else {
             None
         }
@@ -153,12 +148,19 @@ impl<'g, T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeomet
     type PointIter<'a> = PointIter<'a, T> where Self: 'a;
 
     fn points(&self) -> PointIter<'_, T> {
-        let cellsize = self.point_count();
-        PointIter::new(
-            self.geometry.points(),
-            &self.geometry.cells().data()
-                [cellsize * self.cell_index..cellsize * (self.cell_index + 1)],
-        )
+        let gdim = self.geometry.points().shape()[0];
+        let mut pts = vec![];
+        for index in self
+            .geometry
+            .element()
+            .entity_closure_dofs(self.sub_entity_dimension, self.sub_entity_index)
+            .unwrap()
+        {
+            let i = self.geometry.cells()[[*index, self.cell_index]];
+            pts.push(&self.geometry.points().data()[i * gdim..(i + 1) * gdim])
+        }
+
+        PointIter::new(pts)
     }
 
     fn point_count(&self) -> usize {
