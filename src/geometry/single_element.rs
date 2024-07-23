@@ -326,6 +326,29 @@ mod test {
         )
     }
 
+    fn example_geometry_quadrilateral2d() -> SingleElementGeometry<f64, CiarletElement<f64>> {
+        let mut points = rlst_dynamic_array2!(f64, [2, 6]);
+        *points.get_mut([0, 0]).unwrap() = 0.0;
+        *points.get_mut([1, 0]).unwrap() = 0.0;
+        *points.get_mut([0, 1]).unwrap() = 1.0;
+        *points.get_mut([1, 1]).unwrap() = 0.0;
+        *points.get_mut([0, 2]).unwrap() = 0.0;
+        *points.get_mut([1, 2]).unwrap() = 1.0;
+        *points.get_mut([0, 3]).unwrap() = 1.0;
+        *points.get_mut([1, 3]).unwrap() = 1.0;
+        *points.get_mut([0, 4]).unwrap() = 2.0;
+        *points.get_mut([1, 4]).unwrap() = 2.0;
+        *points.get_mut([0, 5]).unwrap() = 3.0;
+        *points.get_mut([1, 5]).unwrap() = 2.0;
+        let family = LagrangeElementFamily::<f64>::new(1, Continuity::Standard);
+        SingleElementGeometry::<f64, CiarletElement<f64>>::new(
+            ReferenceCellType::Quadrilateral,
+            points,
+            &[0, 1, 2, 3, 1, 4, 3, 5],
+            &family,
+        )
+    }
+
     macro_rules! make_tests {
         ($cellname:ident) => {
             paste::item! {
@@ -380,4 +403,5 @@ mod test {
     make_tests!(flat_triangle2d);
     make_tests!(flat_triangle3d);
     make_tests!(quadratic_triangle2d);
+    make_tests!(quadrilateral2d);
 }
