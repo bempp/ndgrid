@@ -118,10 +118,6 @@ impl<'g, T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeomet
     fn point_count(&self) -> usize {
         self.geometry.cells().shape()[0]
     }
-
-    fn volume(&self) -> usize {
-        unimplemented!();
-    }
 }
 
 #[cfg(test)]

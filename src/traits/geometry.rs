@@ -30,7 +30,4 @@ pub trait Geometry {
 
     /// Point count
     fn point_count(&self) -> usize;
-
-    /// volume
-    fn volume(&self) -> usize;
 }
