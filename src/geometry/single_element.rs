@@ -176,14 +176,33 @@ impl<'g, T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeomet
 mod test {
     use super::*;
     use approx::assert_relative_eq;
-    use itertools::izip;
     use ndelement::{
         ciarlet::{CiarletElement, LagrangeElementFamily},
         types::Continuity,
     };
-    use rlst::RandomAccessMut;
+    use rlst::{RandomAccessMut, DefaultIterator};
+    use itertools::izip;
 
-    fn example_geometry_triangle() -> SingleElementGeometry<f64, CiarletElement<f64>> {
+    fn example_geometry_triangle2d() -> SingleElementGeometry<f64, CiarletElement<f64>> {
+        let mut points = rlst_dynamic_array2!(f64, [2, 4]);
+        *points.get_mut([0, 0]).unwrap() = 0.0;
+        *points.get_mut([1, 0]).unwrap() = 0.0;
+        *points.get_mut([0, 1]).unwrap() = 1.0;
+        *points.get_mut([1, 1]).unwrap() = 0.0;
+        *points.get_mut([0, 2]).unwrap() = 0.0;
+        *points.get_mut([1, 2]).unwrap() = 1.0;
+        *points.get_mut([0, 3]).unwrap() = 2.0;
+        *points.get_mut([1, 3]).unwrap() = 1.0;
+        let family = LagrangeElementFamily::<f64>::new(1, Continuity::Standard);
+        SingleElementGeometry::<f64, CiarletElement<f64>>::new(
+            ReferenceCellType::Triangle,
+            points,
+            &[0, 1, 2, 2, 1, 3],
+            &family,
+        )
+    }
+
+    fn example_geometry_triangle3d() -> SingleElementGeometry<f64, CiarletElement<f64>> {
         let mut points = rlst_dynamic_array2!(f64, [3, 4]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;
@@ -207,47 +226,39 @@ mod test {
     }
 
     #[test]
-    fn test_points_triangle() {
-        let g = example_geometry_triangle();
+    fn test_points_triangle3d() {
+        let g = example_geometry_triangle3d();
+
+        let mut cell_vertices = vec![];
+        for cell in g.cells().col_iter() {
+            let mut pts = vec![];
+            for i in cell.iter() {
+                let mut pt = vec![];
+                for j in 0..g.points().shape()[0] {
+                    pt.push(g.points()[[j, i]]);
+                }
+                pts.push(pt)
+            }
+            cell_vertices.push(pts);
+        }
+        let conn = reference_cell::connectivity(g.element().cell_type());
+
         let mut point = vec![0.0; 3];
-        for (cell_i, vertices) in [
-            [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
-            [[0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [2.0, 1.0, 0.0]],
-        ]
-        .iter()
-        .enumerate()
-        {
-            // Check vertices
-            for (index, p1) in vertices.iter().enumerate() {
-                let vertex = SingleElementEntityGeometry::<f64, CiarletElement<f64>>::new(
-                    &g, cell_i, 0, index,
-                );
-                for p0 in vertex.points() {
-                    p0.coords(&mut point);
-                    for (i, j) in point.iter().zip(p1) {
-                        assert_relative_eq!(i, j);
+        for (cell_i, vertices) in cell_vertices.iter().enumerate() {
+
+            for (dim, conn_dim) in conn.iter().enumerate() {
+                for (index, entity_vertices) in conn_dim.iter().enumerate() {
+                    let entity = SingleElementEntityGeometry::<f64, CiarletElement<f64>>::new(
+                        &g, cell_i, dim, index,
+                    );
+                    for (v, pt) in izip!(&entity_vertices[0], entity.points()) {
+                        pt.coords(&mut point);
+                        for (i, j) in izip!(&point, &vertices[*v]) {
+                           assert_relative_eq!(*i, j);
+                        }
                     }
-                }
-            }
-            // Check edges
-            for (index, edge_vertices) in [[1, 2], [0, 2], [0, 1]].iter().enumerate() {
-                let edge = SingleElementEntityGeometry::<f64, CiarletElement<f64>>::new(
-                    &g, cell_i, 1, index,
-                );
-                for (v, p0) in izip!(edge_vertices, edge.points()) {
-                    p0.coords(&mut point);
-                    for (i, j) in point.iter().zip(vertices[*v]) {
-                        assert_relative_eq!(*i, j);
-                    }
-                }
-            }
-            // Check cells
-            let cell =
-                SingleElementEntityGeometry::<f64, CiarletElement<f64>>::new(&g, cell_i, 2, 0);
-            for (p0, p1) in cell.points().zip(vertices) {
-                p0.coords(&mut point);
-                for (i, j) in point.iter().zip(p1) {
-                    assert_relative_eq!(i, j);
+
+
                 }
             }
         }
