@@ -8,9 +8,7 @@ use ndelement::{
     traits::{ElementFamily, FiniteElement},
     types::ReferenceCellType,
 };
-use rlst::{rlst_dynamic_array2, RawAccessMut};
-
-use std::iter::Copied;
+use rlst::{rlst_dynamic_array2, RawAccess, RawAccessMut, Shape};
 
 /// Single element geometry
 pub struct SingleElementGeometry<T: RealScalar, E: FiniteElement> {
@@ -38,7 +36,6 @@ impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
                     panic!("Unsupported cell type for SingleElementGeometry: {cell_type:?}");
                 }
             }
-            println!("{et:?}");
             elements.push(element_family.element(et[0]));
         }
         let points_per_cell = elements[elements.len() - 1].dim();
@@ -74,6 +71,12 @@ pub struct Point<'a, T: RealScalar> {
     coordinates: &'a [T],
 }
 
+impl<'a, T: RealScalar> Point<'a, T> {
+    /// Create new
+    pub fn new(coordinates: &'a [T]) -> Self {
+        Self { coordinates }
+    }
+}
 impl<'a, T: RealScalar> PointTrait for Point<'a, T> {
     type T = T;
 
@@ -83,6 +86,39 @@ impl<'a, T: RealScalar> PointTrait for Point<'a, T> {
 
     fn coords(&self, data: &mut [T]) {
         data.copy_from_slice(self.coordinates);
+    }
+}
+
+/// Iterator over points
+pub struct PointIter<'a, T: RealScalar> {
+    points: &'a Array2D<T>,
+    point_indices: &'a [usize],
+    index: usize,
+}
+impl<'a, T: RealScalar> PointIter<'a, T> {
+    /// Create new
+    pub fn new(points: &'a Array2D<T>, point_indices: &'a [usize]) -> Self {
+        Self {
+            points,
+            point_indices,
+            index: 0,
+        }
+    }
+}
+impl<'a, T: RealScalar> Iterator for PointIter<'a, T> {
+    type Item = Point<'a, T>;
+
+    fn next(&mut self) -> Option<Point<'a, T>> {
+        self.index += 1;
+        if self.index <= self.point_indices.len() {
+            let nrows = self.points.shape()[0];
+            Some(Point::new(
+                &self.points.data()[(self.point_indices[self.index - 1]) * nrows
+                    ..(self.point_indices[self.index - 1] + 1) * nrows],
+            ))
+        } else {
+            None
+        }
     }
 }
 
@@ -114,14 +150,19 @@ impl<'a, T: RealScalar, E: FiniteElement> SingleElementEntityGeometry<'a, T, E> 
 impl<'g, T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeometry<'g, T, E> {
     type Point<'a> = Point<'a, T> where Self: 'a;
 
-    type PointIter<'a> = Copied<std::slice::Iter<'a, Point<'a, T>>> where Self: 'a;
+    type PointIter<'a> = PointIter<'a, T> where Self: 'a;
 
-    fn points(&self) -> Self::PointIter<'_> {
-        unimplemented!();
+    fn points(&self) -> PointIter<'_, T> {
+        let cellsize = self.point_count();
+        PointIter::new(
+            self.geometry.points(),
+            &self.geometry.cells().data()
+                [cellsize * self.cell_index..cellsize * (self.cell_index + 1)],
+        )
     }
 
     fn point_count(&self) -> usize {
-        unimplemented!();
+        self.geometry.cells().shape()[0]
     }
 
     fn volume(&self) -> usize {
@@ -132,6 +173,7 @@ impl<'g, T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeomet
 #[cfg(test)]
 mod test {
     use super::*;
+    use approx::assert_relative_eq;
     use ndelement::{
         ciarlet::{CiarletElement, LagrangeElementFamily},
         types::Continuity,
@@ -165,6 +207,25 @@ mod test {
     fn test_points_triangle() {
         let g = example_geometry_triangle();
         let cell0 = SingleElementEntityGeometry::<f64, CiarletElement<f64>>::new(&g, 0, 2, 0);
-        let cell1 = SingleElementEntityGeometry::<f64, CiarletElement<f64>>::new(&g, 0, 2, 0);
+        let mut point = vec![0.0; 3];
+        for (p0, p1) in cell0
+            .points()
+            .zip(&[[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+        {
+            p0.coords(&mut point);
+            for (i, j) in point.iter().zip(p1) {
+                assert_relative_eq!(i, j);
+            }
+        }
+        let cell1 = SingleElementEntityGeometry::<f64, CiarletElement<f64>>::new(&g, 1, 2, 0);
+        for (p0, p1) in cell1
+            .points()
+            .zip(&[[0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [2.0, 1.0, 0.0]])
+        {
+            p0.coords(&mut point);
+            for (i, j) in point.iter().zip(p1) {
+                assert_relative_eq!(i, j);
+            }
+        }
     }
 }
