@@ -30,7 +30,7 @@ impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
         for et in reference_cell::entity_types(cell_type)
             .iter()
             .skip(1)
-            .filter(|i| i.len() > 0)
+            .filter(|i| !i.is_empty())
         {
             for c in et.iter().skip(1) {
                 if *c != et[0] {
