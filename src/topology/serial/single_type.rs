@@ -15,8 +15,8 @@ pub struct SingleTypeTopology {
     //    index_map: Vec<usize>,
     entity_types: Vec<ReferenceCellType>,
     entity_counts: Vec<usize>,
-    downward_connectivity: Vec<Vec<Array2D<usize>>>,
-    upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
+    pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,
+    pub(crate) upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
 }
 
 unsafe impl Sync for SingleTypeTopology {}
@@ -237,6 +237,15 @@ impl SingleTypeTopology {
         } else {
             self.entity_counts[reference_cell::dim(entity_type)]
         }
+    }
+    /// Cell sub-entity index
+    pub fn cell_entity_index(
+        &self,
+        cell_index: usize,
+        entity_dim: usize,
+        entity_index: usize,
+    ) -> usize {
+        self.downward_connectivity[self.dim][entity_dim][[entity_index, cell_index]]
     }
 }
 

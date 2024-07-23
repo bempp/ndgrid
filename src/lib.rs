@@ -3,6 +3,7 @@
 #![warn(missing_docs)]
 
 pub mod geometry;
+pub mod grid;
 pub mod topology;
 pub mod traits;
 pub mod types;

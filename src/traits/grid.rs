@@ -7,12 +7,6 @@ use std::iter::Iterator;
 
 /// A grid
 pub trait Grid {
-    /// World dimension
-    const GDIM: usize;
-
-    /// Grid dimension
-    const TDIM: usize;
-
     /// Scalar type
     type T: RealScalar;
 
@@ -48,23 +42,14 @@ pub trait Grid {
     where
         Self: 'a;
 
-    /// Iterator over points
-    type PointIter<'a>: Iterator<Item = Self::Point<'a>>
-    where
-        Self: 'a;
-
     /// Dimension of the geometry of this grid
-    fn geometry_dim() -> usize {
-        Self::GDIM
-    }
+    fn geometry_dim(&self) -> usize;
 
     /// Dimension of the topology of this grid
-    fn topology_dim() -> usize {
-        Self::TDIM
-    }
+    fn topology_dim(&self) -> usize;
 
     /// An entity in this grid
-    fn entity(&self, dim: usize, local_index: usize) -> Self::Entity<'_>;
+    fn entity(&self, dim: usize, local_index: usize) -> Option<Self::Entity<'_>>;
 
     /// Iterator over entities
     fn entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
