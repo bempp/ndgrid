@@ -51,6 +51,10 @@ impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
             elements,
         }
     }
+    /// Geometric dimension
+    pub fn dim(&self) -> usize {
+        self.points().shape()[0]
+    }
     /// Points
     pub fn points(&self) -> &Array2D<T> {
         &self.points
@@ -100,7 +104,7 @@ impl<'g, T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeomet
     type PointIter<'a> = PointIter<'a, T> where Self: 'a;
 
     fn points(&self) -> PointIter<'_, T> {
-        let gdim = self.geometry.points().shape()[0];
+        let gdim = self.geometry.dim();
         let mut pts = vec![];
         for index in self
             .geometry
