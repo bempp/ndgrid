@@ -82,7 +82,7 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
         self.points.extend_from_slice(data);
     }
 
-    fn add_cell<'a>(&mut self, id: usize, cell_data: &'a [usize]) {
+    fn add_cell(&mut self, id: usize, cell_data: &[usize]) {
         if self.cell_indices_to_ids.contains(&id) {
             panic!("Cannot add cell with duplicate id.");
         }
