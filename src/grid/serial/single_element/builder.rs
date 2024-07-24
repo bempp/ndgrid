@@ -28,7 +28,6 @@ pub struct SingleElementGridBuilder<T: RealScalar> {
 }
 
 impl<T: RealScalar> Builder for SingleElementGridBuilder<T>
-//where MatrixInverse,
 {
     type Grid = SingleElementGrid<T, CiarletElement<T>>;
     type T = T;
@@ -81,7 +80,7 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T>
         self.point_ids_to_indices
             .insert(id, self.point_indices_to_ids.len());
         self.point_indices_to_ids.push(id);
-        self.points.extend_from_slice(&data);
+        self.points.extend_from_slice(data);
     }
 
     fn add_cell(&mut self, id: usize, cell_data: Vec<usize>) {
