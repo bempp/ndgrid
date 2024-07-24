@@ -9,7 +9,7 @@ pub trait Builder {
     /// The floating point type used for coordinates
     type T: RealScalar;
     /// The type of the data that is input to add a cell
-    type CellData;
+    type CellData<'a>;
     /// The type of the data that must be provided when initialising the builder
     type GridMetadata;
 
@@ -28,7 +28,7 @@ pub trait Builder {
     fn add_point(&mut self, id: usize, data: &[Self::T]);
 
     /// Add a cell to the grid
-    fn add_cell(&mut self, id: usize, cell_data: Self::CellData);
+    fn add_cell<'a>(&mut self, id: usize, cell_data: Self::CellData<'a>);
 
     /// Create the grid
     fn create_grid(self) -> Self::Grid;

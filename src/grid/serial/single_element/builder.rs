@@ -19,7 +19,7 @@ pub struct SingleElementGridBuilder<T: RealScalar> {
     gdim: usize,
     element_data: (ReferenceCellType, usize),
     points_per_cell: usize,
-    points: Vec<T>,
+    pub(crate) points: Vec<T>,
     cells: Vec<usize>,
     point_indices_to_ids: Vec<usize>,
     point_ids_to_indices: HashMap<usize, usize>,
@@ -27,11 +27,10 @@ pub struct SingleElementGridBuilder<T: RealScalar> {
     cell_ids_to_indices: HashMap<usize, usize>,
 }
 
-impl<T: RealScalar> Builder for SingleElementGridBuilder<T>
-{
+impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
     type Grid = SingleElementGrid<T, CiarletElement<T>>;
     type T = T;
-    type CellData = Vec<usize>;
+    type CellData<'a> = &'a [usize];
     type GridMetadata = (ReferenceCellType, usize);
 
     fn new(gdim: usize, data: (ReferenceCellType, usize)) -> Self {
@@ -83,7 +82,7 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T>
         self.points.extend_from_slice(data);
     }
 
-    fn add_cell(&mut self, id: usize, cell_data: Vec<usize>) {
+    fn add_cell<'a>(&mut self, id: usize, cell_data: &'a [usize]) {
         if self.cell_indices_to_ids.contains(&id) {
             panic!("Cannot add cell with duplicate id.");
         }
@@ -91,7 +90,7 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T>
         self.cell_ids_to_indices
             .insert(id, self.cell_indices_to_ids.len());
         self.cell_indices_to_ids.push(id);
-        for id in &cell_data {
+        for id in cell_data {
             self.cells.push(self.point_ids_to_indices[id]);
         }
     }
@@ -158,7 +157,7 @@ mod test {
         b.add_point(2, &[0.0, 1.0, 0.0]);
         b.add_point(3, &[1.0, 1.0, 0.0]);
 
-        b.add_cell(0, vec![0, 1, 2]);
-        b.add_cell(0, vec![1, 2, 3]);
+        b.add_cell(0, &[0, 1, 2]);
+        b.add_cell(0, &[1, 2, 3]);
     }
 }
