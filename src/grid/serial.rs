@@ -1,3 +1,3 @@
 //! Serial grids
 mod single_element;
-pub use single_element::SingleElementGrid;
+pub use single_element::{SingleElementGrid, SingleElementGridBuilder};
