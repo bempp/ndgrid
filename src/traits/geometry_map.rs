@@ -31,7 +31,7 @@ pub trait GeometryMap {
     /// index `entity_index` into `jacobians`, `jdets` and `normals`
     ///
     /// `jacobians` should have shape [geometry_dimension, entity_topology_dimension, npts] and use column-major ordering;
-    /// `jdets` should have shape [npts];
+    /// `jdets` should have shape \[npts\];
     /// `normals` should have shape [geometry_dimension, npts] and use column-major ordering
     fn jacobians_dets_normals(
         &self,
