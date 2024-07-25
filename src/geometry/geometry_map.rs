@@ -75,35 +75,35 @@ impl<'a, T: RealScalar> GeometryMapTrait for GeometryMap<'a, T> {
     fn point_count(&self) -> usize {
         self.table.shape()[1]
     }
-    fn points(&self, cell_index: usize, value: &mut [T]) {
+    fn points(&self, entity_index: usize, points: &mut [T]) {
         let npts = self.table.shape()[1];
-        assert_eq!(value.len(), self.gdim * npts);
+        assert_eq!(points.len(), self.gdim * npts);
 
-        value.fill(T::from(0.0).unwrap());
+        points.fill(T::from(0.0).unwrap());
         // TODO: can I use rlst better here?
         for i in 0..self.entities.shape()[0] {
-            let v = self.entities[[i, cell_index]];
+            let v = self.entities[[i, entity_index]];
             for point_index in 0..npts {
                 let t = *self.table.get([0, point_index, i, 0]).unwrap();
                 for gd in 0..self.gdim {
-                    value[gd + self.gdim * point_index] +=
+                    points[gd + self.gdim * point_index] +=
                         *self.geometry_points.get([gd, v]).unwrap() * t;
                 }
             }
         }
     }
-    fn jacobians(&self, cell_index: usize, value: &mut [T]) {
+    fn jacobians(&self, entity_index: usize, jacobians: &mut [T]) {
         let npts = self.table.shape()[1];
-        assert_eq!(value.len(), self.gdim * self.tdim * npts);
+        assert_eq!(jacobians.len(), self.gdim * self.tdim * npts);
 
-        value.fill(T::from(0.0).unwrap());
+        jacobians.fill(T::from(0.0).unwrap());
         // TODO: can I use rlst better here?
         for i in 0..self.entities.shape()[0] {
-            let v = self.entities[[i, cell_index]];
+            let v = self.entities[[i, entity_index]];
             for point_index in 0..npts {
                 for gd in 0..self.gdim {
                     for td in 0..self.tdim {
-                        value[gd + self.gdim * td + self.gdim * self.tdim * point_index] +=
+                        jacobians[gd + self.gdim * td + self.gdim * self.tdim * point_index] +=
                             *self.geometry_points.get([gd, v]).unwrap()
                                 * *self.table.get([1 + td, point_index, i, 0]).unwrap();
                     }
@@ -111,23 +111,32 @@ impl<'a, T: RealScalar> GeometryMapTrait for GeometryMap<'a, T> {
             }
         }
     }
-    fn normals(&self, cell_index: usize, value: &mut [T]) {
+
+    fn jacobians_dets_normals(
+        &self,
+        entity_index: usize,
+        jacobians: &mut [Self::T],
+        jdets: &mut [Self::T],
+        normals: &mut [Self::T],
+    ) {
         if self.tdim + 1 != self.gdim {
             panic!("Can only compute normal for entities where tdim + 1 == gdim");
         }
         let npts = self.table.shape()[1];
-        assert_eq!(value.len(), self.gdim * npts);
+        assert_eq!(jacobians.len(), self.gdim * self.tdim * npts);
+        assert_eq!(jdets.len(), npts);
+        assert_eq!(normals.len(), self.gdim * npts);
 
         // TODO: can we remove this memory assignment?
         let mut temp = rlst_dynamic_array2!(T, [self.tdim, self.tdim]);
 
         for point_index in 0..npts {
-            for gd in 1..self.gdim {
+            for gd in 0..self.gdim {
                 for td in 0..self.tdim {
-                    temp[[td, gd - 1]] = self
+                    jacobians[gd + self.gdim * td + self.gdim * self.tdim * point_index] = self
                         .entities
                         .view()
-                        .slice(1, cell_index)
+                        .slice(1, entity_index)
                         .iter()
                         .enumerate()
                         .map(|(i, v)| {
@@ -137,28 +146,26 @@ impl<'a, T: RealScalar> GeometryMapTrait for GeometryMap<'a, T> {
                         .sum::<T>();
                 }
             }
+            for gd in 1..self.gdim {
+                for td in 0..self.tdim {
+                    temp[[gd - 1, td]] =
+                        jacobians[gd + self.gdim * td + self.gdim * self.tdim * point_index];
+                }
+            }
             for gd in 0..self.gdim {
-                value[gd + self.gdim * point_index] =
+                normals[gd + self.gdim * point_index] =
                     if gd % 2 == 0 { det(&temp) } else { -det(&temp) };
                 if gd < self.tdim {
                     for td in 0..self.tdim {
-                        temp[[td, gd]] = self
-                            .entities
-                            .view()
-                            .slice(1, cell_index)
-                            .iter()
-                            .enumerate()
-                            .map(|(i, v)| {
-                                *self.geometry_points.get([gd, v]).unwrap()
-                                    * *self.table.get([1 + td, point_index, i, 0]).unwrap()
-                            })
-                            .sum::<T>();
+                        temp[[gd, td]] =
+                            jacobians[gd + self.gdim * td + self.gdim * self.tdim * point_index];
                     }
                 }
             }
-            let size = norm(&value[self.gdim * point_index..self.gdim * (point_index + 1)]);
+            jdets[point_index] =
+                norm(&normals[self.gdim * point_index..self.gdim * (point_index + 1)]);
             for gd in 0..self.gdim {
-                value[gd + self.gdim * point_index] /= size;
+                normals[gd + self.gdim * point_index] /= jdets[point_index];
             }
         }
     }
