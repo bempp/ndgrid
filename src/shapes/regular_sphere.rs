@@ -122,10 +122,12 @@ mod test {
             let points = vec![1.0 / 3.0, 1.0 / 3.0];
             let map = g.geometry_map(ReferenceCellType::Triangle, &points);
             let mut mapped_pt = vec![0.0; 3];
+            let mut j = vec![0.0; 6];
+            let mut jdet = vec![0.0];
             let mut normal = vec![0.0; 3];
             for i in 0..g.entity_count(ReferenceCellType::Triangle) {
                 map.points(i, &mut mapped_pt);
-                map.normals(i, &mut normal);
+                map.jacobians_dets_normals(i, &mut j, &mut jdet, &mut normal);
                 let dot = mapped_pt
                     .iter()
                     .zip(&normal)
@@ -142,11 +144,13 @@ mod test {
             let g = regular_sphere::<f64>(i);
             let points = vec![1.0 / 3.0, 1.0 / 3.0];
             let map = g.geometry_map(ReferenceCellType::Triangle, &points);
+            let mut j = vec![0.0; 6];
+            let mut jdet = vec![0.0];
             let mut mapped_pt = vec![0.0; 3];
             let mut normal = vec![0.0; 3];
             for i in 0..g.entity_count(ReferenceCellType::Triangle) {
                 map.points(i, &mut mapped_pt);
-                map.normals(i, &mut normal);
+                map.jacobians_dets_normals(i, &mut j, &mut jdet, &mut normal);
                 let dot = normal.iter().zip(&normal).map(|(i, j)| i * j).sum::<f64>();
                 assert_relative_eq!(dot, 1.0, epsilon = 1e-10);
             }

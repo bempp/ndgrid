@@ -17,18 +17,27 @@ pub trait GeometryMap {
     /// The number of reference points that this map uses
     fn point_count(&self) -> usize;
 
-    /// Write the physical points for the entity with index `entity_index` into `value`
+    /// Write the physical points for the entity with index `entity_index` into `points`
     ///
-    /// `value` should have shape [geometry_dimension, npts] and use column-major ordering
-    fn points(&self, entity_index: usize, value: &mut [Self::T]);
+    /// `points` should have shape [geometry_dimension, npts] and use column-major ordering
+    fn points(&self, entity_index: usize, points: &mut [Self::T]);
 
-    /// Write the jacobians at the physical points for the entity with index `entity_index` into `value`
+    /// Write the jacobians at the physical points for the entity with index `entity_index` into `jacobians`
     ///
-    /// `value` should have shape [geometry_dimension, entity_topology_dimension, npts] and use column-major ordering
-    fn jacobians(&self, entity_index: usize, value: &mut [Self::T]);
+    /// `jacobians` should have shape [geometry_dimension, entity_topology_dimension, npts] and use column-major ordering
+    fn jacobians(&self, entity_index: usize, jacobians: &mut [Self::T]);
 
-    /// Write the normals at the physical points for the entity with index `entity_index` into `value`
+    /// Write the jacobians, their determinants, and the normals at the physical points for the entity with
+    /// index `entity_index` into `jacobians`, `jdets` and `normals`
     ///
-    /// `value` should have shape [geometry_dimension, npts] and use column-major ordering
-    fn normals(&self, entity_index: usize, value: &mut [Self::T]);
+    /// `jacobians` should have shape [geometry_dimension, entity_topology_dimension, npts] and use column-major ordering;
+    /// `jdets` should have shape \[npts\];
+    /// `normals` should have shape [geometry_dimension, npts] and use column-major ordering
+    fn jacobians_dets_normals(
+        &self,
+        entity_index: usize,
+        jacobians: &mut [Self::T],
+        jdets: &mut [Self::T],
+        normals: &mut [Self::T],
+    );
 }

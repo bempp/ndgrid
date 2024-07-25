@@ -190,10 +190,12 @@ mod test {
             let points = vec![1.0 / 3.0, 1.0 / 3.0];
             let map = g.geometry_map(ReferenceCellType::Triangle, &points);
             let mut mapped_pt = vec![0.0; 3];
+            let mut j = vec![0.0; 6];
+            let mut jdet = vec![0.0];
             let mut normal = vec![0.0; 3];
             for i in 0..g.entity_count(ReferenceCellType::Triangle) {
                 map.points(i, &mut mapped_pt);
-                map.normals(i, &mut normal);
+                map.jacobians_dets_normals(i, &mut j, &mut jdet, &mut normal);
                 assert!(normal[2] > 0.0);
                 assert_relative_eq!(normal[2], 1.0);
             }
@@ -214,10 +216,12 @@ mod test {
             let points = vec![1.0 / 3.0, 1.0 / 3.0];
             let map = g.geometry_map(ReferenceCellType::Quadrilateral, &points);
             let mut mapped_pt = vec![0.0; 3];
+            let mut j = vec![0.0; 6];
+            let mut jdet = vec![0.0];
             let mut normal = vec![0.0; 3];
             for i in 0..g.entity_count(ReferenceCellType::Quadrilateral) {
                 map.points(i, &mut mapped_pt);
-                map.normals(i, &mut normal);
+                map.jacobians_dets_normals(i, &mut j, &mut jdet, &mut normal);
                 assert!(normal[2] > 0.0);
                 assert_relative_eq!(normal[2], 1.0);
             }
