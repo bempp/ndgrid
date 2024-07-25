@@ -183,8 +183,8 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
             GeometryMap::new(
                 self.geometry.element(),
                 &rlst_points,
-                &self.geometry.points(),
-                &self.geometry.cells(),
+                self.geometry.points(),
+                self.geometry.cells(),
             )
         } else {
             unimplemented!();
