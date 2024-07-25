@@ -1,6 +1,6 @@
+use ndelement::types::ReferenceCellType;
 use ndgrid::grid::serial::SingleElementGridBuilder;
 use ndgrid::traits::{Builder, Entity, Geometry, Grid, Point, Topology};
-use ndelement::types::ReferenceCellType;
 
 extern crate blas_src;
 extern crate lapack_src;
@@ -39,9 +39,7 @@ fn main() {
         println!(
             "cell {}: {:?} ",
             cell.local_index(),
-            cell.topology()
-                .sub_entity_iter(0)
-                .collect::<Vec<_>>()
+            cell.topology().sub_entity_iter(0).collect::<Vec<_>>()
         );
     }
 }
