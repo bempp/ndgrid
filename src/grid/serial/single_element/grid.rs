@@ -123,7 +123,6 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     type T = T;
     type Point<'a> = Point<'a, T> where Self: 'a;
     type Entity<'a> = SingleElementGridEntity<'a, T, E> where Self: 'a;
-    type Topology<'a> = SingleTypeEntityTopology<'a> where Self: 'a;
     type Geometry<'a> = SingleElementEntityGeometry<'a, T, E> where Self: 'a;
     type GeometryMap<'a> = GeometryMap<'a, T> where Self: 'a;
     type EntityDescriptor = ReferenceCellType;

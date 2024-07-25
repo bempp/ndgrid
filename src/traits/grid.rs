@@ -1,5 +1,5 @@
 //! Traits for a mesh entity
-use super::{Entity, Geometry, GeometryMap, Point, Topology};
+use super::{Entity, Geometry, GeometryMap, Point};
 use crate::types::RealScalar;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -18,14 +18,8 @@ pub trait Grid {
     /// Type used as identifier of different entity types
     type Entity<'a>: Entity<
         EntityDescriptor = Self::EntityDescriptor,
-        Topology<'a> = Self::Topology<'a>,
         Geometry<'a> = Self::Geometry<'a>,
     >
-    where
-        Self: 'a;
-
-    /// Topology type
-    type Topology<'a>: Topology
     where
         Self: 'a;
 
