@@ -1,139 +1,22 @@
 //! Geometry where each entity of a given dimension is represented by the same element
-use crate::{
-    geometry::{Point, PointIter},
-    traits::Geometry,
-    types::{Array2D, RealScalar},
-};
-use ndelement::{
-    reference_cell,
-    traits::{ElementFamily, FiniteElement},
-    types::ReferenceCellType,
-};
-use rlst::{rlst_dynamic_array2, RawAccess, RawAccessMut, Shape};
+mod entity_geometry;
+mod geometry;
 
-/// Single element geometry
-pub struct SingleElementGeometry<T: RealScalar, E: FiniteElement> {
-    points: Array2D<T>,
-    cells: Array2D<usize>,
-    elements: Vec<E>,
-}
-
-impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
-    /// Create single element geometry
-    pub fn new(
-        cell_type: ReferenceCellType,
-        points: Array2D<T>,
-        cells_input: &[usize],
-        element_family: &impl ElementFamily<T = T, CellType = ReferenceCellType, FiniteElement = E>,
-    ) -> Self {
-        let mut elements = vec![];
-        for et in reference_cell::entity_types(cell_type)
-            .iter()
-            .skip(1)
-            .filter(|i| !i.is_empty())
-        {
-            for c in et.iter().skip(1) {
-                if *c != et[0] {
-                    panic!("Unsupported cell type for SingleElementGeometry: {cell_type:?}");
-                }
-            }
-            elements.push(element_family.element(et[0]));
-        }
-        let points_per_cell = elements[elements.len() - 1].dim();
-        let mut cells = rlst_dynamic_array2!(
-            usize,
-            [points_per_cell, cells_input.len() / points_per_cell]
-        );
-        cells.data_mut().copy_from_slice(cells_input);
-        Self {
-            points,
-            cells,
-            elements,
-        }
-    }
-    /// Geometric dimension
-    pub fn dim(&self) -> usize {
-        self.points().shape()[0]
-    }
-    /// Points
-    pub fn points(&self) -> &Array2D<T> {
-        &self.points
-    }
-    /// Cells
-    pub fn cells(&self) -> &Array2D<usize> {
-        &self.cells
-    }
-    /// Element for a sub-entity
-    pub fn entity_element(&self, tdim: usize) -> &E {
-        &self.elements[tdim - 1]
-    }
-    /// Element for a cell
-    pub fn element(&self) -> &E {
-        &self.elements[self.elements.len() - 1]
-    }
-}
-
-/// Geometry of a cell
-pub struct SingleElementEntityGeometry<'a, T: RealScalar, E: FiniteElement> {
-    geometry: &'a SingleElementGeometry<T, E>,
-    cell_index: usize,
-    sub_entity_dimension: usize,
-    sub_entity_index: usize,
-}
-
-impl<'a, T: RealScalar, E: FiniteElement> SingleElementEntityGeometry<'a, T, E> {
-    /// Create new
-    pub fn new(
-        geometry: &'a SingleElementGeometry<T, E>,
-        cell_index: usize,
-        sub_entity_dimension: usize,
-        sub_entity_index: usize,
-    ) -> Self {
-        Self {
-            geometry,
-            cell_index,
-            sub_entity_dimension,
-            sub_entity_index,
-        }
-    }
-}
-
-impl<'g, T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeometry<'g, T, E> {
-    type Point<'a> = Point<'a, T> where Self: 'a;
-
-    type PointIter<'a> = PointIter<'a, T> where Self: 'a;
-
-    fn points(&self) -> PointIter<'_, T> {
-        let gdim = self.geometry.dim();
-        let mut pts = vec![];
-        for index in self
-            .geometry
-            .element()
-            .entity_closure_dofs(self.sub_entity_dimension, self.sub_entity_index)
-            .unwrap()
-        {
-            let i = self.geometry.cells()[[*index, self.cell_index]];
-            pts.push(&self.geometry.points().data()[i * gdim..(i + 1) * gdim])
-        }
-
-        PointIter::new(pts)
-    }
-
-    fn point_count(&self) -> usize {
-        self.geometry.cells().shape()[0]
-    }
-}
+pub use entity_geometry::SingleElementEntityGeometry;
+pub use geometry::SingleElementGeometry;
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::traits::Point;
+    use crate::traits::{Geometry, Point};
     use approx::assert_relative_eq;
     use itertools::izip;
     use ndelement::{
         ciarlet::{CiarletElement, LagrangeElementFamily},
         types::Continuity,
     };
+    use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType};
+    use rlst::{rlst_dynamic_array2, Shape};
     use rlst::{DefaultIterator, RandomAccessMut};
 
     fn example_geometry_linear_interval1d() -> SingleElementGeometry<f64, CiarletElement<f64>> {
