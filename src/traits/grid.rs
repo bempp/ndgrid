@@ -35,7 +35,9 @@ pub trait Grid {
         Self: 'a;
 
     /// Geometry map type
-    type GeometryMap<'a>: GeometryMap<T=Self::T> where Self: 'a;
+    type GeometryMap<'a>: GeometryMap<T = Self::T>
+    where
+        Self: 'a;
 
     /// Type used as identifier of different entity types
     type EntityDescriptor: Debug + PartialEq + Eq + Clone + Copy + Hash;
@@ -66,5 +68,9 @@ pub trait Grid {
     /// Geometry map from reference entity to physical entities at the given points
     ///
     /// `points` should have space [entity_topology_dim, npts] and use column-major ordering
-    fn geometry_map(&self, entity_type: Self::EntityDescriptor, points: &[Self::T]) -> Self::GeometryMap<'_>;
+    fn geometry_map(
+        &self,
+        entity_type: Self::EntityDescriptor,
+        points: &[Self::T],
+    ) -> Self::GeometryMap<'_>;
 }

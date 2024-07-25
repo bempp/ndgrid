@@ -24,11 +24,11 @@ pub trait GeometryMap {
 
     /// Write the jacobians at the physical points for the entity with index `entity_index` into `value`
     ///
-    /// `value` should have shape [geometry_dimension (3), entity_topology_dimension (2), npts] and use column-major ordering
-    fn jacobian(&self, entity_index: usize, value: &mut [Self::T]);
+    /// `value` should have shape [geometry_dimension, entity_topology_dimension, npts] and use column-major ordering
+    fn jacobians(&self, entity_index: usize, value: &mut [Self::T]);
 
     /// Write the normals at the physical points for the entity with index `entity_index` into `value`
     ///
     /// `value` should have shape [geometry_dimension, npts] and use column-major ordering
-    fn normal(&self, entity_index: usize, value: &mut [Self::T]);
+    fn normals(&self, entity_index: usize, value: &mut [Self::T]);
 }

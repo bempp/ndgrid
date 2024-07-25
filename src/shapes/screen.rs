@@ -174,7 +174,8 @@ pub fn screen_mixed<T: Float + RealScalar>(ncells: usize) -> MixedGrid<T>
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::traits::{Grid, GeometryMap};
+    use crate::traits::{GeometryMap, Grid};
+    use approx::assert_relative_eq;
 
     #[test]
     fn test_screen_triangles() {
@@ -183,7 +184,7 @@ mod test {
         let _g3 = screen_triangles::<f64>(3);
     }
     #[test]
-    fn test_screen_triangles_normal() {
+    fn test_screen_triangles_normals() {
         for i in 1..5 {
             let g = screen_triangles::<f64>(i);
             let points = vec![1.0 / 3.0, 1.0 / 3.0];
@@ -192,8 +193,9 @@ mod test {
             let mut normal = vec![0.0; 3];
             for i in 0..g.entity_count(ReferenceCellType::Triangle) {
                 map.points(i, &mut mapped_pt);
-                map.normal(i, &mut normal);
+                map.normals(i, &mut normal);
                 assert!(normal[2] > 0.0);
+                assert_relative_eq!(normal[2], 1.0);
             }
         }
     }
@@ -206,7 +208,7 @@ mod test {
     }
 
     #[test]
-    fn test_screen_quadrilaterals_normal() {
+    fn test_screen_quadrilaterals_normals() {
         for i in 1..5 {
             let g = screen_quadrilaterals::<f64>(i);
             let points = vec![1.0 / 3.0, 1.0 / 3.0];
@@ -215,8 +217,9 @@ mod test {
             let mut normal = vec![0.0; 3];
             for i in 0..g.entity_count(ReferenceCellType::Quadrilateral) {
                 map.points(i, &mut mapped_pt);
-                map.normal(i, &mut normal);
+                map.normals(i, &mut normal);
                 assert!(normal[2] > 0.0);
+                assert_relative_eq!(normal[2], 1.0);
             }
         }
     }

@@ -1,22 +1,28 @@
 //! Single element grid
 use crate::{
-    geometry::{Point, SingleElementEntityGeometry, SingleElementGeometry, GeometryMap},
+    geometry::{GeometryMap, Point, SingleElementEntityGeometry, SingleElementGeometry},
     topology::serial::{SingleTypeEntityTopology, SingleTypeTopology},
     traits::{Entity, Grid},
     types::{Ownership, RealScalar},
 };
-use ndelement::{traits::FiniteElement, types::ReferenceCellType, reference_cell};
-use rlst::{RawAccess, rlst_array_from_slice2};
+use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType};
+use rlst::{rlst_array_from_slice2, RawAccess};
 
 /// Single element grid entity
-pub struct SingleElementGridEntity<'a, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> {
+pub struct SingleElementGridEntity<
+    'a,
+    T: RealScalar,
+    E: FiniteElement<CellType = ReferenceCellType, T = T>,
+> {
     grid: &'a SingleElementGrid<T, E>,
     cell_index: usize,
     entity_dim: usize,
     entity_index: usize,
 }
 
-impl<'e, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> SingleElementGridEntity<'e, T, E> {
+impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
+    SingleElementGridEntity<'e, T, E>
+{
     /// Create new
     pub fn new(
         grid: &'e SingleElementGrid<T, E>,
@@ -32,7 +38,9 @@ impl<'e, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> Singl
         }
     }
 }
-impl<'e, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> Entity for SingleElementGridEntity<'e, T, E> {
+impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Entity
+    for SingleElementGridEntity<'e, T, E>
+{
     type EntityDescriptor = ReferenceCellType;
     type Topology<'a> = SingleTypeEntityTopology<'a> where Self: 'a;
     type Geometry<'a> = SingleElementEntityGeometry<'a, T, E> where Self: 'a;
@@ -64,13 +72,19 @@ impl<'e, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> Entit
 }
 
 /// Single element grid entity iterator
-pub struct SingleElementGridEntityIter<'a, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> {
+pub struct SingleElementGridEntityIter<
+    'a,
+    T: RealScalar,
+    E: FiniteElement<CellType = ReferenceCellType, T = T>,
+> {
     grid: &'a SingleElementGrid<T, E>,
     dim: usize,
     index: usize,
 }
 
-impl<'a, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> SingleElementGridEntityIter<'a, T, E> {
+impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
+    SingleElementGridEntityIter<'a, T, E>
+{
     /// Create new
     pub fn new(grid: &'a SingleElementGrid<T, E>, dim: usize) -> Self {
         Self {
@@ -80,7 +94,9 @@ impl<'a, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> Singl
         }
     }
 }
-impl<'a, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> Iterator for SingleElementGridEntityIter<'a, T, E> {
+impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Iterator
+    for SingleElementGridEntityIter<'a, T, E>
+{
     type Item = SingleElementGridEntity<'a, T, E>;
 
     fn next(&mut self) -> Option<SingleElementGridEntity<'a, T, E>> {
@@ -90,18 +106,20 @@ impl<'a, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> Itera
 }
 
 /// Serial single element grid
-pub struct SingleElementGrid<T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> {
+pub struct SingleElementGrid<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> {
     topology: SingleTypeTopology,
     geometry: SingleElementGeometry<T, E>,
 }
 
-impl<T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> SingleElementGrid<T, E> {
+impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> SingleElementGrid<T, E> {
     /// Create new
     pub fn new(topology: SingleTypeTopology, geometry: SingleElementGeometry<T, E>) -> Self {
         Self { topology, geometry }
     }
 }
-impl<T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> Grid for SingleElementGrid<T, E> {
+impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
+    for SingleElementGrid<T, E>
+{
     type T = T;
     type Point<'a> = Point<'a, T> where Self: 'a;
     type Entity<'a> = SingleElementGridEntity<'a, T, E> where Self: 'a;
