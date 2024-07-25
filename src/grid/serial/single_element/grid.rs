@@ -1,22 +1,22 @@
 //! Single element grid
 use crate::{
-    geometry::{Point, SingleElementEntityGeometry, SingleElementGeometry},
+    geometry::{Point, SingleElementEntityGeometry, SingleElementGeometry, GeometryMap},
     topology::serial::{SingleTypeEntityTopology, SingleTypeTopology},
     traits::{Entity, Grid},
     types::{Ownership, RealScalar},
 };
-use ndelement::{traits::FiniteElement, types::ReferenceCellType};
-use rlst::RawAccess;
+use ndelement::{traits::FiniteElement, types::ReferenceCellType, reference_cell};
+use rlst::{RawAccess, rlst_array_from_slice2};
 
 /// Single element grid entity
-pub struct SingleElementGridEntity<'a, T: RealScalar, E: FiniteElement> {
+pub struct SingleElementGridEntity<'a, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> {
     grid: &'a SingleElementGrid<T, E>,
     cell_index: usize,
     entity_dim: usize,
     entity_index: usize,
 }
 
-impl<'e, T: RealScalar, E: FiniteElement> SingleElementGridEntity<'e, T, E> {
+impl<'e, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> SingleElementGridEntity<'e, T, E> {
     /// Create new
     pub fn new(
         grid: &'e SingleElementGrid<T, E>,
@@ -32,7 +32,7 @@ impl<'e, T: RealScalar, E: FiniteElement> SingleElementGridEntity<'e, T, E> {
         }
     }
 }
-impl<'e, T: RealScalar, E: FiniteElement> Entity for SingleElementGridEntity<'e, T, E> {
+impl<'e, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> Entity for SingleElementGridEntity<'e, T, E> {
     type EntityDescriptor = ReferenceCellType;
     type Topology<'a> = SingleTypeEntityTopology<'a> where Self: 'a;
     type Geometry<'a> = SingleElementEntityGeometry<'a, T, E> where Self: 'a;
@@ -64,13 +64,13 @@ impl<'e, T: RealScalar, E: FiniteElement> Entity for SingleElementGridEntity<'e,
 }
 
 /// Single element grid entity iterator
-pub struct SingleElementGridEntityIter<'a, T: RealScalar, E: FiniteElement> {
+pub struct SingleElementGridEntityIter<'a, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> {
     grid: &'a SingleElementGrid<T, E>,
     dim: usize,
     index: usize,
 }
 
-impl<'a, T: RealScalar, E: FiniteElement> SingleElementGridEntityIter<'a, T, E> {
+impl<'a, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> SingleElementGridEntityIter<'a, T, E> {
     /// Create new
     pub fn new(grid: &'a SingleElementGrid<T, E>, dim: usize) -> Self {
         Self {
@@ -80,7 +80,7 @@ impl<'a, T: RealScalar, E: FiniteElement> SingleElementGridEntityIter<'a, T, E> 
         }
     }
 }
-impl<'a, T: RealScalar, E: FiniteElement> Iterator for SingleElementGridEntityIter<'a, T, E> {
+impl<'a, T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> Iterator for SingleElementGridEntityIter<'a, T, E> {
     type Item = SingleElementGridEntity<'a, T, E>;
 
     fn next(&mut self) -> Option<SingleElementGridEntity<'a, T, E>> {
@@ -90,23 +90,24 @@ impl<'a, T: RealScalar, E: FiniteElement> Iterator for SingleElementGridEntityIt
 }
 
 /// Serial single element grid
-pub struct SingleElementGrid<T: RealScalar, E: FiniteElement> {
+pub struct SingleElementGrid<T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> {
     topology: SingleTypeTopology,
     geometry: SingleElementGeometry<T, E>,
 }
 
-impl<T: RealScalar, E: FiniteElement> SingleElementGrid<T, E> {
+impl<T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> SingleElementGrid<T, E> {
     /// Create new
     pub fn new(topology: SingleTypeTopology, geometry: SingleElementGeometry<T, E>) -> Self {
         Self { topology, geometry }
     }
 }
-impl<T: RealScalar, E: FiniteElement> Grid for SingleElementGrid<T, E> {
+impl<T: RealScalar, E: FiniteElement<CellType=ReferenceCellType, T=T>> Grid for SingleElementGrid<T, E> {
     type T = T;
     type Point<'a> = Point<'a, T> where Self: 'a;
     type Entity<'a> = SingleElementGridEntity<'a, T, E> where Self: 'a;
     type Topology<'a> = SingleTypeEntityTopology<'a> where Self: 'a;
     type Geometry<'a> = SingleElementEntityGeometry<'a, T, E> where Self: 'a;
+    type GeometryMap<'a> = GeometryMap<'a, T> where Self: 'a;
     type EntityDescriptor = ReferenceCellType;
     type EntityIter<'a> = SingleElementGridEntityIter<'a, T, E>
     where
@@ -144,12 +145,32 @@ impl<T: RealScalar, E: FiniteElement> Grid for SingleElementGrid<T, E> {
         }
     }
 
+    fn entity_count(&self, entity_type: ReferenceCellType) -> usize {
+        self.topology.entity_count(entity_type)
+    }
+
     fn entity_iter(&self, dim: usize) -> Self::EntityIter<'_> {
         SingleElementGridEntityIter::new(self, dim)
     }
 
     fn entity_from_id(&self, _dim: usize, _id: usize) -> Option<Self::Entity<'_>> {
         None
+    }
+
+    fn geometry_map(&self, entity_type: ReferenceCellType, points: &[T]) -> GeometryMap<'_, T> {
+        let entity_dim = reference_cell::dim(entity_type);
+        let npoints = points.len() / entity_dim;
+        let rlst_points = rlst_array_from_slice2!(points, [entity_dim, npoints]);
+        if entity_type == self.topology.entity_types()[self.topology_dim()] {
+            GeometryMap::new(
+                self.geometry.element(),
+                &rlst_points,
+                &self.geometry.points(),
+                &self.geometry.cells(),
+            )
+        } else {
+            unimplemented!();
+        }
     }
 }
 

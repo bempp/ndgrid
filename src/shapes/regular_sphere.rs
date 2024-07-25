@@ -100,6 +100,7 @@ pub fn regular_sphere<T: RealScalar>(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::traits::{Grid, GeometryMap};
 
     #[test]
     fn test_regular_sphere_0() {
@@ -113,26 +114,24 @@ mod test {
         let _g3 = regular_sphere::<f64>(3);
     }
 
-    /*
-        #[test]
-        fn test_normal_is_outward() {
-            for i in 0..3 {
-                let g = regular_sphere::<f64>(i);
-                let points = vec![1.0 / 3.0, 1.0 / 3.0];
-                let map = g.reference_to_physical_map(&points);
-                let mut mapped_pt = vec![0.0; 3];
-                let mut normal = vec![0.0; 3];
-                for i in 0..g.number_of_cells() {
-                    map.reference_to_physical(i, &mut mapped_pt);
-                    map.normal(i, &mut normal);
-                    let dot = mapped_pt
-                        .iter()
-                        .zip(&normal)
-                        .map(|(i, j)| i * j)
-                        .sum::<f64>();
-                    assert!(dot > 0.0);
-                }
+    #[test]
+    fn test_normal_is_outward() {
+        for i in 0..3 {
+            let g = regular_sphere::<f64>(i);
+            let points = vec![1.0 / 3.0, 1.0 / 3.0];
+            let map = g.geometry_map(ReferenceCellType::Triangle, &points);
+            let mut mapped_pt = vec![0.0; 3];
+            let mut normal = vec![0.0; 3];
+            for i in 0..g.entity_count(ReferenceCellType::Triangle) {
+                map.points(i, &mut mapped_pt);
+                map.normal(i, &mut normal);
+                let dot = mapped_pt
+                    .iter()
+                    .zip(&normal)
+                    .map(|(i, j)| i * j)
+                    .sum::<f64>();
+                assert!(dot > 0.0);
             }
         }
-    */
+    }
 }

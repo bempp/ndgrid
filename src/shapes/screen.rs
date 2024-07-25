@@ -174,6 +174,7 @@ pub fn screen_mixed<T: Float + RealScalar>(ncells: usize) -> MixedGrid<T>
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::traits::{Grid, GeometryMap};
 
     #[test]
     fn test_screen_triangles() {
@@ -181,23 +182,21 @@ mod test {
         let _g2 = screen_triangles::<f64>(2);
         let _g3 = screen_triangles::<f64>(3);
     }
-    /*
     #[test]
     fn test_screen_triangles_normal() {
         for i in 1..5 {
             let g = screen_triangles::<f64>(i);
             let points = vec![1.0 / 3.0, 1.0 / 3.0];
-            let map = g.reference_to_physical_map(&points);
+            let map = g.geometry_map(ReferenceCellType::Triangle, &points);
             let mut mapped_pt = vec![0.0; 3];
             let mut normal = vec![0.0; 3];
-            for i in 0..g.number_of_cells() {
-                map.reference_to_physical(i, &mut mapped_pt);
+            for i in 0..g.entity_count(ReferenceCellType::Triangle) {
+                map.points(i, &mut mapped_pt);
                 map.normal(i, &mut normal);
                 assert!(normal[2] > 0.0);
             }
         }
     }
-    */
 
     #[test]
     fn test_screen_quadrilaterals() {
@@ -206,23 +205,22 @@ mod test {
         let _g3 = screen_quadrilaterals::<f64>(3);
     }
 
-    /*
     #[test]
     fn test_screen_quadrilaterals_normal() {
         for i in 1..5 {
             let g = screen_quadrilaterals::<f64>(i);
             let points = vec![1.0 / 3.0, 1.0 / 3.0];
-            let map = g.reference_to_physical_map(&points);
+            let map = g.geometry_map(ReferenceCellType::Quadrilateral, &points);
             let mut mapped_pt = vec![0.0; 3];
             let mut normal = vec![0.0; 3];
-            for i in 0..g.number_of_cells() {
-                map.reference_to_physical(i, &mut mapped_pt);
+            for i in 0..g.entity_count(ReferenceCellType::Quadrilateral) {
+                map.points(i, &mut mapped_pt);
                 map.normal(i, &mut normal);
                 assert!(normal[2] > 0.0);
             }
         }
     }
-    */
+
     /*
     #[test]
     fn test_screen_mixed() {
