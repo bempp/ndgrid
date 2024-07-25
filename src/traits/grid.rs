@@ -56,6 +56,9 @@ pub trait Grid {
     /// An entity in this grid
     fn entity(&self, dim: usize, local_index: usize) -> Option<Self::Entity<'_>>;
 
+    /// The entity types of topological dimension `dim` contained in this grid
+    fn entity_types(&self, dim: usize) -> &[Self::EntityDescriptor];
+
     /// Number of entities
     fn entity_count(&self, entity_type: Self::EntityDescriptor) -> usize;
 

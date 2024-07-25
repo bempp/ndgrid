@@ -163,6 +163,10 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
         }
     }
 
+    fn entity_types(&self, dim: usize) -> &[ReferenceCellType] {
+        &self.topology.entity_types()[dim..dim + 1]
+    }
+
     fn entity_count(&self, entity_type: ReferenceCellType) -> usize {
         self.topology.entity_count(entity_type)
     }
