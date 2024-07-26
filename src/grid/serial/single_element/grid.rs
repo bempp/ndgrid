@@ -1,6 +1,6 @@
 //! Single element grid
 use crate::{
-    geometry::{GeometryMap, Point, SingleElementEntityGeometry, SingleElementGeometry},
+    geometry::{GeometryMap, SingleElementEntityGeometry, SingleElementGeometry},
     topology::serial::{SingleTypeEntityTopology, SingleTypeTopology},
     traits::{Entity, Grid},
     types::{Ownership, RealScalar},
@@ -41,6 +41,7 @@ impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
 impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Entity
     for SingleElementGridEntity<'e, T, E>
 {
+    type T = T;
     type EntityDescriptor = ReferenceCellType;
     type Topology<'a> = SingleTypeEntityTopology<'a> where Self: 'a;
     type Geometry<'a> = SingleElementEntityGeometry<'a, T, E> where Self: 'a;
@@ -121,9 +122,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     for SingleElementGrid<T, E>
 {
     type T = T;
-    type Point<'a> = Point<'a, T> where Self: 'a;
     type Entity<'a> = SingleElementGridEntity<'a, T, E> where Self: 'a;
-    type Geometry<'a> = SingleElementEntityGeometry<'a, T, E> where Self: 'a;
     type GeometryMap<'a> = GeometryMap<'a, T> where Self: 'a;
     type EntityDescriptor = ReferenceCellType;
     type EntityIter<'a> = SingleElementGridEntityIter<'a, T, E>

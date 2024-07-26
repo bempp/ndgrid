@@ -1,11 +1,14 @@
 //! Traits for a mesh entity
 use crate::traits::{Geometry, Topology};
-use crate::types::Ownership;
+use crate::types::{Ownership, RealScalar};
 use std::fmt::Debug;
 use std::hash::Hash;
 
 /// An entity
 pub trait Entity {
+    /// Scalar type
+    type T: RealScalar;
+
     /// Type used as identifier of different entity types
     type EntityDescriptor: Debug + PartialEq + Eq + Clone + Copy + Hash;
 
@@ -15,7 +18,7 @@ pub trait Entity {
         Self: 'a;
 
     /// Geometry type
-    type Geometry<'a>: Geometry
+    type Geometry<'a>: Geometry<T = Self::T>
     where
         Self: 'a;
 
