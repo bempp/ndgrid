@@ -282,7 +282,7 @@ impl<'t> Topology for SingleTypeEntityTopology<'t> {
         Self: 'a;
 
     fn connected_entity_iter(&self, dim: usize) -> Copied<std::slice::Iter<'_, usize>> {
-        self.topology.upward_connectivity[dim][self.dim - dim - 1][self.entity_index]
+        self.topology.upward_connectivity[self.dim][dim - self.dim - 1][self.entity_index]
             .iter()
             .copied()
     }

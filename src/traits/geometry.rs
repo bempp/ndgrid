@@ -15,8 +15,11 @@ pub trait Point {
 
 /// The geometry of an entity
 pub trait Geometry {
+    /// Scalar type
+    type T: RealScalar;
+
     /// Point Type
-    type Point<'a>: Point
+    type Point<'a>: Point<T = Self::T>
     where
         Self: 'a;
 
