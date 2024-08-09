@@ -27,13 +27,9 @@ pub struct SingleElementGridBuilder<T: RealScalar> {
     cell_ids_to_indices: HashMap<usize, usize>,
 }
 
-impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
-    type Grid = SingleElementGrid<T, CiarletElement<T>>;
-    type T = T;
-    type CellData<'a> = &'a [usize];
-    type GridMetadata = (ReferenceCellType, usize);
-
-    fn new(gdim: usize, data: (ReferenceCellType, usize)) -> Self {
+impl<T: RealScalar> SingleElementGridBuilder<T> {
+    /// Create a new grid builder
+    pub fn new(gdim: usize, data: (ReferenceCellType, usize)) -> Self {
         let points_per_cell = lagrange::create::<T>(data.0, data.1, Continuity::Standard).dim();
 
         Self {
@@ -49,7 +45,8 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
         }
     }
 
-    fn new_with_capacity(
+    /// Create a new grid builder with capacaty for a given number of points and cells
+    pub fn new_with_capacity(
         gdim: usize,
         npoints: usize,
         ncells: usize,
@@ -68,6 +65,12 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
             cell_ids_to_indices: HashMap::new(),
         }
     }
+}
+
+impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
+    type Grid = SingleElementGrid<T, CiarletElement<T>>;
+    type T = T;
+    type CellData<'a> = &'a [usize];
 
     fn add_point(&mut self, id: usize, data: &[T]) {
         if data.len() != self.gdim {
