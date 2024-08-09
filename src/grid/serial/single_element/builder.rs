@@ -29,7 +29,7 @@ pub struct SingleElementGridBuilder<T: RealScalar> {
 
 impl<T: RealScalar> SingleElementGridBuilder<T> {
     /// Create a new grid builder
-    fn new(gdim: usize, data: (ReferenceCellType, usize)) -> Self {
+    pub fn new(gdim: usize, data: (ReferenceCellType, usize)) -> Self {
         let points_per_cell = lagrange::create::<T>(data.0, data.1, Continuity::Standard).dim();
 
         Self {
@@ -46,7 +46,7 @@ impl<T: RealScalar> SingleElementGridBuilder<T> {
     }
 
     /// Create a new grid builder with capacaty for a given number of points and cells
-    fn new_with_capacity(
+    pub fn new_with_capacity(
         gdim: usize,
         npoints: usize,
         ncells: usize,
