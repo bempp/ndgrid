@@ -71,6 +71,7 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
     type Grid = SingleElementGrid<T, CiarletElement<T>>;
     type T = T;
     type CellData<'a> = &'a [usize];
+    type EntityDescriptor = ReferenceCellType;
 
     fn add_point(&mut self, id: usize, data: &[T]) {
         if data.len() != self.gdim {
@@ -132,6 +133,39 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
         );
 
         SingleElementGrid::new(topology, geometry)
+    }
+
+    fn point_count(&self) -> usize {
+        self.point_indices_to_ids.len()
+    }
+    fn cell_count(&self) -> usize {
+        self.cell_indices_to_ids.len()
+    }
+
+    fn point_indices_to_ids(&self) -> &[usize] {
+        &self.point_indices_to_ids
+    }
+    fn cell_indices_to_ids(&self) -> &[usize] {
+        &self.cell_indices_to_ids
+    }
+    fn cell_points(&self, index: usize) -> &[usize] {
+        &self.cells[self.points_per_cell * index..self.points_per_cell * (index + 1)]
+    }
+    fn cell_vertices(&self, index: usize) -> &[usize] {
+        &self.cells[self.points_per_cell * index
+            ..self.points_per_cell * index + reference_cell::entity_counts(self.element_data.0)[0]]
+    }
+    fn point(&self, index: usize) -> &[T] {
+        &self.points[self.gdim * index..self.gdim * (index + 1)]
+    }
+    fn points(&self) -> &[T] {
+        &self.points
+    }
+    fn cell_type(&self, _index: usize) -> ReferenceCellType {
+        self.element_data.0
+    }
+    fn gdim(&self) -> usize {
+        self.gdim
     }
 }
 

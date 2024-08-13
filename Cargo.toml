@@ -1,5 +1,5 @@
 [features]
-mpi = ["dep:mpi"]
+mpi = ["dep:mpi", "dep:coupe"]
 strict = []
 
 [package]
@@ -22,19 +22,19 @@ crate-type = ["lib", "cdylib"]
 [dependencies]
 approx = "0.5"
 cauchy = "0.4.*"
+coupe = { version = "0.1", optional = true }
 itertools = "0.13.*"
-mpi = { version = "0.8.*", optional = true }
-num = "0.4"
-paste = "1.*"
 lazy_static = "1.4"
 libc = "0.2"
 log = "0.4"
+mpi = { version = "0.8.*", optional = true }
 ndelement = { git="https://github.com/bempp/ndelement.git" }
-rayon = "1.9"
+num = "0.4"
+paste = "1.*"
 rand = "0.8.5"
+rayon = "1.9"
 rlst = "0.2.0"
 thiserror="1.*"
-
 
 [package.metadata.docs.rs]
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
@@ -49,5 +49,3 @@ lapack-src = { version = "0.10", features = ["accelerate"]}
 [target.x86_64-unknown-linux-gnu.dev-dependencies]
 blas-src = { version = "0.10", features = ["blis"]}
 lapack-src = { version = "0.10", features = ["netlib"]}
-
-
