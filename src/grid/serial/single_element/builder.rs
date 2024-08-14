@@ -2,7 +2,9 @@
 
 use super::SingleElementGrid;
 use crate::{
-    geometry::SingleElementGeometry, topology::serial::SingleTypeTopology, traits::Builder,
+    geometry::SingleElementGeometry,
+    topology::serial::SingleTypeTopology,
+    traits::{Builder, GeometryBuilder, TopologyBuilder},
     types::RealScalar,
 };
 use ndelement::{
@@ -18,6 +20,7 @@ use std::collections::HashMap;
 pub struct SingleElementGridBuilder<T: RealScalar> {
     gdim: usize,
     element_data: (ReferenceCellType, usize),
+    element: CiarletElement<T>,
     points_per_cell: usize,
     pub(crate) points: Vec<T>,
     cells: Vec<usize>,
@@ -30,19 +33,7 @@ pub struct SingleElementGridBuilder<T: RealScalar> {
 impl<T: RealScalar> SingleElementGridBuilder<T> {
     /// Create a new grid builder
     pub fn new(gdim: usize, data: (ReferenceCellType, usize)) -> Self {
-        let points_per_cell = lagrange::create::<T>(data.0, data.1, Continuity::Standard).dim();
-
-        Self {
-            gdim,
-            element_data: data,
-            points_per_cell,
-            points: vec![],
-            cells: vec![],
-            point_indices_to_ids: vec![],
-            point_ids_to_indices: HashMap::new(),
-            cell_indices_to_ids: vec![],
-            cell_ids_to_indices: HashMap::new(),
-        }
+        Self::new_with_capacity(gdim, 0, 0, data)
     }
 
     /// Create a new grid builder with capacaty for a given number of points and cells
@@ -53,9 +44,11 @@ impl<T: RealScalar> SingleElementGridBuilder<T> {
         data: (ReferenceCellType, usize),
     ) -> Self {
         let points_per_cell = lagrange::create::<T>(data.0, data.1, Continuity::Standard).dim();
+        let element = LagrangeElementFamily::<T>::new(data.1, Continuity::Standard).element(data.0);
         Self {
             gdim,
             element_data: data,
+            element,
             points_per_cell,
             points: Vec::with_capacity(npoints * gdim),
             cells: Vec::with_capacity(ncells * points_per_cell),
@@ -100,38 +93,29 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
     }
 
     fn create_grid(self) -> SingleElementGrid<T, CiarletElement<T>> {
-        let family = LagrangeElementFamily::<T>::new(self.element_data.1, Continuity::Standard);
-        let element = family.element(self.element_data.0);
-        let mut vertices = vec![];
-        for v in 0..reference_cell::entity_counts(self.element_data.0)[0] {
-            for d in element.entity_dofs(0, v).unwrap() {
-                vertices.push(*d);
+        let cell_vertices =
+            self.extract_vertices(&self.cells, &[self.element_data.0], &[self.element_data.1]);
+        let mut vertex_ids = vec![];
+        for v in &cell_vertices {
+            if !vertex_ids.contains(v) {
+                vertex_ids.push(*v);
             }
         }
 
-        let mut tcells = vec![];
-        let mut start = 0;
-        let npoints = element.dim();
-        while start < self.cells.len() {
-            for v in &vertices {
-                tcells.push(self.cells[start + v])
-            }
-            start += npoints;
-        }
-
-        let topology = SingleTypeTopology::new(&tcells, self.element_data.0);
-
-        let npts = self.point_indices_to_ids.len();
-        let mut points = rlst_dynamic_array2!(T, [3, npts]);
-        points.data_mut().copy_from_slice(&self.points);
-
-        let geometry = SingleElementGeometry::<T, CiarletElement<T>>::new(
-            self.element_data.0,
-            points,
-            &self.cells,
-            &family,
+        let topology = self.create_topology(
+            &vertex_ids,
+            &(0..self.cell_count()).collect::<Vec<_>>(),
+            &cell_vertices,
+            &[self.element_data.0],
         );
 
+        let geometry = self.create_geometry(
+            &self.point_indices_to_ids,
+            &self.points,
+            &self.cells,
+            &[self.element_data.0],
+            &[self.element_data.1],
+        );
         SingleElementGrid::new(topology, geometry)
     }
 
@@ -141,7 +125,6 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
     fn cell_count(&self) -> usize {
         self.cell_indices_to_ids.len()
     }
-
     fn point_indices_to_ids(&self) -> &[usize] {
         &self.point_indices_to_ids
     }
@@ -164,8 +147,82 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
     fn cell_type(&self, _index: usize) -> ReferenceCellType {
         self.element_data.0
     }
+    fn cell_degree(&self, _index: usize) -> usize {
+        self.element_data.1
+    }
     fn gdim(&self) -> usize {
         self.gdim
+    }
+}
+
+impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
+    type GridGeometry = SingleElementGeometry<T, CiarletElement<T>>;
+    fn create_geometry(
+        &self,
+        point_ids: &[usize],
+        coordinates: &[Self::T],
+        cell_points: &[usize],
+        _cell_types: &[ReferenceCellType],
+        _cell_degrees: &[usize],
+    ) -> SingleElementGeometry<T, CiarletElement<T>> {
+        let npts = point_ids.len();
+        let mut points = rlst_dynamic_array2!(T, [self.gdim(), npts]);
+        points.data_mut().copy_from_slice(coordinates);
+
+        let cell_points = cell_points
+            .iter()
+            .map(|p| point_ids.iter().position(|i| *i == *p).unwrap())
+            .collect::<Vec<_>>();
+        let family = LagrangeElementFamily::<T>::new(self.element_data.1, Continuity::Standard);
+
+        SingleElementGeometry::<T, CiarletElement<T>>::new(
+            self.element_data.0,
+            points,
+            &cell_points,
+            &family,
+        )
+    }
+}
+
+impl<T: RealScalar> TopologyBuilder for SingleElementGridBuilder<T> {
+    type GridTopology = SingleTypeTopology;
+    fn create_topology(
+        &self,
+        vertex_ids: &[usize],
+        _cell_ids: &[usize],
+        cells: &[usize],
+        _cell_types: &[ReferenceCellType],
+    ) -> SingleTypeTopology {
+        let cells = cells
+            .iter()
+            .map(|v| vertex_ids.iter().position(|i| *i == *v).unwrap())
+            .collect::<Vec<_>>();
+
+        SingleTypeTopology::new(&cells, self.element_data.0)
+    }
+
+    fn extract_vertices(
+        &self,
+        cell_points: &[usize],
+        _cell_types: &[Self::EntityDescriptor],
+        _cell_degrees: &[usize],
+    ) -> Vec<usize> {
+        let mut vertices = vec![];
+        for v in 0..reference_cell::entity_counts(self.element_data.0)[0] {
+            for d in self.element.entity_dofs(0, v).unwrap() {
+                vertices.push(*d);
+            }
+        }
+        let mut cell_vertices = vec![];
+        let mut start = 0;
+        let npoints = self.element.dim();
+        while start < cell_points.len() {
+            for v in &vertices {
+                cell_vertices.push(cell_points[start + v])
+            }
+            start += npoints;
+        }
+        cell_vertices
     }
 }
 

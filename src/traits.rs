@@ -9,7 +9,7 @@ mod grid;
 mod parallel_builder;
 mod topology;
 
-pub use builder::Builder;
+pub use builder::{Builder, GeometryBuilder, TopologyBuilder};
 pub use entity::{Entity, EntityId};
 pub use geometry::{Geometry, Point};
 pub use geometry_map::GeometryMap;

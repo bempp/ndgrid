@@ -1,13 +1,18 @@
 //! Parallel grid builder
 
-use crate::traits::Builder;
-use ndelement::types::ReferenceCellType;
+use crate::traits::{Builder, GeometryBuilder, TopologyBuilder};
+use mpi::{
+    point_to_point::{Destination, Source},
+    request::WaitGuard,
+    traits::{Buffer, Communicator, Equivalence},
+};
 
 use coupe::{KMeans, Partition, Point3D};
 use itertools::izip;
 
-pub trait ParallelBuilderFunctions: Builder {
+pub trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder {
     //! Parallel builder functions
+    // TODO: replace f64 with T
 
     /// Partition the cells
     fn partition_cells(&self, nprocesses: usize) -> Vec<usize>;
@@ -16,46 +21,445 @@ pub trait ParallelBuilderFunctions: Builder {
     fn assign_vertex_owners(&self, cell_owners: &[usize]) -> Vec<usize>;
 
     /// Compute the vertices and cells that each process needs access to
-    fn get_vertices_and_cells(&self, cell_owners: &[usize]) -> (Vec<Vec<usize>>, Vec<Vec<usize>>);
+    fn get_vertices_points_and_cells(
+        &self,
+        cell_owners: &[usize],
+    ) -> (Vec<Vec<usize>>, Vec<Vec<usize>>, Vec<Vec<usize>>);
+
+    fn distribute_cells<C: Communicator>(
+        &self,
+        comm: &C,
+        cells_per_proc: &[Vec<usize>],
+        cell_ownwes: &[usize],
+    ) -> (
+        Vec<usize>,
+        Vec<usize>,
+        Vec<Self::EntityDescriptor>,
+        Vec<usize>,
+        Vec<usize>,
+    );
+    fn receive_cells<C: Communicator>(
+        &self,
+        comm: &C,
+        root_rank: i32,
+    ) -> (
+        Vec<usize>,
+        Vec<usize>,
+        Vec<Self::EntityDescriptor>,
+        Vec<usize>,
+        Vec<usize>,
+    );
+
+    fn distribute_points<C: Communicator>(
+        &self,
+        comm: &C,
+        points_per_proc: &[Vec<usize>],
+    ) -> (Vec<usize>, Vec<Self::T>);
+    fn receive_points<C: Communicator>(
+        &self,
+        comm: &C,
+        root_rank: i32,
+    ) -> (Vec<usize>, Vec<Self::T>);
+
+    fn distribute_vertices<C: Communicator>(
+        &self,
+        comm: &C,
+        vertices_per_proc: &[Vec<usize>],
+        vertex_owners: &[usize],
+    ) -> (Vec<usize>, Vec<usize>);
+    fn receive_vertices<C: Communicator>(
+        &self,
+        comm: &C,
+        root_rank: i32,
+    ) -> (Vec<usize>, Vec<usize>);
+
+    /// Reorder cells so that owned cells are first
+    fn reorder_cells(
+        &self,
+        rank: usize,
+        cell_indices: &[usize],
+        cell_points: &[usize],
+        cell_types: &[Self::EntityDescriptor],
+        cell_degrees: &[usize],
+        cell_owners: &[usize],
+    ) -> (
+        Vec<usize>,
+        Vec<usize>,
+        Vec<Self::EntityDescriptor>,
+        Vec<usize>,
+        Vec<usize>,
+    );
+
+    /// Reorder vertices so that owned vertices are first
+    fn reorder_vertices(
+        &self,
+        rank: usize,
+        vertex_indices: &[usize],
+        vertex_owners: &[usize],
+    ) -> (Vec<usize>, Vec<usize>);
 }
 
-pub trait ParallelBuilder: Builder + ParallelBuilderFunctions {
+pub trait ParallelBuilder:
+    Builder + ParallelBuilderFunctions + GeometryBuilder + TopologyBuilder
+{
     //! MPI parallel grid builder
     // TODO: move to traits/builder.rs or traits/parallel.rs
 
     // TODO: remove this test
     fn test(&self) {
-        let cell_owners = self.partition_cells(4);
-        println!("Cell owners:   {cell_owners:?}");
+        use mpi::{environment::Universe, topology::Communicator};
 
-        let vertex_owners = self.assign_vertex_owners(&cell_owners);
-        println!("Vertex owners: {vertex_owners:?}");
+        let universe: Universe = mpi::initialize().unwrap();
+        let comm = universe.world();
+        let rank = comm.rank();
 
-        let (vertices_per_proc, cells_per_proc) = self.get_vertices_and_cells(&cell_owners);
-        for i in 0..4 {
-            println!("[{i}] Vertices:  {:?}", vertices_per_proc[i]);
-            println!("    Cells:     {:?}", cells_per_proc[i]);
-        }
+        let (geometry, topology, vertex_owners, cell_owners) = if rank == 0 {
+            let cell_owners = self.partition_cells(comm.size() as usize);
+            let vertex_owners = self.assign_vertex_owners(&cell_owners);
+            let (vertices_per_proc, points_per_proc, cells_per_proc) =
+                self.get_vertices_points_and_cells(&cell_owners);
 
-        // Distribute point coordinates for each cell
-        // Distribute list of points for each cell
-        // Create local geometry
+            let (point_indices, coordinates) = self.distribute_points(&comm, &points_per_proc);
+            let (vertex_indices, vertex_owners) =
+                self.distribute_vertices(&comm, &vertices_per_proc, &vertex_owners);
+            let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
+                self.distribute_cells(&comm, &cells_per_proc, &cell_owners);
 
-        // Distribute vertex indices
-        // Distribute vertex owners
-        // Distribute cell indices
-        // Distribute cell vertex indices
-        // Distribute cell owners
+            let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) = self
+                .reorder_cells(
+                    rank as usize,
+                    &cell_indices,
+                    &cell_points,
+                    &cell_types,
+                    &cell_degrees,
+                    &cell_owners,
+                );
+            let (vertex_indices, vertex_owners) =
+                self.reorder_vertices(rank as usize, &vertex_indices, &vertex_owners);
 
-        // Create local topology
+            let geometry = self.create_geometry(
+                &point_indices,
+                &coordinates,
+                &cell_points,
+                &cell_types,
+                &cell_degrees,
+            );
+            let topology =
+                self.create_topology(&vertex_indices, &cell_indices, &cell_points, &cell_types);
+
+            (geometry, topology, vertex_owners, cell_owners)
+        } else {
+            let (point_indices, coordinates) = self.receive_points(&comm, 0);
+            let (vertex_indices, vertex_owners) = self.receive_vertices(&comm, 0);
+            let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
+                self.receive_cells(&comm, 0);
+
+            let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) = self
+                .reorder_cells(
+                    rank as usize,
+                    &cell_indices,
+                    &cell_points,
+                    &cell_types,
+                    &cell_degrees,
+                    &cell_owners,
+                );
+            let (vertex_indices, vertex_owners) =
+                self.reorder_vertices(rank as usize, &vertex_indices, &vertex_owners);
+
+            let geometry = self.create_geometry(
+                &point_indices,
+                &coordinates,
+                &cell_points,
+                &cell_types,
+                &cell_degrees,
+            );
+            let topology =
+                self.create_topology(&vertex_indices, &cell_indices, &cell_points, &cell_types);
+
+            (geometry, topology, vertex_owners, cell_owners)
+        };
+
         // Assign global DOFs to local DOFs
         // Collect vertex and cell global DOFs for ghosts
 
-        // Edges (and other intermediates
+        // Edges (and other intermediates)
     }
 }
 
-impl<B: Builder<EntityDescriptor = ReferenceCellType>> ParallelBuilderFunctions for B {
+impl<B: Builder + GeometryBuilder + TopologyBuilder> ParallelBuilderFunctions for B
+where
+    Vec<B::T>: Buffer,
+    B::T: Equivalence,
+    Vec<B::EntityDescriptor>: Buffer,
+    B::EntityDescriptor: Equivalence,
+{
+    fn reorder_vertices(
+        &self,
+        rank: usize,
+        vertex_indices: &[usize],
+        vertex_owners: &[usize],
+    ) -> (Vec<usize>, Vec<usize>) {
+        let mut indices = vec![];
+        let mut owners = vec![];
+        let mut indices2 = vec![];
+        let mut owners2 = vec![];
+        for (i, o) in izip!(vertex_indices, vertex_owners) {
+            if *o == rank {
+                indices.push(*i);
+                owners.push(*o);
+            } else {
+                indices2.push(*i);
+                owners2.push(*o);
+            }
+        }
+        indices.extend_from_slice(&indices2);
+        owners.extend_from_slice(&owners2);
+        (indices, owners)
+    }
+    fn reorder_cells(
+        &self,
+        rank: usize,
+        cell_indices: &[usize],
+        cell_points: &[usize],
+        cell_types: &[Self::EntityDescriptor],
+        cell_degrees: &[usize],
+        cell_owners: &[usize],
+    ) -> (
+        Vec<usize>,
+        Vec<usize>,
+        Vec<Self::EntityDescriptor>,
+        Vec<usize>,
+        Vec<usize>,
+    ) {
+        let mut indices = vec![];
+        let mut points = vec![];
+        let mut types = vec![];
+        let mut degrees = vec![];
+        let mut owners = vec![];
+        let mut indices2 = vec![];
+        let mut points2 = vec![];
+        let mut types2 = vec![];
+        let mut degrees2 = vec![];
+        let mut owners2 = vec![];
+        for (i, p, t, d, o) in izip!(
+            cell_indices,
+            cell_points,
+            cell_types,
+            cell_degrees,
+            cell_owners
+        ) {
+            if *o == rank {
+                indices.push(*i);
+                points.push(*p);
+                types.push(*t);
+                degrees.push(*d);
+                owners.push(*o);
+            } else {
+                indices2.push(*i);
+                points2.push(*p);
+                types2.push(*t);
+                degrees2.push(*d);
+                owners2.push(*o);
+            }
+        }
+        indices.extend_from_slice(&indices2);
+        points.extend_from_slice(&points2);
+        types.extend_from_slice(&types2);
+        degrees.extend_from_slice(&degrees2);
+        owners.extend_from_slice(&owners2);
+        (indices, points, types, degrees, owners)
+    }
+    fn distribute_vertices<C: Communicator>(
+        &self,
+        comm: &C,
+        vertices_per_proc: &[Vec<usize>],
+        vertex_owners: &[usize],
+    ) -> (Vec<usize>, Vec<usize>) {
+        let rank = comm.rank() as usize;
+
+        let vertex_owners_per_proc = vertices_per_proc
+            .iter()
+            .map(|vs| vs.iter().map(|v| vertex_owners[*v]).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+
+        mpi::request::scope(|scope| {
+            for i in 0..comm.size() {
+                if i != comm.rank() {
+                    let process = comm.process_at_rank(i);
+                    let _ = WaitGuard::from(
+                        process.immediate_send(scope, &vertices_per_proc[i as usize]),
+                    );
+                    let _ = WaitGuard::from(
+                        process.immediate_send(scope, &vertex_owners_per_proc[i as usize]),
+                    );
+                }
+            }
+        });
+
+        (
+            vertices_per_proc[rank].clone(),
+            vertex_owners_per_proc[rank].clone(),
+        )
+    }
+    fn receive_vertices<C: Communicator>(
+        &self,
+        comm: &C,
+        root_rank: i32,
+    ) -> (Vec<usize>, Vec<usize>) {
+        let root_process = comm.process_at_rank(root_rank);
+        let (vertices, _status) = root_process.receive_vec::<usize>();
+        let (vertex_owners, _status) = root_process.receive_vec::<usize>();
+
+        (vertices, vertex_owners)
+    }
+    fn distribute_points<C: Communicator>(
+        &self,
+        comm: &C,
+        points_per_proc: &[Vec<usize>],
+    ) -> (Vec<usize>, Vec<Self::T>) {
+        let rank = comm.rank() as usize;
+        let mut coords_rank = vec![];
+        let mut coords = vec![];
+        for (p, points) in points_per_proc.iter().enumerate() {
+            let mut coords_i = vec![];
+            for i in points {
+                coords_i.extend_from_slice(self.point(*i));
+            }
+            if p == rank {
+                coords_rank = coords_i;
+                coords.push(vec![]);
+            } else {
+                coords.push(coords_i);
+            }
+        }
+        mpi::request::scope(|scope| {
+            for i in 0..comm.size() {
+                if i != comm.rank() {
+                    let process = comm.process_at_rank(i);
+                    let _ = WaitGuard::from(
+                        process.immediate_send(scope, &points_per_proc[i as usize]),
+                    );
+                    let _ = WaitGuard::from(process.immediate_send(scope, &coords[i as usize]));
+                }
+            }
+        });
+
+        (points_per_proc[rank].clone(), coords_rank)
+    }
+    fn receive_points<C: Communicator>(
+        &self,
+        comm: &C,
+        root_rank: i32,
+    ) -> (Vec<usize>, Vec<Self::T>) {
+        let root_process = comm.process_at_rank(root_rank);
+        let (indices, _status) = root_process.receive_vec::<usize>();
+        let (coords, _status) = root_process.receive_vec::<Self::T>();
+
+        (indices, coords)
+    }
+    fn distribute_cells<C: Communicator>(
+        &self,
+        comm: &C,
+        cells_per_proc: &[Vec<usize>],
+        cell_owners: &[usize],
+    ) -> (
+        Vec<usize>,
+        Vec<usize>,
+        Vec<Self::EntityDescriptor>,
+        Vec<usize>,
+        Vec<usize>,
+    ) {
+        let rank = comm.rank() as usize;
+        let mut cell_points_rank = vec![];
+        let mut cell_types_rank = vec![];
+        let mut cell_degrees_rank = vec![];
+        let mut cell_owners_rank = vec![];
+
+        let mut cell_points = vec![];
+        let mut cell_types = vec![];
+        let mut cell_degrees = vec![];
+        let mut cell_owners_per_proc = vec![];
+        for (p, cells) in cells_per_proc.iter().enumerate() {
+            let mut cell_points_i = vec![];
+            let mut cell_types_i = vec![];
+            let mut cell_degrees_i = vec![];
+            let mut cell_owners_i = vec![];
+            for cell in cells {
+                let pts = self.cell_points(*cell);
+                cell_points_i.extend_from_slice(pts);
+                cell_types_i.push(self.cell_type(*cell));
+                cell_degrees_i.push(self.cell_degree(*cell));
+                cell_owners_i.push(cell_owners[*cell]);
+            }
+            if p == rank {
+                cell_points_rank = cell_points_i;
+                cell_types_rank = cell_types_i;
+                cell_degrees_rank = cell_degrees_i;
+                cell_owners_rank = cell_owners_i;
+                cell_points.push(vec![]);
+                cell_types.push(vec![]);
+                cell_degrees.push(vec![]);
+                cell_owners_per_proc.push(vec![]);
+            } else {
+                cell_points.push(cell_points_i);
+                cell_types.push(cell_types_i);
+                cell_degrees.push(cell_degrees_i);
+                cell_owners_per_proc.push(cell_owners_i);
+            }
+        }
+        mpi::request::scope(|scope| {
+            for i in 0..comm.size() {
+                if i != comm.rank() {
+                    let process = comm.process_at_rank(i);
+                    let _ =
+                        WaitGuard::from(process.immediate_send(scope, &cells_per_proc[i as usize]));
+                    let _ =
+                        WaitGuard::from(process.immediate_send(scope, &cell_points[i as usize]));
+                    let _ = WaitGuard::from(process.immediate_send(scope, &cell_types[i as usize]));
+                    let _ =
+                        WaitGuard::from(process.immediate_send(scope, &cell_degrees[i as usize]));
+                    let _ = WaitGuard::from(
+                        process.immediate_send(scope, &cell_owners_per_proc[i as usize]),
+                    );
+                }
+            }
+        });
+
+        (
+            cells_per_proc[rank].clone(),
+            cell_points_rank,
+            cell_types_rank,
+            cell_degrees_rank,
+            cell_owners_rank,
+        )
+    }
+    fn receive_cells<C: Communicator>(
+        &self,
+        comm: &C,
+        root_rank: i32,
+    ) -> (
+        Vec<usize>,
+        Vec<usize>,
+        Vec<Self::EntityDescriptor>,
+        Vec<usize>,
+        Vec<usize>,
+    ) {
+        let root_process = comm.process_at_rank(root_rank);
+        let (cell_indices, _status) = root_process.receive_vec::<usize>();
+        let (cell_points, _status) = root_process.receive_vec::<usize>();
+        let (cell_types, _status) = root_process.receive_vec::<Self::EntityDescriptor>();
+        let (cell_degrees, _status) = root_process.receive_vec::<usize>();
+        let (cell_owners, _status) = root_process.receive_vec::<usize>();
+
+        (
+            cell_indices,
+            cell_points,
+            cell_types,
+            cell_degrees,
+            cell_owners,
+        )
+    }
+
     fn partition_cells(&self, nprocesses: usize) -> Vec<usize> {
         let mut partition = vec![];
         for i in 0..nprocesses {
@@ -124,7 +528,10 @@ impl<B: Builder<EntityDescriptor = ReferenceCellType>> ParallelBuilderFunctions 
         vertex_owners
     }
 
-    fn get_vertices_and_cells(&self, cell_owners: &[usize]) -> (Vec<Vec<usize>>, Vec<Vec<usize>>) {
+    fn get_vertices_points_and_cells(
+        &self,
+        cell_owners: &[usize],
+    ) -> (Vec<Vec<usize>>, Vec<Vec<usize>>, Vec<Vec<usize>>) {
         let mut vertex_to_cells = (0..self.point_count()).map(|_| vec![]).collect::<Vec<_>>();
 
         for i in 0..self.cell_count() {
@@ -137,6 +544,7 @@ impl<B: Builder<EntityDescriptor = ReferenceCellType>> ParallelBuilderFunctions 
 
         let nprocesses = *cell_owners.iter().max().unwrap() + 1;
         let mut vertices = (0..nprocesses).map(|_| vec![]).collect::<Vec<_>>();
+        let mut points = (0..nprocesses).map(|_| vec![]).collect::<Vec<_>>();
         let mut cells = (0..nprocesses).map(|_| vec![]).collect::<Vec<_>>();
 
         for (i, owner) in cell_owners.iter().enumerate() {
@@ -149,20 +557,29 @@ impl<B: Builder<EntityDescriptor = ReferenceCellType>> ParallelBuilderFunctions 
             }
         }
 
-        for (vs, cs) in izip!(vertices.iter_mut(), &cells) {
+        for (vs, ps, cs) in izip!(vertices.iter_mut(), points.iter_mut(), &cells) {
             for c in cs {
                 for v in self.cell_vertices(*c) {
                     if !vs.contains(v) {
                         vs.push(*v);
                     }
                 }
+                for v in self.cell_points(*c) {
+                    if !ps.contains(v) {
+                        ps.push(*v);
+                    }
+                }
             }
         }
 
-        vertices[0].push(0);
-        cells[0].push(0);
-
-        (vertices, cells)
+        (vertices, points, cells)
     }
 }
-impl<B: Builder<EntityDescriptor = ReferenceCellType>> ParallelBuilder for B {}
+impl<B: Builder + GeometryBuilder + TopologyBuilder> ParallelBuilder for B
+where
+    Vec<B::T>: Buffer,
+    B::T: Equivalence,
+    Vec<B::EntityDescriptor>: Buffer,
+    B::EntityDescriptor: Equivalence,
+{
+}

@@ -39,7 +39,7 @@ pub trait Builder {
     /// Get the indices of the points of a cell
     fn cell_points(&self, index: usize) -> &[usize];
 
-    /// Get the indices of the vertices of a cell
+    /// Get the indices of the points of a cell
     fn cell_vertices(&self, index: usize) -> &[usize];
 
     /// Get the coordinates of a point
@@ -51,6 +51,50 @@ pub trait Builder {
     /// Get the type of a cell
     fn cell_type(&self, index: usize) -> Self::EntityDescriptor;
 
+    /// Get the degree of a cell's geometry
+    fn cell_degree(&self, index: usize) -> usize;
+
     /// Geometric dimension
     fn gdim(&self) -> usize;
+}
+
+pub trait GeometryBuilder: Builder {
+    //! Trait for building grid geometry
+
+    /// Grid geometry type
+    type GridGeometry;
+
+    /// Create geometry
+    fn create_geometry(
+        &self,
+        point_ids: &[usize],
+        coordinates: &[Self::T],
+        cell_points: &[usize],
+        cell_types: &[Self::EntityDescriptor],
+        cell_degrees: &[usize],
+    ) -> Self::GridGeometry;
+}
+
+pub trait TopologyBuilder: Builder {
+    //! Trait for building grid topology
+
+    /// Grid topology type
+    type GridTopology;
+
+    /// Create topology
+    fn create_topology(
+        &self,
+        vertex_ids: &[usize],
+        cell_ids: &[usize],
+        cells: &[usize],
+        cell_types: &[Self::EntityDescriptor],
+    ) -> Self::GridTopology;
+
+    /// Extract the cell vertices from the cell points
+    fn extract_vertices(
+        &self,
+        cell_points: &[usize],
+        cell_types: &[Self::EntityDescriptor],
+        cell_degrees: &[usize],
+    ) -> Vec<usize>;
 }

@@ -1,10 +1,13 @@
 //? run --features "mpi"
 
+#[cfg(feature = "mpi")]
 use ndelement::types::ReferenceCellType;
+#[cfg(feature = "mpi")]
 use ndgrid::{
     grid::parallel::ParallelBuilder, grid::serial::SingleElementGridBuilder, traits::Builder,
 };
 
+#[cfg(feature = "mpi")]
 fn main() {
     let n = 8;
 
@@ -28,3 +31,6 @@ fn main() {
     }
     b.test();
 }
+
+#[cfg(not(feature = "mpi"))]
+fn main() {}
