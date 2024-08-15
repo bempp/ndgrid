@@ -501,7 +501,10 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         &self,
         comm: &C,
         points_per_proc: &[Vec<usize>],
-    ) -> (Vec<usize>, Vec<Self::T>) where Vec<Self::T>: Buffer{
+    ) -> (Vec<usize>, Vec<Self::T>)
+    where
+        Vec<Self::T>: Buffer,
+    {
         let rank = comm.rank() as usize;
         let mut coords_rank = vec![];
         let mut coords = vec![];
@@ -536,7 +539,10 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         &self,
         comm: &C,
         root_rank: i32,
-    ) -> (Vec<usize>, Vec<Self::T>) where Self::T: Equivalence {
+    ) -> (Vec<usize>, Vec<Self::T>)
+    where
+        Self::T: Equivalence,
+    {
         let root_process = comm.process_at_rank(root_rank);
         let (indices, _status) = root_process.receive_vec::<usize>();
         let (coords, _status) = root_process.receive_vec::<Self::T>();
@@ -556,7 +562,10 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         Vec<Self::EntityDescriptor>,
         Vec<usize>,
         Vec<usize>,
-    ) where Vec<Self::EntityDescriptor>: Buffer {
+    )
+    where
+        Vec<Self::EntityDescriptor>: Buffer,
+    {
         let rank = comm.rank() as usize;
         let mut cell_points_rank = vec![];
         let mut cell_types_rank = vec![];
@@ -634,7 +643,10 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         Vec<Self::EntityDescriptor>,
         Vec<usize>,
         Vec<usize>,
-    ) where Self::EntityDescriptor: Equivalence {
+    )
+    where
+        Self::EntityDescriptor: Equivalence,
+    {
         let root_process = comm.process_at_rank(root_rank);
         let (cell_indices, _status) = root_process.receive_vec::<usize>();
         let (cell_points, _status) = root_process.receive_vec::<usize>();
