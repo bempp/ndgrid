@@ -4,7 +4,8 @@
 use ndelement::types::ReferenceCellType;
 #[cfg(feature = "mpi")]
 use ndgrid::{
-    grid::parallel::ParallelBuilder, grid::serial::SingleElementGridBuilder, traits::Builder,
+    grid::serial::SingleElementGridBuilder,
+    traits::{Builder, ParallelBuilder},
 };
 
 #[cfg(feature = "mpi")]

@@ -1,7 +1,11 @@
 //! Parallel grid builder
 
+use super::ParallelGrid;
 use crate::{
-    traits::{Builder, Entity, GeometryBuilder, Grid, GridBuilder, Topology, TopologyBuilder},
+    traits::{
+        Builder, Entity, GeometryBuilder, Grid, GridBuilder, ParallelBuilder, Topology,
+        TopologyBuilder,
+    },
     types::Ownership,
 };
 use coupe::{KMeans, Partition, Point3D};
@@ -13,15 +17,6 @@ use mpi::{
 };
 use std::collections::HashMap;
 
-pub trait ParallelBuilder: Builder {
-    //! MPI parallel grid builder
-    // TODO: move to traits/builder.rs or traits/parallel.rs
-
-    /// Experimenting
-    // TODO: remove this test
-    fn test(&self);
-}
-
 impl<B: Builder + GeometryBuilder + TopologyBuilder + GridBuilder> ParallelBuilder for B
 where
     Vec<B::T>: Buffer,
@@ -29,14 +24,36 @@ where
     Vec<B::EntityDescriptor>: Buffer,
     B::EntityDescriptor: Equivalence,
 {
+    type ParallelGrid<'a, C: Communicator + 'a> = ParallelGrid<'a, C, B::Grid> where Self: 'a;
     fn test(&self) {
         use mpi::{environment::Universe, topology::Communicator};
 
         let universe: Universe = mpi::initialize().unwrap();
         let comm = universe.world();
         let rank = comm.rank();
+        let _grid = if rank == 0 {
+            self.create_parallel_grid(&comm);
+        } else {
+            self.receive_parallel_grid(&comm, 0);
+        };
+    }
+    fn create_parallel_grid<'a, C: Communicator>(
+        &self,
+        comm: &'a C,
+    ) -> ParallelGrid<'a, C, B::Grid> {
+        let cell_owners = self.partition_cells(comm.size() as usize);
+        let vertex_owners = self.assign_vertex_owners(&cell_owners);
+        let (vertices_per_proc, points_per_proc, cells_per_proc) =
+            self.get_vertices_points_and_cells(&cell_owners);
 
-        let (
+        let (point_indices, coordinates) = self.distribute_points(comm, &points_per_proc);
+        let (vertex_indices, vertex_owners) =
+            self.distribute_vertices(comm, &vertices_per_proc, &vertex_owners);
+        let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
+            self.distribute_cells(comm, &cells_per_proc, &cell_owners);
+
+        self.create_parallel_grid_internal(
+            comm,
             point_indices,
             coordinates,
             vertex_indices,
@@ -46,80 +63,30 @@ where
             cell_types,
             cell_degrees,
             cell_owners,
-        ) = if rank == 0 {
-            let cell_owners = self.partition_cells(comm.size() as usize);
-            let vertex_owners = self.assign_vertex_owners(&cell_owners);
-            let (vertices_per_proc, points_per_proc, cells_per_proc) =
-                self.get_vertices_points_and_cells(&cell_owners);
+        )
+    }
+    fn receive_parallel_grid<'a, C: Communicator>(
+        &self,
+        comm: &'a C,
+        root_rank: i32,
+    ) -> ParallelGrid<'a, C, B::Grid> {
+        let (point_indices, coordinates) = self.receive_points(comm, root_rank);
+        let (vertex_indices, vertex_owners) = self.receive_vertices(comm, root_rank);
+        let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
+            self.receive_cells(comm, 0);
 
-            let (point_indices, coordinates) = self.distribute_points(&comm, &points_per_proc);
-            let (vertex_indices, vertex_owners) =
-                self.distribute_vertices(&comm, &vertices_per_proc, &vertex_owners);
-            let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
-                self.distribute_cells(&comm, &cells_per_proc, &cell_owners);
-
-            (
-                point_indices,
-                coordinates,
-                vertex_indices,
-                vertex_owners,
-                cell_indices,
-                cell_points,
-                cell_types,
-                cell_degrees,
-                cell_owners,
-            )
-        } else {
-            let (point_indices, coordinates) = self.receive_points(&comm, 0);
-            let (vertex_indices, vertex_owners) = self.receive_vertices(&comm, 0);
-            let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
-                self.receive_cells(&comm, 0);
-
-            (
-                point_indices,
-                coordinates,
-                vertex_indices,
-                vertex_owners,
-                cell_indices,
-                cell_points,
-                cell_types,
-                cell_degrees,
-                cell_owners,
-            )
-        };
-
-        let geometry = self.create_geometry(
-            &point_indices,
-            &coordinates,
-            &cell_points,
-            &cell_types,
-            &cell_degrees,
-        );
-        let topology =
-            self.create_topology(&vertex_indices, &cell_indices, &cell_points, &cell_types);
-
-        let serial_grid = self.create_grid_from_topology_geometry(topology, geometry);
-
-        let (vertex_global_dofs, vertex_owners) =
-            self.assign_dofs_and_communicate_owners(&comm, &vertex_owners, &vertex_indices);
-        let (cell_global_dofs, cell_owners) =
-            self.assign_dofs_and_communicate_owners(&comm, &cell_owners, &cell_indices);
-
-        let (edge_global_dofs, edge_owners) = self.assign_sub_entity_dofs_and_owners(
-            &comm,
-            &serial_grid,
-            &vertex_owners,
-            &vertex_global_dofs,
-            &cell_owners,
-            1,
-        );
-
-        println!("[{rank}] {vertex_owners:?}");
-        println!("[{rank}] {vertex_global_dofs:?}");
-        println!("[{rank}] {edge_owners:?}");
-        println!("[{rank}] {edge_global_dofs:?}");
-        println!("[{rank}] {cell_owners:?}");
-        println!("[{rank}] {cell_global_dofs:?}");
+        self.create_parallel_grid_internal(
+            comm,
+            point_indices,
+            coordinates,
+            vertex_indices,
+            vertex_owners,
+            cell_indices,
+            cell_points,
+            cell_types,
+            cell_degrees,
+            cell_owners,
+        )
     }
 }
 
@@ -213,22 +180,73 @@ pub trait ParallelBuilderFunctions:
         vertex_owners: &[usize],
     ) -> (Vec<usize>, Vec<usize>);
 
-    fn assign_dofs_and_communicate_owners<C: Communicator>(
+    fn assign_global_indices_and_communicate_owners<C: Communicator>(
         &self,
         comm: &C,
         owners: &[usize],
         indices: &[usize],
     ) -> (Vec<usize>, Vec<Ownership>);
 
-    fn assign_sub_entity_dofs_and_owners<C: Communicator>(
+    fn assign_sub_entity_global_indices_and_owners<C: Communicator>(
         &self,
         comm: &C,
         grid: &Self::Grid,
         vertex_ownership: &[Ownership],
-        vertex_global_dofs: &[usize],
+        vertex_global_indices: &[usize],
         cell_ownership: &[Ownership],
         dim: usize,
     ) -> (Vec<usize>, Vec<Ownership>);
+
+    fn create_parallel_grid_internal<'a, C: Communicator>(
+        &self,
+        comm: &'a C,
+        point_indices: Vec<usize>,
+        coordinates: Vec<Self::T>,
+        vertex_indices: Vec<usize>,
+        vertex_owners: Vec<usize>,
+        cell_indices: Vec<usize>,
+        cell_points: Vec<usize>,
+        cell_types: Vec<Self::EntityDescriptor>,
+        cell_degrees: Vec<usize>,
+        cell_owners: Vec<usize>,
+    ) -> ParallelGrid<'a, C, Self::Grid> {
+        let geometry = self.create_geometry(
+            &point_indices,
+            &coordinates,
+            &cell_points,
+            &cell_types,
+            &cell_degrees,
+        );
+        let topology =
+            self.create_topology(&vertex_indices, &cell_indices, &cell_points, &cell_types);
+
+        let serial_grid = self.create_grid_from_topology_geometry(topology, geometry);
+
+        let (vertex_global_indices, vertex_owners) = self
+            .assign_global_indices_and_communicate_owners(comm, &vertex_owners, &vertex_indices);
+        let (cell_global_indices, cell_owners) =
+            self.assign_global_indices_and_communicate_owners(comm, &cell_owners, &cell_indices);
+
+        let mut owners = vec![vertex_owners];
+        let mut global_indices = vec![vertex_global_indices];
+        for dim in 1..self.tdim() {
+            let (entity_global_indices, entity_owners) = self
+                .assign_sub_entity_global_indices_and_owners(
+                    comm,
+                    &serial_grid,
+                    &owners[0],
+                    &global_indices[0],
+                    &cell_owners,
+                    dim,
+                );
+            owners.push(entity_owners);
+            global_indices.push(entity_global_indices);
+        }
+        owners.push(cell_owners);
+        global_indices.push(cell_global_indices);
+
+        ParallelGrid::new(comm, serial_grid, owners, global_indices)
+    }
 }
 
 impl<B: Builder + GeometryBuilder + TopologyBuilder + GridBuilder> ParallelBuilderFunctions for B
@@ -238,12 +256,12 @@ where
     Vec<B::EntityDescriptor>: Buffer,
     B::EntityDescriptor: Equivalence,
 {
-    fn assign_sub_entity_dofs_and_owners<C: Communicator>(
+    fn assign_sub_entity_global_indices_and_owners<C: Communicator>(
         &self,
         comm: &C,
         grid: &Self::Grid,
         vertex_ownership: &[Ownership],
-        vertex_global_dofs: &[usize],
+        vertex_global_indices: &[usize],
         cell_ownership: &[Ownership],
         dim: usize,
     ) -> (Vec<usize>, Vec<Ownership>) {
@@ -260,18 +278,18 @@ where
         let mut to_ask_for = vec![vec![]; comm.size() as usize];
         let mut to_ask_for_sizes = vec![vec![]; comm.size() as usize];
         let mut to_ask_for_indices = vec![vec![]; comm.size() as usize];
-        let mut dof = if rank == 0 {
+        let mut global_index = if rank == 0 {
             0
         } else {
             let process = comm.process_at_rank(comm.rank() - 1);
-            let (dof, _status) = process.receive::<usize>();
-            dof
+            let (global_index, _status) = process.receive::<usize>();
+            global_index
         };
         for (index, entity) in grid.entity_iter(dim).enumerate() {
             let local_v = entity.topology().sub_entity_iter(0).collect::<Vec<_>>();
             let mut global_v = local_v
                 .iter()
-                .map(|i| vertex_global_dofs[*i])
+                .map(|i| vertex_global_indices[*i])
                 .collect::<Vec<_>>();
             global_v.sort();
             vertices_to_local_index.insert(global_v.clone(), index);
@@ -290,8 +308,8 @@ where
             }
             if in_charge == rank {
                 entity_owners[index] = rank;
-                entity_indices[index] = dof;
-                dof += 1;
+                entity_indices[index] = global_index;
+                global_index += 1;
             } else {
                 to_ask_for[in_charge].extend_from_slice(&global_v);
                 to_ask_for_sizes[in_charge].push(global_v.len());
@@ -305,7 +323,7 @@ where
                     .unwrap()
                     .topology()
                     .sub_entity_iter(0)
-                    .map(|i| vertex_global_dofs[i])
+                    .map(|i| vertex_global_indices[i])
                     .collect::<Vec<_>>();
                 global_v.sort();
                 if let Ownership::Ghost(p, _) = ownership {
@@ -319,7 +337,7 @@ where
         mpi::request::scope(|scope| {
             if comm.rank() + 1 < comm.size() {
                 let process = comm.process_at_rank(comm.rank() + 1);
-                let _ = WaitGuard::from(process.immediate_send(scope, &dof));
+                let _ = WaitGuard::from(process.immediate_send(scope, &global_index));
             }
             for p in 0..comm.size() {
                 if p != comm.rank() {
@@ -379,9 +397,9 @@ where
                 }
             }
         }
-        self.assign_dofs_and_communicate_owners(comm, &entity_owners, &entity_indices)
+        self.assign_global_indices_and_communicate_owners(comm, &entity_owners, &entity_indices)
     }
-    fn assign_dofs_and_communicate_owners<C: Communicator>(
+    fn assign_global_indices_and_communicate_owners<C: Communicator>(
         &self,
         comm: &C,
         owners: &[usize],
@@ -389,23 +407,23 @@ where
     ) -> (Vec<usize>, Vec<Ownership>) {
         let rank = comm.rank() as usize;
         let mut ownership = vec![Ownership::Undefined; owners.len()];
-        let mut global_dofs = vec![0; owners.len()];
+        let mut global_indices = vec![0; owners.len()];
         let mut to_send = vec![vec![]; comm.size() as usize];
         let mut to_receive = vec![vec![]; comm.size() as usize];
         let mut ids_to_indices = HashMap::new();
-        let mut dof = if rank == 0 {
+        let mut global_index = if rank == 0 {
             0
         } else {
             let process = comm.process_at_rank(comm.rank() - 1);
-            let (dof, _status) = process.receive::<usize>();
-            dof
+            let (global_index, _status) = process.receive::<usize>();
+            global_index
         };
         for (j, (o, i)) in izip!(owners, indices).enumerate() {
             if *o == rank {
                 ids_to_indices.insert(i, j);
                 ownership[j] = Ownership::Owned;
-                global_dofs[j] = dof;
-                dof += 1
+                global_indices[j] = global_index;
+                global_index += 1
             } else {
                 to_send[*o].push(*i);
                 to_receive[*o].push(j);
@@ -414,7 +432,7 @@ where
         if comm.rank() + 1 < comm.size() {
             mpi::request::scope(|scope| {
                 let process = comm.process_at_rank(comm.rank() + 1);
-                let _ = WaitGuard::from(process.immediate_send(scope, &dof));
+                let _ = WaitGuard::from(process.immediate_send(scope, &global_index));
             });
         }
         mpi::request::scope(|scope| {
@@ -443,7 +461,7 @@ where
 
         let global_to_send_back = to_send_back
             .iter()
-            .map(|r| r.iter().map(|i| global_dofs[*i]).collect::<Vec<_>>())
+            .map(|r| r.iter().map(|i| global_indices[*i]).collect::<Vec<_>>())
             .collect::<Vec<_>>();
 
         mpi::request::scope(|scope| {
@@ -466,12 +484,12 @@ where
                 let (g, _status) = process.receive_vec::<usize>();
                 for (i, j, k) in izip!(&to_receive[p as usize], &r, &g) {
                     ownership[*i] = Ownership::Ghost(p as usize, *j);
-                    global_dofs[*i] = *k;
+                    global_indices[*i] = *k;
                 }
             }
         }
 
-        (global_dofs, ownership)
+        (global_indices, ownership)
     }
 
     fn reorder_vertices(

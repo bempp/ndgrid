@@ -1,6 +1,6 @@
 //! Parallel grid
 use crate::{
-    traits::{Entity, Grid},
+    traits::{Entity, Grid, ParallelGrid as ParallelGridTrait},
     types::Ownership,
 };
 use mpi::traits::Communicator;
@@ -76,31 +76,28 @@ impl<'a, E: Entity, EntityIter: Iterator<Item = E>> Iterator
     }
 }
 
-/// Parallel grid
-pub struct ParallelGrid<'a, C: Communicator, G: Grid> {
-    comm: &'a C,
+/// Local grid on a process
+pub struct LocalGrid<G: Grid> {
     serial_grid: G,
     ownership: Vec<Vec<Ownership>>,
     global_indices: Vec<Vec<usize>>,
 }
 
-impl<'a, C: Communicator, G: Grid> ParallelGrid<'a, C, G> {
+impl<G: Grid> LocalGrid<G> {
     /// Create new
     pub fn new(
-        comm: &'a C,
         serial_grid: G,
         ownership: Vec<Vec<Ownership>>,
         global_indices: Vec<Vec<usize>>,
     ) -> Self {
         Self {
-            comm,
             serial_grid,
             ownership,
             global_indices,
         }
     }
 }
-impl<'g, C: Communicator, G: Grid> Grid for ParallelGrid<'g, C, G> {
+impl<G: Grid> Grid for LocalGrid<G> {
     type T = G::T;
     type Entity<'a> = ParallelGridEntity<G::Entity<'a>> where Self: 'a;
     type GeometryMap<'a> = G::GeometryMap<'a> where Self: 'a;
@@ -116,9 +113,9 @@ impl<'g, C: Communicator, G: Grid> Grid for ParallelGrid<'g, C, G> {
         self.serial_grid.topology_dim()
     }
 
-    fn entity(&self, dim: usize, local_index: usize) -> Option<Self::Entity<'_>> {
+    fn entity(&self, dim: usize, serial_index: usize) -> Option<Self::Entity<'_>> {
         self.serial_grid
-            .entity(dim, local_index)
+            .entity(dim, serial_index)
             .map(|e| ParallelGridEntity::new(e, &self.ownership[dim], &self.global_indices[dim]))
     }
 
@@ -150,5 +147,78 @@ impl<'g, C: Communicator, G: Grid> Grid for ParallelGrid<'g, C, G> {
         points: &[Self::T],
     ) -> Self::GeometryMap<'_> {
         self.serial_grid.geometry_map(entity_type, points)
+    }
+}
+
+/// Parallel grid
+pub struct ParallelGrid<'a, C: Communicator, G: Grid> {
+    comm: &'a C,
+    local_grid: LocalGrid<G>,
+}
+
+impl<'a, C: Communicator, G: Grid> ParallelGrid<'a, C, G> {
+    /// Create new
+    pub fn new(
+        comm: &'a C,
+        serial_grid: G,
+        ownership: Vec<Vec<Ownership>>,
+        global_indices: Vec<Vec<usize>>,
+    ) -> Self {
+        Self {
+            comm,
+            local_grid: LocalGrid::new(serial_grid, ownership, global_indices),
+        }
+    }
+}
+
+impl<'g, C: Communicator, G: Grid> ParallelGridTrait<C> for ParallelGrid<'g, C, G> {
+    type LocalGrid<'a> = LocalGrid<G> where Self: 'a;
+    fn comm(&self) -> &C {
+        self.comm
+    }
+    fn local_grid(&self) -> &LocalGrid<G> {
+        &self.local_grid
+    }
+}
+impl<'g, C: Communicator, G: Grid> Grid for ParallelGrid<'g, C, G> {
+    type T = G::T;
+    type Entity<'a> = <LocalGrid<G> as Grid>::Entity<'a> where Self: 'a;
+    type GeometryMap<'a> = <LocalGrid<G> as Grid>::GeometryMap<'a> where Self: 'a;
+    type EntityDescriptor = <LocalGrid<G> as Grid>::EntityDescriptor;
+    type EntityIter<'a> = <LocalGrid<G> as Grid>::EntityIter<'a> where Self: 'a;
+
+    fn geometry_dim(&self) -> usize {
+        self.local_grid.geometry_dim()
+    }
+    fn topology_dim(&self) -> usize {
+        self.local_grid.topology_dim()
+    }
+
+    fn entity(&self, dim: usize, local_index: usize) -> Option<Self::Entity<'_>> {
+        self.local_grid.entity(dim, local_index)
+    }
+
+    fn entity_types(&self, dim: usize) -> &[Self::EntityDescriptor] {
+        self.local_grid.entity_types(dim)
+    }
+
+    fn entity_count(&self, entity_type: Self::EntityDescriptor) -> usize {
+        self.local_grid.entity_count(entity_type)
+    }
+
+    fn entity_iter(&self, dim: usize) -> Self::EntityIter<'_> {
+        self.local_grid.entity_iter(dim)
+    }
+
+    fn entity_from_id(&self, dim: usize, id: usize) -> Option<Self::Entity<'_>> {
+        self.local_grid.entity_from_id(dim, id)
+    }
+
+    fn geometry_map(
+        &self,
+        entity_type: Self::EntityDescriptor,
+        points: &[Self::T],
+    ) -> Self::GeometryMap<'_> {
+        self.local_grid.geometry_map(entity_type, points)
     }
 }

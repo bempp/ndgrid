@@ -153,6 +153,9 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
     fn gdim(&self) -> usize {
         self.gdim
     }
+    fn tdim(&self) -> usize {
+        reference_cell::dim(self.element_data.0)
+    }
 
     fn npts(&self, _cell_type: Self::EntityDescriptor, _degree: usize) -> usize {
         self.points_per_cell

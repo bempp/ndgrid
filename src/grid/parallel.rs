@@ -2,5 +2,4 @@
 mod builder;
 mod grid;
 
-pub use builder::ParallelBuilder;
-pub use grid::*;
+pub use grid::ParallelGrid;

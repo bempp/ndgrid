@@ -57,6 +57,9 @@ pub trait Builder {
     /// Geometric dimension
     fn gdim(&self) -> usize;
 
+    /// Topoligical dimension
+    fn tdim(&self) -> usize;
+
     /// Number of points in a cell with the given type and degree
     fn npts(&self, cell_type: Self::EntityDescriptor, degree: usize) -> usize;
 }
