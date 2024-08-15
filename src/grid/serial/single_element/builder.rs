@@ -4,7 +4,7 @@ use super::SingleElementGrid;
 use crate::{
     geometry::SingleElementGeometry,
     topology::serial::SingleTypeTopology,
-    traits::{Builder, GeometryBuilder, TopologyBuilder},
+    traits::{Builder, GeometryBuilder, GridBuilder, TopologyBuilder},
     types::RealScalar,
 };
 use ndelement::{
@@ -116,7 +116,7 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
             &[self.element_data.0],
             &[self.element_data.1],
         );
-        SingleElementGrid::new(topology, geometry)
+        self.create_grid_from_topology_geometry(topology, geometry)
     }
 
     fn point_count(&self) -> usize {
@@ -227,6 +227,16 @@ impl<T: RealScalar> TopologyBuilder for SingleElementGridBuilder<T> {
             start += npoints;
         }
         cell_vertices
+    }
+}
+
+impl<T: RealScalar> GridBuilder for SingleElementGridBuilder<T> {
+    fn create_grid_from_topology_geometry(
+        &self,
+        topology: <Self as TopologyBuilder>::GridTopology,
+        geometry: <Self as GeometryBuilder>::GridGeometry,
+    ) -> <Self as Builder>::Grid {
+        SingleElementGrid::new(topology, geometry)
     }
 }
 

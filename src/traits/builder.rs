@@ -101,3 +101,14 @@ pub trait TopologyBuilder: Builder {
         cell_degrees: &[usize],
     ) -> Vec<usize>;
 }
+
+pub trait GridBuilder: Builder + GeometryBuilder + TopologyBuilder {
+    //! Trait for building a grid from topology and geometry
+
+    /// Create topology
+    fn create_grid_from_topology_geometry(
+        &self,
+        topology: <Self as TopologyBuilder>::GridTopology,
+        geometry: <Self as GeometryBuilder>::GridGeometry,
+    ) -> <Self as Builder>::Grid;
+}
