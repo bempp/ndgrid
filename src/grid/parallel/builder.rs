@@ -13,6 +13,116 @@ use mpi::{
 };
 use std::collections::HashMap;
 
+pub trait ParallelBuilder: Builder {
+    //! MPI parallel grid builder
+    // TODO: move to traits/builder.rs or traits/parallel.rs
+
+    /// Experimenting
+    // TODO: remove this test
+    fn test(&self);
+}
+
+impl<B: Builder + GeometryBuilder + TopologyBuilder + GridBuilder> ParallelBuilder for B
+where
+    Vec<B::T>: Buffer,
+    B::T: Equivalence,
+    Vec<B::EntityDescriptor>: Buffer,
+    B::EntityDescriptor: Equivalence,
+{
+    fn test(&self) {
+        use mpi::{environment::Universe, topology::Communicator};
+
+        let universe: Universe = mpi::initialize().unwrap();
+        let comm = universe.world();
+        let rank = comm.rank();
+
+        let (
+            point_indices,
+            coordinates,
+            vertex_indices,
+            vertex_owners,
+            cell_indices,
+            cell_points,
+            cell_types,
+            cell_degrees,
+            cell_owners,
+        ) = if rank == 0 {
+            let cell_owners = self.partition_cells(comm.size() as usize);
+            let vertex_owners = self.assign_vertex_owners(&cell_owners);
+            let (vertices_per_proc, points_per_proc, cells_per_proc) =
+                self.get_vertices_points_and_cells(&cell_owners);
+
+            let (point_indices, coordinates) = self.distribute_points(&comm, &points_per_proc);
+            let (vertex_indices, vertex_owners) =
+                self.distribute_vertices(&comm, &vertices_per_proc, &vertex_owners);
+            let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
+                self.distribute_cells(&comm, &cells_per_proc, &cell_owners);
+
+            (
+                point_indices,
+                coordinates,
+                vertex_indices,
+                vertex_owners,
+                cell_indices,
+                cell_points,
+                cell_types,
+                cell_degrees,
+                cell_owners,
+            )
+        } else {
+            let (point_indices, coordinates) = self.receive_points(&comm, 0);
+            let (vertex_indices, vertex_owners) = self.receive_vertices(&comm, 0);
+            let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
+                self.receive_cells(&comm, 0);
+
+            (
+                point_indices,
+                coordinates,
+                vertex_indices,
+                vertex_owners,
+                cell_indices,
+                cell_points,
+                cell_types,
+                cell_degrees,
+                cell_owners,
+            )
+        };
+
+        let geometry = self.create_geometry(
+            &point_indices,
+            &coordinates,
+            &cell_points,
+            &cell_types,
+            &cell_degrees,
+        );
+        let topology =
+            self.create_topology(&vertex_indices, &cell_indices, &cell_points, &cell_types);
+
+        let serial_grid = self.create_grid_from_topology_geometry(topology, geometry);
+
+        let (vertex_global_dofs, vertex_owners) =
+            self.assign_dofs_and_communicate_owners(&comm, &vertex_owners, &vertex_indices);
+        let (cell_global_dofs, cell_owners) =
+            self.assign_dofs_and_communicate_owners(&comm, &cell_owners, &cell_indices);
+
+        let (edge_global_dofs, edge_owners) = self.assign_sub_entity_dofs_and_owners(
+            &comm,
+            &serial_grid,
+            &vertex_owners,
+            &vertex_global_dofs,
+            &cell_owners,
+            1,
+        );
+
+        println!("[{rank}] {vertex_owners:?}");
+        println!("[{rank}] {vertex_global_dofs:?}");
+        println!("[{rank}] {edge_owners:?}");
+        println!("[{rank}] {edge_global_dofs:?}");
+        println!("[{rank}] {cell_owners:?}");
+        println!("[{rank}] {cell_global_dofs:?}");
+    }
+}
+
 pub trait ParallelBuilderFunctions:
     Builder + GeometryBuilder + TopologyBuilder + GridBuilder
 {
@@ -119,107 +229,6 @@ pub trait ParallelBuilderFunctions:
         cell_ownership: &[Ownership],
         dim: usize,
     ) -> (Vec<usize>, Vec<Ownership>);
-}
-
-pub trait ParallelBuilder:
-    Builder + ParallelBuilderFunctions + GeometryBuilder + TopologyBuilder + GridBuilder
-{
-    //! MPI parallel grid builder
-    // TODO: move to traits/builder.rs or traits/parallel.rs
-
-    // TODO: remove this test
-    fn test(&self) {
-        use mpi::{environment::Universe, topology::Communicator};
-
-        let universe: Universe = mpi::initialize().unwrap();
-        let comm = universe.world();
-        let rank = comm.rank();
-
-        let (
-            point_indices,
-            coordinates,
-            vertex_indices,
-            vertex_owners,
-            cell_indices,
-            cell_points,
-            cell_types,
-            cell_degrees,
-            cell_owners,
-        ) = if rank == 0 {
-            let cell_owners = self.partition_cells(comm.size() as usize);
-            let vertex_owners = self.assign_vertex_owners(&cell_owners);
-            let (vertices_per_proc, points_per_proc, cells_per_proc) =
-                self.get_vertices_points_and_cells(&cell_owners);
-
-            let (point_indices, coordinates) = self.distribute_points(&comm, &points_per_proc);
-            let (vertex_indices, vertex_owners) =
-                self.distribute_vertices(&comm, &vertices_per_proc, &vertex_owners);
-            let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
-                self.distribute_cells(&comm, &cells_per_proc, &cell_owners);
-
-            (
-                point_indices,
-                coordinates,
-                vertex_indices,
-                vertex_owners,
-                cell_indices,
-                cell_points,
-                cell_types,
-                cell_degrees,
-                cell_owners,
-            )
-        } else {
-            let (point_indices, coordinates) = self.receive_points(&comm, 0);
-            let (vertex_indices, vertex_owners) = self.receive_vertices(&comm, 0);
-            let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
-                self.receive_cells(&comm, 0);
-
-            (
-                point_indices,
-                coordinates,
-                vertex_indices,
-                vertex_owners,
-                cell_indices,
-                cell_points,
-                cell_types,
-                cell_degrees,
-                cell_owners,
-            )
-        };
-
-        let geometry = self.create_geometry(
-            &point_indices,
-            &coordinates,
-            &cell_points,
-            &cell_types,
-            &cell_degrees,
-        );
-        let topology =
-            self.create_topology(&vertex_indices, &cell_indices, &cell_points, &cell_types);
-
-        let serial_grid = self.create_grid_from_topology_geometry(topology, geometry);
-
-        let (vertex_global_dofs, vertex_owners) =
-            self.assign_dofs_and_communicate_owners(&comm, &vertex_owners, &vertex_indices);
-        let (cell_global_dofs, cell_owners) =
-            self.assign_dofs_and_communicate_owners(&comm, &cell_owners, &cell_indices);
-
-        let (edge_global_dofs, edge_owners) = self.assign_sub_entity_dofs_and_owners(
-            &comm,
-            &serial_grid,
-            &vertex_owners,
-            &vertex_global_dofs,
-            &cell_owners,
-            1,
-        );
-
-        println!("[{rank}] {vertex_owners:?}");
-        println!("[{rank}] {vertex_global_dofs:?}");
-        println!("[{rank}] {edge_owners:?}");
-        println!("[{rank}] {edge_global_dofs:?}");
-        println!("[{rank}] {cell_owners:?}");
-        println!("[{rank}] {cell_global_dofs:?}");
-    }
 }
 
 impl<B: Builder + GeometryBuilder + TopologyBuilder + GridBuilder> ParallelBuilderFunctions for B
@@ -846,12 +855,4 @@ where
 
         (vertices, points, cells)
     }
-}
-impl<B: Builder + GeometryBuilder + TopologyBuilder + GridBuilder> ParallelBuilder for B
-where
-    Vec<B::T>: Buffer,
-    B::T: Equivalence,
-    Vec<B::EntityDescriptor>: Buffer,
-    B::EntityDescriptor: Equivalence,
-{
 }
