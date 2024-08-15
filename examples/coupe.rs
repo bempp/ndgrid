@@ -1,11 +1,13 @@
 //? run --features "mpi"
 
 #[cfg(feature = "mpi")]
+use mpi::{environment::Universe, topology::Communicator};
+#[cfg(feature = "mpi")]
 use ndelement::types::ReferenceCellType;
 #[cfg(feature = "mpi")]
 use ndgrid::{
     grid::serial::SingleElementGridBuilder,
-    traits::{Builder, ParallelBuilder},
+    traits::{Builder, Grid, ParallelBuilder},
 };
 
 #[cfg(feature = "mpi")]
@@ -30,7 +32,24 @@ fn main() {
             i += 1;
         }
     }
-    b.test();
+
+    let universe: Universe = mpi::initialize().unwrap();
+    let comm = universe.world();
+    let rank = comm.rank();
+    let grid = if rank == 0 {
+        b.create_parallel_grid(&comm)
+    } else {
+        b.receive_parallel_grid(&comm, 0)
+    };
+
+    println!(
+        "MPI rank {rank} has {} vertices",
+        grid.entity_count(ReferenceCellType::Point)
+    );
+    println!(
+        "MPI rank {rank} has {} cells",
+        grid.entity_count(ReferenceCellType::Quadrilateral)
+    );
 }
 
 #[cfg(not(feature = "mpi"))]

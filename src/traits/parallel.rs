@@ -19,10 +19,6 @@ pub trait ParallelBuilder: Builder {
         comm: &'a C,
         root_rank: i32,
     ) -> Self::ParallelGrid<'a, C>;
-
-    /// Experimenting
-    // TODO: remove this test
-    fn test(&self);
 }
 
 pub trait ParallelGrid<C: Communicator> {

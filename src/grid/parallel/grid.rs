@@ -72,7 +72,7 @@ impl<'a, E: Entity, EntityIter: Iterator<Item = E>> Iterator
 
     fn next(&mut self) -> Option<ParallelGridEntity<E>> {
         let entity = self.iter.next();
-        entity.map(|e| ParallelGridEntity::new(e, &self.ownership, &self.global_indices))
+        entity.map(|e| ParallelGridEntity::new(e, self.ownership, self.global_indices))
     }
 }
 
