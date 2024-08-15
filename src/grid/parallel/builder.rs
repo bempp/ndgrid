@@ -80,6 +80,8 @@ where
 
 trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + GridBuilder {
     //! Parallel builder functions
+    //!
+    //! These functions are included in a trait so that they can be implemented for an arbitrary builder B below
 
     /// Intrernal function to create parallel grid
     #[allow(clippy::too_many_arguments)]
