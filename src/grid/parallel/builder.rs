@@ -136,127 +136,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         ParallelGrid::new(comm, serial_grid, owners, global_indices)
     }
 
-    /// Partition the cells
-    fn partition_cells(&self, nprocesses: usize) -> Vec<usize>;
-
-    /// Assign vertex owners
-    fn assign_vertex_owners(&self, cell_owners: &[usize]) -> Vec<usize>;
-
-    /// Compute the vertices and cells that each process needs access to
-    #[allow(clippy::type_complexity)]
-    fn get_vertices_points_and_cells(
-        &self,
-        cell_owners: &[usize],
-    ) -> (Vec<Vec<usize>>, Vec<Vec<usize>>, Vec<Vec<usize>>);
-
-    /// Distribute cells to all processes
-    #[allow(clippy::type_complexity)]
-    fn distribute_cells<C: Communicator>(
-        &self,
-        comm: &C,
-        cells_per_proc: &[Vec<usize>],
-        cell_ownwes: &[usize],
-    ) -> (
-        Vec<usize>,
-        Vec<usize>,
-        Vec<Self::EntityDescriptor>,
-        Vec<usize>,
-        Vec<usize>,
-    );
-    #[allow(clippy::type_complexity)]
-    /// Receive cells from root process
-    fn receive_cells<C: Communicator>(
-        &self,
-        comm: &C,
-        root_rank: i32,
-    ) -> (
-        Vec<usize>,
-        Vec<usize>,
-        Vec<Self::EntityDescriptor>,
-        Vec<usize>,
-        Vec<usize>,
-    );
-
-    /// Distribute points to all processes
-    fn distribute_points<C: Communicator>(
-        &self,
-        comm: &C,
-        points_per_proc: &[Vec<usize>],
-    ) -> (Vec<usize>, Vec<Self::T>);
-    /// Receive points from root process
-    fn receive_points<C: Communicator>(
-        &self,
-        comm: &C,
-        root_rank: i32,
-    ) -> (Vec<usize>, Vec<Self::T>);
-
-    /// Distribute vertices to all processes
-    fn distribute_vertices<C: Communicator>(
-        &self,
-        comm: &C,
-        vertices_per_proc: &[Vec<usize>],
-        vertex_owners: &[usize],
-    ) -> (Vec<usize>, Vec<usize>);
-    /// Receive vertices from root process
-    fn receive_vertices<C: Communicator>(
-        &self,
-        comm: &C,
-        root_rank: i32,
-    ) -> (Vec<usize>, Vec<usize>);
-
-    /// Reorder cells so that owned cells are first
-    #[allow(clippy::type_complexity)]
-    fn reorder_cells(
-        &self,
-        rank: usize,
-        cell_indices: &[usize],
-        cell_points: &[usize],
-        cell_types: &[Self::EntityDescriptor],
-        cell_degrees: &[usize],
-        cell_owners: &[usize],
-    ) -> (
-        Vec<usize>,
-        Vec<usize>,
-        Vec<Self::EntityDescriptor>,
-        Vec<usize>,
-        Vec<usize>,
-    );
-
-    /// Reorder vertices so that owned vertices are first
-    fn reorder_vertices(
-        &self,
-        rank: usize,
-        vertex_indices: &[usize],
-        vertex_owners: &[usize],
-    ) -> (Vec<usize>, Vec<usize>);
-
-    /// Assign global indices to vertices or cells and communicator ownership information
-    fn assign_global_indices_and_communicate_owners<C: Communicator>(
-        &self,
-        comm: &C,
-        owners: &[usize],
-        indices: &[usize],
-    ) -> (Vec<usize>, Vec<Ownership>);
-
     /// Assign global indices to entities that are neither vertices nor cells and communicator ownership information
-    fn assign_sub_entity_global_indices_and_owners<C: Communicator>(
-        &self,
-        comm: &C,
-        grid: &Self::Grid,
-        vertex_ownership: &[Ownership],
-        vertex_global_indices: &[usize],
-        cell_ownership: &[Ownership],
-        dim: usize,
-    ) -> (Vec<usize>, Vec<Ownership>);
-}
-
-impl<B: Builder + GeometryBuilder + TopologyBuilder + GridBuilder> ParallelBuilderFunctions for B
-where
-    Vec<B::T>: Buffer,
-    B::T: Equivalence,
-    Vec<B::EntityDescriptor>: Buffer,
-    B::EntityDescriptor: Equivalence,
-{
     fn assign_sub_entity_global_indices_and_owners<C: Communicator>(
         &self,
         comm: &C,
@@ -400,6 +280,7 @@ where
         }
         self.assign_global_indices_and_communicate_owners(comm, &entity_owners, &entity_indices)
     }
+    /// Assign global indices to vertices or cells and communicator ownership information
     fn assign_global_indices_and_communicate_owners<C: Communicator>(
         &self,
         comm: &C,
@@ -493,6 +374,7 @@ where
         (global_indices, ownership)
     }
 
+    /// Reorder vertices so that owned vertices are first
     fn reorder_vertices(
         &self,
         rank: usize,
@@ -516,6 +398,8 @@ where
         owners.extend_from_slice(&owners2);
         (indices, owners)
     }
+    /// Reorder cells so that owned cells are first
+    #[allow(clippy::type_complexity)]
     fn reorder_cells(
         &self,
         rank: usize,
@@ -566,6 +450,7 @@ where
         owners.extend_from_slice(&owners2);
         (indices, points, types, degrees, owners)
     }
+    /// Distribute vertices to all processes
     fn distribute_vertices<C: Communicator>(
         &self,
         comm: &C,
@@ -599,6 +484,7 @@ where
             &vertex_owners_per_proc[rank],
         )
     }
+    /// Receive vertices from root process
     fn receive_vertices<C: Communicator>(
         &self,
         comm: &C,
@@ -610,11 +496,12 @@ where
 
         self.reorder_vertices(comm.rank() as usize, &vertices, &vertex_owners)
     }
+    /// Distribute points to all processes
     fn distribute_points<C: Communicator>(
         &self,
         comm: &C,
         points_per_proc: &[Vec<usize>],
-    ) -> (Vec<usize>, Vec<Self::T>) {
+    ) -> (Vec<usize>, Vec<Self::T>) where Vec<Self::T>: Buffer{
         let rank = comm.rank() as usize;
         let mut coords_rank = vec![];
         let mut coords = vec![];
@@ -644,17 +531,20 @@ where
 
         (points_per_proc[rank].clone(), coords_rank)
     }
+    /// Receive points from root process
     fn receive_points<C: Communicator>(
         &self,
         comm: &C,
         root_rank: i32,
-    ) -> (Vec<usize>, Vec<Self::T>) {
+    ) -> (Vec<usize>, Vec<Self::T>) where Self::T: Equivalence {
         let root_process = comm.process_at_rank(root_rank);
         let (indices, _status) = root_process.receive_vec::<usize>();
         let (coords, _status) = root_process.receive_vec::<Self::T>();
 
         (indices, coords)
     }
+    /// Distribute cells to all processes
+    #[allow(clippy::type_complexity)]
     fn distribute_cells<C: Communicator>(
         &self,
         comm: &C,
@@ -666,7 +556,7 @@ where
         Vec<Self::EntityDescriptor>,
         Vec<usize>,
         Vec<usize>,
-    ) {
+    ) where Vec<Self::EntityDescriptor>: Buffer {
         let rank = comm.rank() as usize;
         let mut cell_points_rank = vec![];
         let mut cell_types_rank = vec![];
@@ -732,6 +622,8 @@ where
             &cell_owners_rank,
         )
     }
+    /// Receive cells from root process
+    #[allow(clippy::type_complexity)]
     fn receive_cells<C: Communicator>(
         &self,
         comm: &C,
@@ -742,7 +634,7 @@ where
         Vec<Self::EntityDescriptor>,
         Vec<usize>,
         Vec<usize>,
-    ) {
+    ) where Self::EntityDescriptor: Equivalence {
         let root_process = comm.process_at_rank(root_rank);
         let (cell_indices, _status) = root_process.receive_vec::<usize>();
         let (cell_points, _status) = root_process.receive_vec::<usize>();
@@ -760,6 +652,7 @@ where
         )
     }
 
+    /// Partition the cells
     fn partition_cells(&self, nprocesses: usize) -> Vec<usize> {
         let mut partition = vec![];
         for i in 0..nprocesses {
@@ -816,6 +709,7 @@ where
         partition
     }
 
+    /// Assign vertex owners
     fn assign_vertex_owners(&self, cell_owners: &[usize]) -> Vec<usize> {
         let mut vertex_owners = vec![cell_owners.iter().max().unwrap() + 1; self.point_count()];
 
@@ -828,6 +722,8 @@ where
         vertex_owners
     }
 
+    /// Compute the vertices and cells that each process needs access to
+    #[allow(clippy::type_complexity)]
     fn get_vertices_points_and_cells(
         &self,
         cell_owners: &[usize],
@@ -874,4 +770,13 @@ where
 
         (vertices, points, cells)
     }
+}
+
+impl<B: Builder + GeometryBuilder + TopologyBuilder + GridBuilder> ParallelBuilderFunctions for B
+where
+    Vec<B::T>: Buffer,
+    B::T: Equivalence,
+    Vec<B::EntityDescriptor>: Buffer,
+    B::EntityDescriptor: Equivalence,
+{
 }
