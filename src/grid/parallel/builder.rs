@@ -241,26 +241,28 @@ where
         let mut types2 = vec![];
         let mut degrees2 = vec![];
         let mut owners2 = vec![];
-        for (i, p, t, d, o) in izip!(
+        let mut start = 0;
+        for (i, t, d, o) in izip!(
             cell_indices,
-            cell_points,
             cell_types,
             cell_degrees,
             cell_owners
         ) {
+            let npts = self.npts(*t, *d);
             if *o == rank {
                 indices.push(*i);
-                points.push(*p);
+                points.extend_from_slice(&cell_points[start..start+npts]);
                 types.push(*t);
                 degrees.push(*d);
                 owners.push(*o);
             } else {
                 indices2.push(*i);
-                points2.push(*p);
+                points2.extend_from_slice(&cell_points[start..start+npts]);
                 types2.push(*t);
                 degrees2.push(*d);
                 owners2.push(*o);
             }
+            start += npts;
         }
         indices.extend_from_slice(&indices2);
         points.extend_from_slice(&points2);

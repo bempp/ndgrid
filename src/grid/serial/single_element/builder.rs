@@ -153,6 +153,10 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
     fn gdim(&self) -> usize {
         self.gdim
     }
+
+    fn npts(&self, _cell_type: Self::EntityDescriptor, _degree: usize) -> usize {
+        self.points_per_cell
+    }
 }
 
 impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
