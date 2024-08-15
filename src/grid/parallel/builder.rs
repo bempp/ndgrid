@@ -1,12 +1,12 @@
 //! Parallel grid builder
 
-use crate::traits::{Builder, GeometryBuilder, TopologyBuilder};
+use crate::{traits::{Builder, GeometryBuilder, TopologyBuilder}, types::Ownership};
 use mpi::{
     point_to_point::{Destination, Source},
     request::WaitGuard,
     traits::{Buffer, Communicator, Equivalence},
 };
-
+use std::collections::HashMap;
 use coupe::{KMeans, Partition, Point3D};
 use itertools::izip;
 
@@ -97,6 +97,8 @@ pub trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder 
         vertex_indices: &[usize],
         vertex_owners: &[usize],
     ) -> (Vec<usize>, Vec<usize>);
+
+    fn communicate_owners<C: Communicator>(&self, comm: &C, owners: &[usize], indices: &[usize]) -> Vec<Ownership>;
 }
 
 pub trait ParallelBuilder:
@@ -125,18 +127,6 @@ pub trait ParallelBuilder:
             let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
                 self.distribute_cells(&comm, &cells_per_proc, &cell_owners);
 
-            let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) = self
-                .reorder_cells(
-                    rank as usize,
-                    &cell_indices,
-                    &cell_points,
-                    &cell_types,
-                    &cell_degrees,
-                    &cell_owners,
-                );
-            let (vertex_indices, vertex_owners) =
-                self.reorder_vertices(rank as usize, &vertex_indices, &vertex_owners);
-
             let geometry = self.create_geometry(
                 &point_indices,
                 &coordinates,
@@ -146,6 +136,9 @@ pub trait ParallelBuilder:
             );
             let topology =
                 self.create_topology(&vertex_indices, &cell_indices, &cell_points, &cell_types);
+
+            let vertex_owners = self.communicate_owners(&comm, &vertex_owners, &vertex_indices);
+            let cell_owners = self.communicate_owners(&comm, &cell_owners, &cell_indices);
 
             (geometry, topology, vertex_owners, cell_owners)
         } else {
@@ -154,18 +147,6 @@ pub trait ParallelBuilder:
             let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
                 self.receive_cells(&comm, 0);
 
-            let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) = self
-                .reorder_cells(
-                    rank as usize,
-                    &cell_indices,
-                    &cell_points,
-                    &cell_types,
-                    &cell_degrees,
-                    &cell_owners,
-                );
-            let (vertex_indices, vertex_owners) =
-                self.reorder_vertices(rank as usize, &vertex_indices, &vertex_owners);
-
             let geometry = self.create_geometry(
                 &point_indices,
                 &coordinates,
@@ -176,8 +157,14 @@ pub trait ParallelBuilder:
             let topology =
                 self.create_topology(&vertex_indices, &cell_indices, &cell_points, &cell_types);
 
+            let vertex_owners = self.communicate_owners(&comm, &vertex_owners, &vertex_indices);
+            let cell_owners = self.communicate_owners(&comm, &cell_owners, &cell_indices);
+
             (geometry, topology, vertex_owners, cell_owners)
         };
+
+        println!("[{rank}] {vertex_owners:?}");
+        println!("[{rank}] {cell_owners:?}");
 
         // Assign global DOFs to local DOFs
         // Collect vertex and cell global DOFs for ghosts
@@ -193,6 +180,66 @@ where
     Vec<B::EntityDescriptor>: Buffer,
     B::EntityDescriptor: Equivalence,
 {
+    fn communicate_owners<C: Communicator>(&self, comm: &C, owners: &[usize], indices: &[usize]) -> Vec<Ownership> {
+        let rank = comm.rank() as usize;
+        let mut ownership = vec![Ownership::Undefined; owners.len()];
+        let mut to_send = vec![vec![]; comm.size() as usize];
+        let mut to_receive = vec![vec![]; comm.size() as usize];
+        let mut ids_to_indices = HashMap::new();
+        for (j, (o, i)) in izip!(owners, indices).enumerate() {
+            if *o == rank {
+                ids_to_indices.insert(i, j);
+                ownership[j] = Ownership::Owned;
+            } else {
+                to_send[*o].push(*i);
+                to_receive[*o].push(j);
+            }
+        }
+        mpi::request::scope(|scope| {
+            for p in 0..comm.size() {
+                if p != comm.rank() {
+                    let process = comm.process_at_rank(p);
+                    let _ = WaitGuard::from(process.immediate_send(scope, &to_send[p as usize]));
+                }
+            }
+        });
+        let mut received = vec![];
+        for p in 0..comm.size() {
+            if p != comm.rank() {
+                let process = comm.process_at_rank(p);
+                let (r, _status) = process.receive_vec::<usize>();
+                received.push(r);
+            } else {
+                received.push(vec![]);
+            }
+        }
+        
+        let mut to_send_back = received.iter().map(|r| r.iter().map(
+            |i| ids_to_indices[i]
+        ).collect::<Vec<_>>()).collect::<Vec<_>>();
+
+        mpi::request::scope(|scope| {
+            for p in 0..comm.size() {
+                if p != comm.rank() {
+                    let process = comm.process_at_rank(p);
+                    let _ = WaitGuard::from(process.immediate_send(scope, &to_send_back[p as usize]));
+                }
+            }
+        });
+
+        for p in 0..comm.size() {
+            if p != comm.rank() {
+                let process = comm.process_at_rank(p);
+                let (r, _status) = process.receive_vec::<usize>();
+                for (i, j) in izip!(&to_receive[p as usize], &r) {
+                    ownership[*i] = Ownership::Ghost(p as usize, *j);
+                }
+            }
+        }
+
+        ownership
+    }
+
     fn reorder_vertices(
         &self,
         rank: usize,
@@ -298,9 +345,9 @@ where
             }
         });
 
-        (
-            vertices_per_proc[rank].clone(),
-            vertex_owners_per_proc[rank].clone(),
+        self.reorder_vertices(rank,
+            &vertices_per_proc[rank],
+            &vertex_owners_per_proc[rank],
         )
     }
     fn receive_vertices<C: Communicator>(
@@ -312,7 +359,7 @@ where
         let (vertices, _status) = root_process.receive_vec::<usize>();
         let (vertex_owners, _status) = root_process.receive_vec::<usize>();
 
-        (vertices, vertex_owners)
+        self.reorder_vertices(comm.rank() as usize, &vertices, &vertex_owners)
     }
     fn distribute_points<C: Communicator>(
         &self,
@@ -427,12 +474,12 @@ where
             }
         });
 
-        (
-            cells_per_proc[rank].clone(),
-            cell_points_rank,
-            cell_types_rank,
-            cell_degrees_rank,
-            cell_owners_rank,
+        self.reorder_cells(rank,
+            &cells_per_proc[rank],
+            &cell_points_rank,
+            &cell_types_rank,
+            &cell_degrees_rank,
+            &cell_owners_rank,
         )
     }
     fn receive_cells<C: Communicator>(
@@ -453,12 +500,12 @@ where
         let (cell_degrees, _status) = root_process.receive_vec::<usize>();
         let (cell_owners, _status) = root_process.receive_vec::<usize>();
 
-        (
-            cell_indices,
-            cell_points,
-            cell_types,
-            cell_degrees,
-            cell_owners,
+        self.reorder_cells(comm.rank() as usize,
+            &cell_indices,
+            &cell_points,
+            &cell_types,
+            &cell_degrees,
+            &cell_owners,
         )
     }
 
