@@ -1,14 +1,17 @@
 //! Parallel grid builder
 
-use crate::{traits::{Builder, GeometryBuilder, TopologyBuilder}, types::Ownership};
+use crate::{
+    traits::{Builder, GeometryBuilder, TopologyBuilder},
+    types::Ownership,
+};
+use coupe::{KMeans, Partition, Point3D};
+use itertools::izip;
 use mpi::{
     point_to_point::{Destination, Source},
     request::WaitGuard,
     traits::{Buffer, Communicator, Equivalence},
 };
 use std::collections::HashMap;
-use coupe::{KMeans, Partition, Point3D};
-use itertools::izip;
 
 pub trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder {
     //! Parallel builder functions
@@ -98,7 +101,12 @@ pub trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder 
         vertex_owners: &[usize],
     ) -> (Vec<usize>, Vec<usize>);
 
-    fn communicate_owners<C: Communicator>(&self, comm: &C, owners: &[usize], indices: &[usize]) -> Vec<Ownership>;
+    fn assign_dofs_and_communicate_owners<C: Communicator>(
+        &self,
+        comm: &C,
+        owners: &[usize],
+        indices: &[usize],
+    ) -> (Vec<usize>, Vec<Ownership>);
 }
 
 pub trait ParallelBuilder:
@@ -115,7 +123,17 @@ pub trait ParallelBuilder:
         let comm = universe.world();
         let rank = comm.rank();
 
-        let (geometry, topology, vertex_owners, cell_owners) = if rank == 0 {
+        let (
+            point_indices,
+            coordinates,
+            vertex_indices,
+            vertex_owners,
+            cell_indices,
+            cell_points,
+            cell_types,
+            cell_degrees,
+            cell_owners,
+        ) = if rank == 0 {
             let cell_owners = self.partition_cells(comm.size() as usize);
             let vertex_owners = self.assign_vertex_owners(&cell_owners);
             let (vertices_per_proc, points_per_proc, cells_per_proc) =
@@ -127,47 +145,57 @@ pub trait ParallelBuilder:
             let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
                 self.distribute_cells(&comm, &cells_per_proc, &cell_owners);
 
-            let geometry = self.create_geometry(
-                &point_indices,
-                &coordinates,
-                &cell_points,
-                &cell_types,
-                &cell_degrees,
-            );
-            let topology =
-                self.create_topology(&vertex_indices, &cell_indices, &cell_points, &cell_types);
-
-            let vertex_owners = self.communicate_owners(&comm, &vertex_owners, &vertex_indices);
-            let cell_owners = self.communicate_owners(&comm, &cell_owners, &cell_indices);
-
-            (geometry, topology, vertex_owners, cell_owners)
+            (
+                point_indices,
+                coordinates,
+                vertex_indices,
+                vertex_owners,
+                cell_indices,
+                cell_points,
+                cell_types,
+                cell_degrees,
+                cell_owners,
+            )
         } else {
             let (point_indices, coordinates) = self.receive_points(&comm, 0);
             let (vertex_indices, vertex_owners) = self.receive_vertices(&comm, 0);
             let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
                 self.receive_cells(&comm, 0);
 
-            let geometry = self.create_geometry(
-                &point_indices,
-                &coordinates,
-                &cell_points,
-                &cell_types,
-                &cell_degrees,
-            );
-            let topology =
-                self.create_topology(&vertex_indices, &cell_indices, &cell_points, &cell_types);
-
-            let vertex_owners = self.communicate_owners(&comm, &vertex_owners, &vertex_indices);
-            let cell_owners = self.communicate_owners(&comm, &cell_owners, &cell_indices);
-
-            (geometry, topology, vertex_owners, cell_owners)
+            (
+                point_indices,
+                coordinates,
+                vertex_indices,
+                vertex_owners,
+                cell_indices,
+                cell_points,
+                cell_types,
+                cell_degrees,
+                cell_owners,
+            )
         };
 
-        println!("[{rank}] {vertex_owners:?}");
-        println!("[{rank}] {cell_owners:?}");
+        let geometry = self.create_geometry(
+            &point_indices,
+            &coordinates,
+            &cell_points,
+            &cell_types,
+            &cell_degrees,
+        );
+        let topology =
+            self.create_topology(&vertex_indices, &cell_indices, &cell_points, &cell_types);
 
-        // Assign global DOFs to local DOFs
-        // Collect vertex and cell global DOFs for ghosts
+        let (vertex_global_dofs, vertex_owners) =
+            self.assign_dofs_and_communicate_owners(&comm, &vertex_owners, &vertex_indices);
+        let (cell_global_dofs, cell_owners) =
+            self.assign_dofs_and_communicate_owners(&comm, &cell_owners, &cell_indices);
+
+        // self.create_entities
+
+        println!("[{rank}] {vertex_owners:?}");
+        println!("[{rank}] {vertex_global_dofs:?}");
+        println!("[{rank}] {cell_owners:?}");
+        println!("[{rank}] {cell_global_dofs:?}");
 
         // Edges (and other intermediates)
     }
@@ -180,20 +208,41 @@ where
     Vec<B::EntityDescriptor>: Buffer,
     B::EntityDescriptor: Equivalence,
 {
-    fn communicate_owners<C: Communicator>(&self, comm: &C, owners: &[usize], indices: &[usize]) -> Vec<Ownership> {
+    fn assign_dofs_and_communicate_owners<C: Communicator>(
+        &self,
+        comm: &C,
+        owners: &[usize],
+        indices: &[usize],
+    ) -> (Vec<usize>, Vec<Ownership>) {
         let rank = comm.rank() as usize;
         let mut ownership = vec![Ownership::Undefined; owners.len()];
+        let mut global_dofs = vec![0; owners.len()];
         let mut to_send = vec![vec![]; comm.size() as usize];
         let mut to_receive = vec![vec![]; comm.size() as usize];
         let mut ids_to_indices = HashMap::new();
+        let mut dof = if rank == 0 {
+            0
+        } else {
+            let process = comm.process_at_rank(comm.rank() - 1);
+            let (dof, _status) = process.receive::<usize>();
+            dof
+        };
         for (j, (o, i)) in izip!(owners, indices).enumerate() {
             if *o == rank {
                 ids_to_indices.insert(i, j);
                 ownership[j] = Ownership::Owned;
+                global_dofs[j] = dof;
+                dof += 1
             } else {
                 to_send[*o].push(*i);
                 to_receive[*o].push(j);
             }
+        }
+        if comm.rank() + 1 < comm.size() {
+            mpi::request::scope(|scope| {
+                let process = comm.process_at_rank(comm.rank() + 1);
+                let _ = WaitGuard::from(process.immediate_send(scope, &dof));
+            });
         }
         mpi::request::scope(|scope| {
             for p in 0..comm.size() {
@@ -213,16 +262,26 @@ where
                 received.push(vec![]);
             }
         }
-        
-        let mut to_send_back = received.iter().map(|r| r.iter().map(
-            |i| ids_to_indices[i]
-        ).collect::<Vec<_>>()).collect::<Vec<_>>();
+
+        let to_send_back = received
+            .iter()
+            .map(|r| r.iter().map(|i| ids_to_indices[i]).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+
+        let global_to_send_back = to_send_back
+            .iter()
+            .map(|r| r.iter().map(|i| global_dofs[*i]).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
 
         mpi::request::scope(|scope| {
             for p in 0..comm.size() {
                 if p != comm.rank() {
                     let process = comm.process_at_rank(p);
-                    let _ = WaitGuard::from(process.immediate_send(scope, &to_send_back[p as usize]));
+                    let _ =
+                        WaitGuard::from(process.immediate_send(scope, &to_send_back[p as usize]));
+                    let _ = WaitGuard::from(
+                        process.immediate_send(scope, &global_to_send_back[p as usize]),
+                    );
                 }
             }
         });
@@ -231,13 +290,15 @@ where
             if p != comm.rank() {
                 let process = comm.process_at_rank(p);
                 let (r, _status) = process.receive_vec::<usize>();
-                for (i, j) in izip!(&to_receive[p as usize], &r) {
+                let (g, _status) = process.receive_vec::<usize>();
+                for (i, j, k) in izip!(&to_receive[p as usize], &r, &g) {
                     ownership[*i] = Ownership::Ghost(p as usize, *j);
+                    global_dofs[*i] = *k;
                 }
             }
         }
 
-        ownership
+        (global_dofs, ownership)
     }
 
     fn reorder_vertices(
@@ -289,22 +350,17 @@ where
         let mut degrees2 = vec![];
         let mut owners2 = vec![];
         let mut start = 0;
-        for (i, t, d, o) in izip!(
-            cell_indices,
-            cell_types,
-            cell_degrees,
-            cell_owners
-        ) {
+        for (i, t, d, o) in izip!(cell_indices, cell_types, cell_degrees, cell_owners) {
             let npts = self.npts(*t, *d);
             if *o == rank {
                 indices.push(*i);
-                points.extend_from_slice(&cell_points[start..start+npts]);
+                points.extend_from_slice(&cell_points[start..start + npts]);
                 types.push(*t);
                 degrees.push(*d);
                 owners.push(*o);
             } else {
                 indices2.push(*i);
-                points2.extend_from_slice(&cell_points[start..start+npts]);
+                points2.extend_from_slice(&cell_points[start..start + npts]);
                 types2.push(*t);
                 degrees2.push(*d);
                 owners2.push(*o);
@@ -345,7 +401,8 @@ where
             }
         });
 
-        self.reorder_vertices(rank,
+        self.reorder_vertices(
+            rank,
             &vertices_per_proc[rank],
             &vertex_owners_per_proc[rank],
         )
@@ -474,7 +531,8 @@ where
             }
         });
 
-        self.reorder_cells(rank,
+        self.reorder_cells(
+            rank,
             &cells_per_proc[rank],
             &cell_points_rank,
             &cell_types_rank,
@@ -500,7 +558,8 @@ where
         let (cell_degrees, _status) = root_process.receive_vec::<usize>();
         let (cell_owners, _status) = root_process.receive_vec::<usize>();
 
-        self.reorder_cells(comm.rank() as usize,
+        self.reorder_cells(
+            comm.rank() as usize,
             &cell_indices,
             &cell_points,
             &cell_types,
