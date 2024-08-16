@@ -1,5 +1,5 @@
 //! n-dimensional grid
-#![cfg_attr(feature = "strict", deny(warnings))]
+#![cfg_attr(feature = "strict", deny(warnings), deny(unused_crate_dependencies))]
 #![warn(missing_docs)]
 
 pub mod geometry;
