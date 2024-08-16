@@ -77,13 +77,13 @@ impl<'a, E: Entity, EntityIter: Iterator<Item = E>> Iterator
 }
 
 /// Local grid on a process
-pub struct LocalGrid<G: Grid> {
+pub struct LocalGrid<G: Grid + Sync> {
     serial_grid: G,
     ownership: Vec<Vec<Ownership>>,
     global_indices: Vec<Vec<usize>>,
 }
 
-impl<G: Grid> LocalGrid<G> {
+impl<G: Grid + Sync> LocalGrid<G> {
     /// Create new
     pub fn new(
         serial_grid: G,
@@ -97,7 +97,7 @@ impl<G: Grid> LocalGrid<G> {
         }
     }
 }
-impl<G: Grid> Grid for LocalGrid<G> {
+impl<G: Grid + Sync> Grid for LocalGrid<G> {
     type T = G::T;
     type Entity<'a> = ParallelGridEntity<G::Entity<'a>> where Self: 'a;
     type GeometryMap<'a> = G::GeometryMap<'a> where Self: 'a;
@@ -151,12 +151,12 @@ impl<G: Grid> Grid for LocalGrid<G> {
 }
 
 /// Parallel grid
-pub struct ParallelGrid<'a, C: Communicator, G: Grid> {
+pub struct ParallelGrid<'a, C: Communicator, G: Grid + Sync> {
     comm: &'a C,
     local_grid: LocalGrid<G>,
 }
 
-impl<'a, C: Communicator, G: Grid> ParallelGrid<'a, C, G> {
+impl<'a, C: Communicator, G: Grid + Sync> ParallelGrid<'a, C, G> {
     /// Create new
     pub fn new(
         comm: &'a C,
@@ -171,7 +171,7 @@ impl<'a, C: Communicator, G: Grid> ParallelGrid<'a, C, G> {
     }
 }
 
-impl<'g, C: Communicator, G: Grid> ParallelGridTrait<C> for ParallelGrid<'g, C, G> {
+impl<'g, C: Communicator, G: Grid + Sync> ParallelGridTrait<C> for ParallelGrid<'g, C, G> {
     type LocalGrid<'a> = LocalGrid<G> where Self: 'a;
     fn comm(&self) -> &C {
         self.comm
@@ -180,7 +180,7 @@ impl<'g, C: Communicator, G: Grid> ParallelGridTrait<C> for ParallelGrid<'g, C, 
         &self.local_grid
     }
 }
-impl<'g, C: Communicator, G: Grid> Grid for ParallelGrid<'g, C, G> {
+impl<'g, C: Communicator, G: Grid + Sync> Grid for ParallelGrid<'g, C, G> {
     type T = G::T;
     type Entity<'a> = <LocalGrid<G> as Grid>::Entity<'a> where Self: 'a;
     type GeometryMap<'a> = <LocalGrid<G> as Grid>::GeometryMap<'a> where Self: 'a;
