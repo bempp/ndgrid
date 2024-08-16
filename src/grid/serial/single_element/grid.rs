@@ -73,7 +73,7 @@ impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> E
     fn id(&self) -> Option<usize> {
         self.grid
             .topology
-            .entity_id(self.entity_dim, self.entity_index)
+            .entity_id(self.entity_dim, self.local_index())
     }
 }
 
