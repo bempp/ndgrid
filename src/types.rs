@@ -1,8 +1,8 @@
 //! Types
-use num::Float;
-use rlst::{Array, BaseArray, LinAlg, RlstScalar, VectorContainer};
 #[cfg(feature = "mpi")]
 use mpi::traits::Equivalence;
+use num::Float;
+use rlst::{Array, BaseArray, LinAlg, RlstScalar, VectorContainer};
 
 /// A real scalar
 pub trait RealScalar: Float + LinAlg + RlstScalar<Real = Self> {}
