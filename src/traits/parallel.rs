@@ -1,6 +1,5 @@
 //! Traits for MPI parallel grids
 use super::{Builder, Grid};
-use crate::types::RealScalar;
 use mpi::traits::Communicator;
 
 pub trait ParallelBuilder: Builder {
