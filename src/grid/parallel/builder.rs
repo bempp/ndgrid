@@ -109,8 +109,12 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             &cell_types,
             &cell_degrees,
         );
-        let topology =
-            self.create_topology(&vertex_indices, &cell_indices, &cell_points, &cell_types);
+        let topology = self.create_topology(
+            vertex_indices.clone(),
+            cell_indices.clone(),
+            &cell_points,
+            &cell_types,
+        );
 
         let serial_grid = self.create_grid_from_topology_geometry(topology, geometry);
 

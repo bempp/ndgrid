@@ -90,8 +90,8 @@ pub trait TopologyBuilder: Builder {
     /// Create topology
     fn create_topology(
         &self,
-        vertex_ids: &[usize],
-        cell_ids: &[usize],
+        vertex_ids: Vec<usize>,
+        cell_ids: Vec<usize>,
         cells: &[usize],
         cell_types: &[Self::EntityDescriptor],
     ) -> Self::GridTopology;
