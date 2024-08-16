@@ -57,4 +57,7 @@ impl<'g, T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeomet
     fn point_count(&self) -> usize {
         self.geometry.cells().shape()[0]
     }
+    fn degree(&self) -> usize {
+        self.geometry.element().embedded_superdegree()
+    }
 }

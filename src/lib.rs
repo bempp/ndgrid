@@ -4,7 +4,10 @@
 
 pub mod geometry;
 pub mod grid;
+mod io;
 pub mod shapes;
 pub mod topology;
 pub mod traits;
 pub mod types;
+
+pub use grid::{SingleElementGrid, SingleElementGridBuilder};

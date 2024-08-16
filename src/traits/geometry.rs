@@ -33,4 +33,7 @@ pub trait Geometry {
 
     /// Point count
     fn point_count(&self) -> usize;
+
+    /// Embedded superdegree
+    fn degree(&self) -> usize;
 }
