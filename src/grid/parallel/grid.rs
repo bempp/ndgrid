@@ -46,6 +46,9 @@ impl<E: Entity> Entity for ParallelGridEntity<E> {
     fn ownership(&self) -> Ownership {
         self.ownership
     }
+    fn id(&self) -> Option<usize> {
+        self.serial_entity.id()
+    }
 }
 
 /// Parallel grid entity iterator

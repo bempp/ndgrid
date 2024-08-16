@@ -103,8 +103,8 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
         }
 
         let topology = self.create_topology(
-            &vertex_ids,
-            &(0..self.cell_count()).collect::<Vec<_>>(),
+            vertex_ids,
+            (0..self.cell_count()).collect::<Vec<_>>(),
             &cell_vertices,
             &[self.element_data.0],
         );
@@ -195,8 +195,8 @@ impl<T: RealScalar> TopologyBuilder for SingleElementGridBuilder<T> {
     type GridTopology = SingleTypeTopology;
     fn create_topology(
         &self,
-        vertex_ids: &[usize],
-        _cell_ids: &[usize],
+        vertex_ids: Vec<usize>,
+        cell_ids: Vec<usize>,
         cells: &[usize],
         _cell_types: &[ReferenceCellType],
     ) -> SingleTypeTopology {
@@ -205,7 +205,12 @@ impl<T: RealScalar> TopologyBuilder for SingleElementGridBuilder<T> {
             .map(|v| vertex_ids.iter().position(|i| *i == *v).unwrap())
             .collect::<Vec<_>>();
 
-        SingleTypeTopology::new(&cells, self.element_data.0)
+        SingleTypeTopology::new(
+            &cells,
+            self.element_data.0,
+            Some(vertex_ids),
+            Some(cell_ids),
+        )
     }
 
     fn extract_vertices(

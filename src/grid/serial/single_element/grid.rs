@@ -70,6 +70,11 @@ impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> E
     fn ownership(&self) -> Ownership {
         Ownership::Owned
     }
+    fn id(&self) -> Option<usize> {
+        self.grid
+            .topology
+            .entity_id(self.entity_dim, self.entity_index)
+    }
 }
 
 /// Single element grid entity iterator
@@ -222,7 +227,7 @@ mod test {
         *points.get_mut([2, 3]).unwrap() = 0.0;
         let family = LagrangeElementFamily::<f64>::new(1, Continuity::Standard);
         SingleElementGrid::new(
-            SingleTypeTopology::new(&[0, 1, 2, 2, 1, 3], ReferenceCellType::Triangle),
+            SingleTypeTopology::new(&[0, 1, 2, 2, 1, 3], ReferenceCellType::Triangle, None, None),
             SingleElementGeometry::<f64, CiarletElement<f64>>::new(
                 ReferenceCellType::Triangle,
                 points,
