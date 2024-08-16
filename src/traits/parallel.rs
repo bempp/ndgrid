@@ -1,5 +1,6 @@
 //! Traits for MPI parallel grids
 use super::{Builder, Grid};
+use crate::types::RealScalar;
 use mpi::traits::Communicator;
 
 pub trait ParallelBuilder: Builder {
@@ -21,11 +22,11 @@ pub trait ParallelBuilder: Builder {
     ) -> Self::ParallelGrid<'a, C>;
 }
 
-pub trait ParallelGrid<C: Communicator> {
+pub trait ParallelGrid<C: Communicator>: Grid {
     //! MPI parallel grid
 
     /// Local grid type
-    type LocalGrid<'a>: Grid
+    type LocalGrid<'a>: Grid<T=<Self as Grid>::T, EntityDescriptor=<Self as Grid>::EntityDescriptor>
     where
         Self: 'a;
 
