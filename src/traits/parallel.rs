@@ -21,11 +21,12 @@ pub trait ParallelBuilder: Builder {
     ) -> Self::ParallelGrid<'a, C>;
 }
 
-pub trait ParallelGrid<C: Communicator> {
+pub trait ParallelGrid<C: Communicator>: Grid {
     //! MPI parallel grid
 
     /// Local grid type
-    type LocalGrid<'a>: Grid
+    type LocalGrid<'a>: Sync
+        + Grid<T = <Self as Grid>::T, EntityDescriptor = <Self as Grid>::EntityDescriptor>
     where
         Self: 'a;
 

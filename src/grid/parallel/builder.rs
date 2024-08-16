@@ -23,6 +23,7 @@ where
     B::T: Equivalence,
     Vec<B::EntityDescriptor>: Buffer,
     B::EntityDescriptor: Equivalence,
+    B::Grid: Sync,
 {
     type ParallelGrid<'a, C: Communicator + 'a> = ParallelGrid<'a, C, B::Grid> where Self: 'a;
     fn create_parallel_grid<'a, C: Communicator>(
@@ -97,7 +98,10 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         cell_types: Vec<Self::EntityDescriptor>,
         cell_degrees: Vec<usize>,
         cell_owners: Vec<usize>,
-    ) -> ParallelGrid<'a, C, Self::Grid> {
+    ) -> ParallelGrid<'a, C, Self::Grid>
+    where
+        Self::Grid: Sync,
+    {
         let geometry = self.create_geometry(
             &point_indices,
             &coordinates,
