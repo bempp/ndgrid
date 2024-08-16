@@ -34,6 +34,8 @@ impl<IndexType: std::fmt::Debug + Eq + Copy> CellLocalIndexPair<IndexType> {
 /// Ownership
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Ownership {
+    /// Undefined ownership. This should only be used as a placeholder value
+    Undefined,
     /// Owned by the current process
     Owned,
     /// Not owned on the current process. The two values are the process that owns it
