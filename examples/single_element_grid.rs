@@ -2,9 +2,6 @@ use ndelement::types::ReferenceCellType;
 use ndgrid::grid::serial::SingleElementGridBuilder;
 use ndgrid::traits::{Builder, Entity, Geometry, Grid, Point, Topology};
 
-extern crate blas_src;
-extern crate lapack_src;
-
 /// Creating a single element grid
 ///
 /// In a single element grid, the same finite element will be used to represent the geometry

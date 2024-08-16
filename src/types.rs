@@ -1,4 +1,6 @@
 //! Types
+#[cfg(feature = "mpi")]
+use mpi::traits::Equivalence;
 use num::Float;
 use rlst::{Array, BaseArray, LinAlg, RlstScalar, VectorContainer};
 
@@ -16,6 +18,7 @@ pub type Array2D<T> = ArrayND<2, T>;
 /// A (cell, local index) pair
 ///
 /// The local index is the index of a subentity (eg vertex, edge) within the cell as it is numbered in the reference cell
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct CellLocalIndexPair<IndexType: std::fmt::Debug + Eq + Copy> {
     /// The cell's index
@@ -32,7 +35,9 @@ impl<IndexType: std::fmt::Debug + Eq + Copy> CellLocalIndexPair<IndexType> {
 }
 
 /// Ownership
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[repr(u8)]
 pub enum Ownership {
     /// Undefined ownership. This should only be used as a placeholder value
     Undefined,
@@ -41,4 +46,12 @@ pub enum Ownership {
     /// Not owned on the current process. The two values are the process that owns it
     /// and its local index on that process
     Ghost(usize, usize),
+}
+
+#[cfg(feature = "mpi")]
+unsafe impl Equivalence for Ownership {
+    type Out = <u8 as Equivalence>::Out;
+    fn equivalent_datatype() -> <u8 as Equivalence>::Out {
+        <u8 as Equivalence>::equivalent_datatype()
+    }
 }
