@@ -11,3 +11,5 @@ pub mod traits;
 pub mod types;
 
 pub use grid::{SingleElementGrid, SingleElementGridBuilder};
+#[cfg(feature = "mpi")]
+pub use grid::ParallelGrid;
