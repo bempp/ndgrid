@@ -9,6 +9,7 @@ use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
 use std::iter::Copied;
 
 /// Topology of a single element grid
+#[derive(Debug)]
 pub struct SingleTypeTopology {
     dim: usize,
     ids: Vec<Option<Vec<usize>>>,
@@ -264,6 +265,7 @@ impl SingleTypeTopology {
 }
 
 /// Topology of a cell
+#[derive(Debug)]
 pub struct SingleTypeEntityTopology<'a> {
     topology: &'a SingleTypeTopology,
     //entity_type: ReferenceCellType,

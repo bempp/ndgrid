@@ -6,6 +6,7 @@ use ndelement::{
     types::ReferenceCellType,
 };
 use rlst::{rlst_dynamic_array2, RawAccessMut, Shape};
+use std::fmt::{Debug, Formatter};
 
 /// Single element geometry
 pub struct SingleElementGeometry<T: RealScalar, E: FiniteElement> {
@@ -13,6 +14,17 @@ pub struct SingleElementGeometry<T: RealScalar, E: FiniteElement> {
     cells: Array2D<usize>,
     elements: Vec<E>,
 }
+
+impl<T: RealScalar, E: FiniteElement> Debug for SingleElementGeometry<T, E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        f.debug_struct("SingleElementGeometry")
+            .field("points", &self.points)
+            .field("cells", &self.cells)
+            .finish()
+    }
+}
+
+
 
 impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
     /// Create single element geometry

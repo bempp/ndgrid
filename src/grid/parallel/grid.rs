@@ -6,6 +6,7 @@ use crate::{
 use mpi::traits::Communicator;
 
 /// Parallel grid entity
+#[derive(Debug)]
 pub struct ParallelGridEntity<E: Entity> {
     serial_entity: E,
     ownership: Ownership,
@@ -52,6 +53,7 @@ impl<E: Entity> Entity for ParallelGridEntity<E> {
 }
 
 /// Parallel grid entity iterator
+#[derive(Debug)]
 pub struct ParallelGridEntityIter<'a, E: Entity, EntityIter: Iterator<Item = E>> {
     iter: EntityIter,
     ownership: &'a [Ownership],
@@ -80,6 +82,7 @@ impl<'a, E: Entity, EntityIter: Iterator<Item = E>> Iterator
 }
 
 /// Local grid on a process
+#[derive(Debug)]
 pub struct LocalGrid<G: Grid + Sync> {
     serial_grid: G,
     ownership: Vec<Vec<Ownership>>,
@@ -154,6 +157,7 @@ impl<G: Grid + Sync> Grid for LocalGrid<G> {
 }
 
 /// Parallel grid
+#[derive(Debug)]
 pub struct ParallelGrid<'a, C: Communicator, G: Grid + Sync> {
     comm: &'a C,
     local_grid: LocalGrid<G>,

@@ -9,6 +9,7 @@ use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType}
 use rlst::{rlst_array_from_slice2, RawAccess};
 
 /// Single element grid entity
+#[derive(Debug)]
 pub struct SingleElementGridEntity<
     'a,
     T: RealScalar,
@@ -78,6 +79,7 @@ impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> E
 }
 
 /// Single element grid entity iterator
+#[derive(Debug)]
 pub struct SingleElementGridEntityIter<
     'a,
     T: RealScalar,
@@ -112,6 +114,7 @@ impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> I
 }
 
 /// Serial single element grid
+#[derive(Debug)]
 pub struct SingleElementGrid<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> {
     topology: SingleTypeTopology,
     geometry: SingleElementGeometry<T, E>,
