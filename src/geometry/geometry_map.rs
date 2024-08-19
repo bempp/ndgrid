@@ -9,6 +9,7 @@ use rlst::{
 };
 
 /// Single element geometry
+#[derive(Debug)]
 pub struct GeometryMap<'a, T: RealScalar> {
     geometry_points: &'a Array2D<T>,
     entities: &'a Array2D<usize>,

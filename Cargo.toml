@@ -24,7 +24,7 @@ crate-type = ["lib", "cdylib"]
 coupe = { version = "0.1", optional = true }
 itertools = "0.13.*"
 mpi = { version = "0.8.*", optional = true }
-ndelement = { git="https://github.com/bempp/ndelement.git" }
+ndelement = "0.1.0"
 num = "0.4"
 rlst = "0.2.0"
 serde = { version = "1", features = ["derive"], optional = true }

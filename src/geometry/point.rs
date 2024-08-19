@@ -1,8 +1,8 @@
 //! Point
 use crate::{traits::Point as PointTrait, types::RealScalar};
 
-#[derive(Clone, Copy)]
 /// A points
+#[derive(Debug, Clone, Copy)]
 pub struct Point<'a, T: RealScalar> {
     coordinates: &'a [T],
 }
@@ -26,6 +26,7 @@ impl<'a, T: RealScalar> PointTrait for Point<'a, T> {
 }
 
 /// Iterator over points
+#[derive(Debug)]
 pub struct PointIter<'a, T: RealScalar> {
     points: Vec<&'a [T]>,
     index: usize,

@@ -17,6 +17,7 @@ use rlst::{rlst_dynamic_array2, RawAccessMut};
 use std::collections::HashMap;
 
 /// Grid builder for a single element grid
+#[derive(Debug)]
 pub struct SingleElementGridBuilder<T: RealScalar> {
     gdim: usize,
     element_data: (ReferenceCellType, usize),

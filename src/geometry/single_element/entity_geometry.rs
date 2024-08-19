@@ -9,6 +9,7 @@ use ndelement::traits::FiniteElement;
 use rlst::{RawAccess, Shape};
 
 /// Geometry of a cell
+#[derive(Debug)]
 pub struct SingleElementEntityGeometry<'a, T: RealScalar, E: FiniteElement> {
     geometry: &'a SingleElementGeometry<T, E>,
     cell_index: usize,
