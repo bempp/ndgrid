@@ -24,8 +24,6 @@ impl<T: RealScalar, E: FiniteElement> Debug for SingleElementGeometry<T, E> {
     }
 }
 
-
-
 impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
     /// Create single element geometry
     pub fn new(
