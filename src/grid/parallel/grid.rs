@@ -1,4 +1,6 @@
 //! Parallel grid
+#[cfg(feature = "serde")]
+use crate::traits::ConvertToSerializable;
 use crate::{
     traits::{Entity, Grid, ParallelGrid as ParallelGridTrait},
     types::Ownership,
@@ -88,6 +90,42 @@ pub struct LocalGrid<G: Grid + Sync> {
     ownership: Vec<Vec<Ownership>>,
     global_indices: Vec<Vec<usize>>,
 }
+
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, Debug, serde::Deserialize)]
+#[serde(bound = "for<'de2> S: serde::Deserialize<'de2>")]
+pub struct SerializableLocalGrid<S: serde::Serialize>
+where
+    for<'de2> S: serde::Deserialize<'de2>,
+{
+    serial_grid: S,
+    ownership: Vec<Vec<Ownership>>,
+    global_indices: Vec<Vec<usize>>,
+}
+
+#[cfg(feature = "serde")]
+impl<S: serde::Serialize, G: Grid + Sync + ConvertToSerializable<SerializableType=S>> ConvertToSerializable
+    for LocalGrid<G>
+where
+    for<'de2> S: serde::Deserialize<'de2>,
+{
+    type SerializableType = SerializableLocalGrid<S>;
+    fn to_serializable(&self) -> SerializableLocalGrid<S> {
+        SerializableLocalGrid {
+            serial_grid: self.serial_grid.to_serializable(),
+            ownership: self.ownership.clone(),
+            global_indices: self.global_indices.clone(),
+        }
+    }
+    fn from_serializable(s: SerializableLocalGrid<S>) -> Self {
+        Self {
+            serial_grid: G::from_serializable(s.serial_grid),
+            ownership: s.ownership,
+            global_indices: s.global_indices,
+        }
+    }
+}
+
 
 impl<G: Grid + Sync> LocalGrid<G> {
     /// Create new
