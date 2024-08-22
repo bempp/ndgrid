@@ -15,7 +15,9 @@ pub use entity::Entity;
 pub use geometry::{Geometry, Point};
 pub use geometry_map::GeometryMap;
 pub use grid::Grid;
-pub use io::GmshExport;
+#[cfg(feature = "serde")]
+pub(crate) use io::ConvertToSerializable;
+pub use io::{GmshExport, RONExport, RONImport};
 #[cfg(feature = "mpi")]
 pub use parallel::{ParallelBuilder, ParallelGrid};
 pub use topology::Topology;
