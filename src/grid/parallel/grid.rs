@@ -104,8 +104,8 @@ where
 }
 
 #[cfg(feature = "serde")]
-impl<S: serde::Serialize, G: Grid + Sync + ConvertToSerializable<SerializableType=S>> ConvertToSerializable
-    for LocalGrid<G>
+impl<S: serde::Serialize, G: Grid + Sync + ConvertToSerializable<SerializableType = S>>
+    ConvertToSerializable for LocalGrid<G>
 where
     for<'de2> S: serde::Deserialize<'de2>,
 {
@@ -125,7 +125,6 @@ where
         }
     }
 }
-
 
 impl<G: Grid + Sync> LocalGrid<G> {
     /// Create new
