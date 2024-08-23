@@ -56,7 +56,7 @@ fn test_parallel_export<C: Communicator>(comm: &C) {
     let n = 10;
     let grid = example_single_element_grid(comm, n);
     let filename = format!("_examples_parallel_io_{}ranks.ron", size);
-    grid.export_as_ron(filename);
+    grid.export_as_ron(&filename);
 }
 
 #[cfg(feature = "mpi")]
@@ -65,7 +65,7 @@ fn test_parallel_import<C: Communicator>(comm: &C) {
 
     let filename = format!("_examples_parallel_io_{}ranks.ron", size);
     let grid = ParallelGrid::<'_, C, SingleElementGrid<f64, CiarletElement<f64>>>::import_from_ron(
-        comm, filename,
+        comm, &filename,
     );
 
     let n = 10;

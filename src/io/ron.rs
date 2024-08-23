@@ -41,11 +41,9 @@ mod test {
     fn test_ron_export_and_import() {
         let g = regular_sphere::<f64>(1);
         let n = g.entity_count(ReferenceCellType::Interval);
-        g.export_as_ron("_test_export.ron".to_string());
+        g.export_as_ron("_test_export.ron");
 
-        let g2 = SingleElementGrid::<f64, CiarletElement<f64>>::import_from_ron(
-            "_test_export.ron".to_string(),
-        );
+        let g2 = SingleElementGrid::<f64, CiarletElement<f64>>::import_from_ron("_test_export.ron");
 
         assert_eq!(g2.entity_count(ReferenceCellType::Interval), n);
     }

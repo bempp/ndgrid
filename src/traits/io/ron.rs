@@ -22,7 +22,7 @@ pub trait RONExport: Grid {
     fn to_ron_string(&self) -> String;
 
     /// Export as RON
-    fn export_as_ron(&self, filename: String) {
+    fn export_as_ron(&self, filename: &str) {
         let ron_s = self.to_ron_string();
         fs::write(filename, ron_s).expect("Unable to write file");
     }
@@ -35,7 +35,7 @@ pub trait RONImport: Sized + Grid {
     fn from_ron_string(s: String) -> Self;
 
     /// Export as RON
-    fn import_from_ron(filename: String) -> Self {
+    fn import_from_ron(filename: &str) -> Self {
         let content = fs::read_to_string(filename).expect("Unable to read file");
         Self::from_ron_string(content)
     }
@@ -56,7 +56,7 @@ where
     //! Parallel grid export for RON
 
     /// Export as RON
-    fn export_as_ron(&'a self, filename: String) {
+    fn export_as_ron(&'a self, filename: &str) {
         let parts = filename.split(".").collect::<Vec<_>>();
         assert!(parts.len() > 1);
         let sub_filename = format!(
@@ -66,7 +66,7 @@ where
             parts[parts.len() - 1]
         );
 
-        self.local_grid().export_as_ron(sub_filename);
+        self.local_grid().export_as_ron(&sub_filename);
         if self.comm().rank() == 0 {
             let grid_data = ParallelGridSummaryData {
                 mpi_ranks: self.comm().size(),
@@ -88,7 +88,7 @@ where
     fn create_from_ron_info(comm: &'a C, local_grid: Self::LocalGrid<'a>) -> Self;
 
     /// Export as RON
-    fn import_from_ron(comm: &'a C, filename: String) -> Self {
+    fn import_from_ron(comm: &'a C, filename: &str) -> Self {
         let parts = filename.split(".").collect::<Vec<_>>();
         assert!(parts.len() > 1);
         let sub_filename = format!(
@@ -105,7 +105,7 @@ where
             panic!("Incorrect number of MPI ranks");
         }
 
-        let local_grid = Self::LocalGrid::import_from_ron(sub_filename);
+        let local_grid = Self::LocalGrid::import_from_ron(&sub_filename);
         Self::create_from_ron_info(comm, local_grid)
     }
 }
