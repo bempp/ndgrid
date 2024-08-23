@@ -57,7 +57,7 @@ where
 
     /// Export as RON
     fn export_as_ron(&'a self, filename: &str) {
-        let parts = filename.split(".").collect::<Vec<_>>();
+        let parts = filename.split('.').collect::<Vec<_>>();
         assert!(parts.len() > 1);
         let sub_filename = format!(
             "{}.{}.{}",
@@ -89,7 +89,7 @@ where
 
     /// Export as RON
     fn import_from_ron(comm: &'a C, filename: &str) -> Self {
-        let parts = filename.split(".").collect::<Vec<_>>();
+        let parts = filename.split('.').collect::<Vec<_>>();
         assert!(parts.len() > 1);
         let sub_filename = format!(
             "{}.{}.{}",
