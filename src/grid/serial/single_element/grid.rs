@@ -9,6 +9,7 @@ use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType}
 use rlst::{rlst_array_from_slice2, RawAccess};
 
 /// Single element grid entity
+#[derive(Debug)]
 pub struct SingleElementGridEntity<
     'a,
     T: RealScalar,
@@ -70,9 +71,15 @@ impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> E
     fn ownership(&self) -> Ownership {
         Ownership::Owned
     }
+    fn id(&self) -> Option<usize> {
+        self.grid
+            .topology
+            .entity_id(self.entity_dim, self.local_index())
+    }
 }
 
 /// Single element grid entity iterator
+#[derive(Debug)]
 pub struct SingleElementGridEntityIter<
     'a,
     T: RealScalar,
@@ -107,6 +114,7 @@ impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> I
 }
 
 /// Serial single element grid
+#[derive(Debug)]
 pub struct SingleElementGrid<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> {
     topology: SingleTypeTopology,
     geometry: SingleElementGeometry<T, E>,
@@ -222,7 +230,7 @@ mod test {
         *points.get_mut([2, 3]).unwrap() = 0.0;
         let family = LagrangeElementFamily::<f64>::new(1, Continuity::Standard);
         SingleElementGrid::new(
-            SingleTypeTopology::new(&[0, 1, 2, 2, 1, 3], ReferenceCellType::Triangle),
+            SingleTypeTopology::new(&[0, 1, 2, 2, 1, 3], ReferenceCellType::Triangle, None, None),
             SingleElementGeometry::<f64, CiarletElement<f64>>::new(
                 ReferenceCellType::Triangle,
                 points,

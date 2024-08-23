@@ -2,6 +2,13 @@
 
 ndgrid is an open-source library written in Rust for n-dimensional grids/meshes.
 
+## Using ndgrid
+You can use the latest release of ndgrid by adding the following to `[dependencies]` section of your Cargo.toml file:
+
+```toml
+ndgrid = "0.1.0"
+```
+
 ## Documentation
 The latest documentation of the main branch of this repo is available at [bempp.github.io/ndgrid/](https://bempp.github.io/ndgrid/).
 

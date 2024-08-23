@@ -9,10 +9,10 @@ use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
 use std::iter::Copied;
 
 /// Topology of a single element grid
+#[derive(Debug)]
 pub struct SingleTypeTopology {
     dim: usize,
-    // TODO: do we need an index map? Will we ever reorder the cells?
-    //    index_map: Vec<usize>,
+    ids: Vec<Option<Vec<usize>>>,
     entity_types: Vec<ReferenceCellType>,
     entity_counts: Vec<usize>,
     pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,
@@ -48,7 +48,12 @@ fn orient_entity(entity_type: ReferenceCellType, vertices: &mut [usize]) {
 
 impl SingleTypeTopology {
     /// Create a topology
-    pub fn new(cells: &[usize], cell_type: ReferenceCellType) -> Self {
+    pub fn new(
+        cells: &[usize],
+        cell_type: ReferenceCellType,
+        vertex_ids: Option<Vec<usize>>,
+        cell_ids: Option<Vec<usize>>,
+    ) -> Self {
         let size = reference_cell::entity_counts(cell_type)[0];
         let ncells = cells.len() / size;
         let dim = reference_cell::dim(cell_type);
@@ -214,8 +219,14 @@ impl SingleTypeTopology {
             }
         }
 
+        let mut ids = vec![vertex_ids];
+        for _ in 1..dim {
+            ids.push(None);
+        }
+        ids.push(cell_ids);
         Self {
             dim,
+            ids,
             entity_types,
             entity_counts,
             downward_connectivity,
@@ -247,9 +258,14 @@ impl SingleTypeTopology {
     ) -> usize {
         self.downward_connectivity[self.dim][entity_dim][[entity_index, cell_index]]
     }
+    /// Entity id
+    pub fn entity_id(&self, entity_dim: usize, entity_index: usize) -> Option<usize> {
+        self.ids[entity_dim].as_ref().map(|a| a[entity_index])
+    }
 }
 
 /// Topology of a cell
+#[derive(Debug)]
 pub struct SingleTypeEntityTopology<'a> {
     topology: &'a SingleTypeTopology,
     //entity_type: ReferenceCellType,
@@ -307,33 +323,38 @@ mod test {
 
     fn example_topology_point() -> SingleTypeTopology {
         //! An example topology
-        SingleTypeTopology::new(&[0, 1], ReferenceCellType::Point)
+        SingleTypeTopology::new(&[0, 1], ReferenceCellType::Point, None, None)
     }
 
     fn example_topology_interval() -> SingleTypeTopology {
         //! An example topology
-        SingleTypeTopology::new(&[0, 1, 1, 2], ReferenceCellType::Interval)
+        SingleTypeTopology::new(&[0, 1, 1, 2], ReferenceCellType::Interval, None, None)
     }
 
     fn example_topology_triangle() -> SingleTypeTopology {
         //! An example topology
-        SingleTypeTopology::new(&[0, 1, 2, 2, 1, 3], ReferenceCellType::Triangle)
+        SingleTypeTopology::new(&[0, 1, 2, 2, 1, 3], ReferenceCellType::Triangle, None, None)
     }
 
     fn example_topology_tetrahedron() -> SingleTypeTopology {
         //! An example topology
-        SingleTypeTopology::new(&[0, 1, 2, 3, 4, 0, 2, 3], ReferenceCellType::Tetrahedron)
+        SingleTypeTopology::new(
+            &[0, 1, 2, 3, 4, 0, 2, 3],
+            ReferenceCellType::Tetrahedron,
+            None,
+            None,
+        )
     }
 
     #[test]
     #[should_panic]
     fn test_prism() {
-        let _ = SingleTypeTopology::new(&[0, 1, 2, 3, 4, 5], ReferenceCellType::Prism);
+        let _ = SingleTypeTopology::new(&[0, 1, 2, 3, 4, 5], ReferenceCellType::Prism, None, None);
     }
     #[test]
     #[should_panic]
     fn test_pyramid() {
-        let _ = SingleTypeTopology::new(&[0, 1, 2, 3, 4], ReferenceCellType::Prism);
+        let _ = SingleTypeTopology::new(&[0, 1, 2, 3, 4], ReferenceCellType::Prism, None, None);
     }
 
     #[test]

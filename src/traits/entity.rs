@@ -39,10 +39,7 @@ pub trait Entity {
 
     /// The ownership of this entity
     fn ownership(&self) -> Ownership;
-}
 
-/// An entity with an associated ID
-pub trait EntityId: Entity {
-    /// The id of this entity
-    fn id(&self) -> usize;
+    /// The insertion id of this entity
+    fn id(&self) -> Option<usize>;
 }

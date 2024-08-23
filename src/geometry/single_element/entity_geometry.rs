@@ -9,6 +9,7 @@ use ndelement::traits::FiniteElement;
 use rlst::{RawAccess, Shape};
 
 /// Geometry of a cell
+#[derive(Debug)]
 pub struct SingleElementEntityGeometry<'a, T: RealScalar, E: FiniteElement> {
     geometry: &'a SingleElementGeometry<T, E>,
     cell_index: usize,
@@ -56,5 +57,8 @@ impl<'g, T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeomet
 
     fn point_count(&self) -> usize {
         self.geometry.cells().shape()[0]
+    }
+    fn degree(&self) -> usize {
+        self.geometry.element().embedded_superdegree()
     }
 }
