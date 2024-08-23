@@ -1,23 +1,31 @@
-//! I/O as RON
-use super::super::SingleElementGrid;
-use crate::{
-    traits::{ConvertToSerializable, RONExport, RONImport},
-    types::RealScalar,
-};
-use ndelement::ciarlet::CiarletElement;
+//! RON I/O
+use crate::traits::{ConvertToSerializable, Grid, RONExport, RONImport};
+#[cfg(feature = "mpi")]
+use crate::traits::{ParallelGrid, RONExportParallel};
+#[cfg(feature = "mpi")]
+use mpi::traits::Communicator;
 
-impl<T: RealScalar> RONExport for SingleElementGrid<T, CiarletElement<T>> {
+impl<G: Grid + ConvertToSerializable> RONExport for G {
     fn to_ron_string(&self) -> String {
         ron::to_string(&self.to_serializable()).unwrap()
     }
 }
 
-impl<T: RealScalar + for<'de> serde::Deserialize<'de>> RONImport
-    for SingleElementGrid<T, CiarletElement<T>>
+impl<G: Grid + ConvertToSerializable> RONImport for G
+where
+    for<'a> G::SerializableType: serde::Deserialize<'a>,
 {
     fn from_ron_string(s: String) -> Self {
         Self::from_serializable(ron::from_str(&s).unwrap())
     }
+}
+
+#[cfg(feature = "mpi")]
+impl<'a, C: Communicator + 'a, G: ParallelGrid<C>> RONExportParallel<'a, C> for G
+where
+    Self::LocalGrid<'a>: RONExport,
+    Self: 'a,
+{
 }
 
 #[cfg(test)]
@@ -25,6 +33,8 @@ mod test {
     use super::*;
     use crate::shapes::regular_sphere;
     use crate::traits::Grid;
+    use crate::SingleElementGrid;
+    use ndelement::ciarlet::CiarletElement;
     use ndelement::types::ReferenceCellType;
 
     #[test]

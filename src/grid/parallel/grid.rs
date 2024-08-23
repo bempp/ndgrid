@@ -1,6 +1,6 @@
 //! Parallel grid
 #[cfg(feature = "serde")]
-use crate::traits::ConvertToSerializable;
+use crate::traits::{ConvertToSerializable, RONImportParallel};
 use crate::{
     traits::{Entity, Grid, ParallelGrid as ParallelGridTrait},
     types::Ownership,
@@ -212,6 +212,18 @@ impl<'a, C: Communicator, G: Grid + Sync> ParallelGrid<'a, C, G> {
             comm,
             local_grid: LocalGrid::new(serial_grid, ownership, global_indices),
         }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'a, C: Communicator + 'a, G: Grid + Sync + ConvertToSerializable> RONImportParallel<'a, C>
+    for ParallelGrid<'a, C, G>
+where
+    for<'de2> <G as ConvertToSerializable>::SerializableType: serde::Deserialize<'de2>,
+    Self: 'a,
+{
+    fn create_from_ron_info(comm: &'a C, local_grid: LocalGrid<G>) -> Self {
+        Self { comm, local_grid }
     }
 }
 
