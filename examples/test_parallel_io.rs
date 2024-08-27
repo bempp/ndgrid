@@ -1,7 +1,7 @@
 //? mpirun -n {{NPROCESSES}} --features "mpi,serde"
 
 #[cfg(feature = "mpi")]
-use mpi::{environment::Universe, traits::Communicator, collective::CommunicatorCollectives};
+use mpi::{collective::CommunicatorCollectives, environment::Universe, traits::Communicator};
 #[cfg(feature = "mpi")]
 use ndelement::{ciarlet::CiarletElement, types::ReferenceCellType};
 #[cfg(feature = "mpi")]
