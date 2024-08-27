@@ -3,6 +3,8 @@ mod entity_geometry;
 mod geometry;
 
 pub use entity_geometry::SingleElementEntityGeometry;
+#[cfg(feature = "serde")]
+pub(crate) use geometry::SerializableGeometry;
 pub use geometry::SingleElementGeometry;
 
 #[cfg(test)]
