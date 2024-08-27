@@ -1,7 +1,7 @@
 //? mpirun -n {{NPROCESSES}} --features "mpi,serde"
 
 #[cfg(feature = "mpi")]
-use mpi::{environment::Universe, traits::Communicator};
+use mpi::{environment::Universe, traits::Communicator, collective::CommunicatorCollectives};
 #[cfg(feature = "mpi")]
 use ndelement::{ciarlet::CiarletElement, types::ReferenceCellType};
 #[cfg(feature = "mpi")]
@@ -87,6 +87,9 @@ fn main() {
         println!("Testing parallel grid export");
     }
     test_parallel_export(&world);
+
+    world.barrier();
+
     if rank == 0 {
         println!("Testing parallel grid import");
     }
