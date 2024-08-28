@@ -4,7 +4,7 @@ use crate::{
     types::{Array2D, ArrayND, RealScalar},
 };
 use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType};
-use rlst::{rlst_dynamic_array4, DefaultIterator, RandomAccessByRef, RlstScalar, Shape};
+use rlst::{rlst_dynamic_array4, RandomAccessByRef, RlstScalar, Shape};
 
 /// Single element geometry
 #[derive(Debug)]
@@ -80,15 +80,13 @@ impl<'a, T: RealScalar> GeometryMapTrait for GeometryMap<'a, T> {
         let npts = self.table.shape()[1];
         debug_assert!(points.len() == self.gdim * npts);
 
-        points.fill(T::from(0.0).unwrap());
-        // TODO: can I use rlst better here?
+        points.fill(T::zero());
         for i in 0..self.entities.shape()[0] {
             let v = self.entities[[i, entity_index]];
             for point_index in 0..npts {
-                let t = *self.table.get([0, point_index, i, 0]).unwrap();
+                let t = self.table[[0, point_index, i, 0]];
                 for gd in 0..self.gdim {
-                    points[gd + self.gdim * point_index] +=
-                        *self.geometry_points.get([gd, v]).unwrap() * t;
+                    points[gd + self.gdim * point_index] += self.geometry_points[[gd, v]] * t;
                 }
             }
         }
@@ -97,16 +95,15 @@ impl<'a, T: RealScalar> GeometryMapTrait for GeometryMap<'a, T> {
         let npts = self.table.shape()[1];
         debug_assert!(jacobians.len() == self.gdim * self.tdim * npts);
 
-        jacobians.fill(T::from(0.0).unwrap());
-        // TODO: can I use rlst better here?
+        jacobians.fill(T::zero());
         for i in 0..self.entities.shape()[0] {
             let v = self.entities[[i, entity_index]];
             for point_index in 0..npts {
-                for gd in 0..self.gdim {
-                    for td in 0..self.tdim {
+                for td in 0..self.tdim {
+                    let t = self.table[[1 + td, point_index, i, 0]];
+                    for gd in 0..self.gdim {
                         jacobians[gd + self.gdim * td + self.gdim * self.tdim * point_index] +=
-                            *self.geometry_points.get([gd, v]).unwrap()
-                                * *self.table.get([1 + td, point_index, i, 0]).unwrap();
+                            self.geometry_points[[gd, v]] * t;
                     }
                 }
             }
@@ -128,22 +125,9 @@ impl<'a, T: RealScalar> GeometryMapTrait for GeometryMap<'a, T> {
         debug_assert!(jdets.len() == npts);
         debug_assert!(normals.len() == self.gdim * npts);
 
+        self.jacobians(entity_index, jacobians);
+
         for point_index in 0..npts {
-            for gd in 0..self.gdim {
-                for td in 0..self.tdim {
-                    jacobians[gd + self.gdim * td + self.gdim * self.tdim * point_index] = self
-                        .entities
-                        .view()
-                        .slice(1, entity_index)
-                        .iter()
-                        .enumerate()
-                        .map(|(i, v)| {
-                            *self.geometry_points.get([gd, v]).unwrap()
-                                * *self.table.get([1 + td, point_index, i, 0]).unwrap()
-                        })
-                        .sum::<T>();
-                }
-            }
             cross(
                 &jacobians[self.gdim * self.tdim * point_index
                     ..self.gdim * self.tdim * (point_index + 1)],
