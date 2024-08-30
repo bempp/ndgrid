@@ -4,6 +4,7 @@ use crate::{
     types::{Array2D, ArrayND, RealScalar},
 };
 use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType};
+use rlst::UnsafeRandomAccessByRef;
 use rlst::{rlst_dynamic_array4, RandomAccessByRef, RlstScalar, Shape};
 
 /// Single element geometry
@@ -24,13 +25,22 @@ fn cross<T: RlstScalar>(mat: &[T], result: &mut [T]) {
     match mat.len() {
         0 => {}
         2 => {
-            result[0] = mat[1];
-            result[1] = -mat[0];
+            debug_assert!(result.len() == 2);
+            unsafe {
+                *result.get_unchecked_mut(0) = *mat.get_unchecked(1);
+                *result.get_unchecked_mut(1) = -*mat.get_unchecked(0);
+            }
         }
         6 => {
-            result[0] = mat[1] * mat[5] - mat[2] * mat[4];
-            result[1] = mat[2] * mat[3] - mat[0] * mat[5];
-            result[2] = mat[0] * mat[4] - mat[1] * mat[3];
+            debug_assert!(result.len() == 3);
+            unsafe {
+                *result.get_unchecked_mut(0) = *mat.get_unchecked(1) * *mat.get_unchecked(5)
+                    - *mat.get_unchecked(2) * *mat.get_unchecked(4);
+                *result.get_unchecked_mut(1) = *mat.get_unchecked(2) * *mat.get_unchecked(3)
+                    - *mat.get_unchecked(0) * *mat.get_unchecked(5);
+                *result.get_unchecked_mut(2) = *mat.get_unchecked(0) * *mat.get_unchecked(4)
+                    - *mat.get_unchecked(1) * *mat.get_unchecked(3);
+            }
         }
         _ => {
             unimplemented!();
@@ -82,11 +92,14 @@ impl<'a, T: RealScalar> GeometryMapTrait for GeometryMap<'a, T> {
 
         points.fill(T::zero());
         for i in 0..self.entities.shape()[0] {
-            let v = self.entities[[i, entity_index]];
+            let v = unsafe { *self.entities.get_unchecked([i, entity_index]) };
             for point_index in 0..npts {
-                let t = self.table[[0, point_index, i, 0]];
+                let t = unsafe { *self.table.get_unchecked([0, point_index, i, 0]) };
                 for gd in 0..self.gdim {
-                    points[gd + self.gdim * point_index] += self.geometry_points[[gd, v]] * t;
+                    unsafe {
+                        *points.get_unchecked_mut(gd + self.gdim * point_index) +=
+                            *self.geometry_points.get_unchecked([gd, v]) * t
+                    };
                 }
             }
         }
@@ -97,13 +110,16 @@ impl<'a, T: RealScalar> GeometryMapTrait for GeometryMap<'a, T> {
 
         jacobians.fill(T::zero());
         for i in 0..self.entities.shape()[0] {
-            let v = self.entities[[i, entity_index]];
+            let v = unsafe { *self.entities.get_unchecked([i, entity_index]) };
             for point_index in 0..npts {
                 for td in 0..self.tdim {
-                    let t = self.table[[1 + td, point_index, i, 0]];
+                    let t = unsafe { *self.table.get_unchecked([1 + td, point_index, i, 0]) };
                     for gd in 0..self.gdim {
-                        jacobians[gd + self.gdim * td + self.gdim * self.tdim * point_index] +=
-                            self.geometry_points[[gd, v]] * t;
+                        unsafe {
+                            *jacobians.get_unchecked_mut(
+                                gd + self.gdim * td + self.gdim * self.tdim * point_index,
+                            ) += *self.geometry_points.get_unchecked([gd, v]) * t
+                        };
                     }
                 }
             }
@@ -128,15 +144,20 @@ impl<'a, T: RealScalar> GeometryMapTrait for GeometryMap<'a, T> {
         self.jacobians(entity_index, jacobians);
 
         for point_index in 0..npts {
-            cross(
-                &jacobians[self.gdim * self.tdim * point_index
-                    ..self.gdim * self.tdim * (point_index + 1)],
-                &mut normals[self.gdim * point_index..self.gdim * (point_index + 1)],
-            );
-            jdets[point_index] =
-                norm(&normals[self.gdim * point_index..self.gdim * (point_index + 1)]);
-            for gd in 0..self.gdim {
-                normals[gd + self.gdim * point_index] /= jdets[point_index];
+            let j = unsafe {
+                &jacobians.get_unchecked(
+                    self.gdim * self.tdim * point_index..self.gdim * self.tdim * (point_index + 1),
+                )
+            };
+            let n = unsafe {
+                &mut normals
+                    .get_unchecked_mut(self.gdim * point_index..self.gdim * (point_index + 1))
+            };
+            let jd = unsafe { jdets.get_unchecked_mut(point_index) };
+            cross(j, n);
+            *jd = norm(n);
+            for n_i in n.iter_mut() {
+                *n_i /= *jd;
             }
         }
     }
