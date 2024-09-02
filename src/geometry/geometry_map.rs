@@ -4,9 +4,8 @@ use crate::{
     types::{Array2D, ArrayND, RealScalar},
 };
 use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType};
-use rlst::{
-    rlst_dynamic_array2, rlst_dynamic_array4, DefaultIterator, RandomAccessByRef, RlstScalar, Shape,
-};
+use rlst::UnsafeRandomAccessByRef;
+use rlst::{rlst_dynamic_array4, RandomAccessByRef, RlstScalar, Shape};
 
 /// Single element geometry
 #[derive(Debug)]
@@ -18,24 +17,35 @@ pub struct GeometryMap<'a, T: RealScalar> {
     table: ArrayND<4, T>,
 }
 
-fn det<T: RlstScalar>(m: &Array2D<T>) -> T {
-    match m.shape()[0] {
-        0 => T::from(1.0).unwrap(),
-        1 => m[[0, 0]],
-        2 => m[[0, 0]] * m[[1, 1]] - m[[0, 1]] * m[[1, 0]],
-        3 => {
-            m[[0, 0]] * (m[[1, 1]] * m[[2, 2]] - m[[1, 2]] * m[[2, 1]])
-                - m[[0, 1]] * (m[[1, 0]] * m[[2, 2]] - m[[1, 2]] * m[[2, 0]])
-                + m[[0, 2]] * (m[[1, 0]] * m[[2, 1]] - m[[1, 1]] * m[[2, 0]])
+fn norm<T: RlstScalar>(vector: &[T]) -> T {
+    vector.iter().map(|&i| i * i).sum::<T>().sqrt()
+}
+
+fn cross<T: RlstScalar>(mat: &[T], result: &mut [T]) {
+    match mat.len() {
+        0 => {}
+        2 => {
+            debug_assert!(result.len() == 2);
+            unsafe {
+                *result.get_unchecked_mut(0) = *mat.get_unchecked(1);
+                *result.get_unchecked_mut(1) = -*mat.get_unchecked(0);
+            }
+        }
+        6 => {
+            debug_assert!(result.len() == 3);
+            unsafe {
+                *result.get_unchecked_mut(0) = *mat.get_unchecked(1) * *mat.get_unchecked(5)
+                    - *mat.get_unchecked(2) * *mat.get_unchecked(4);
+                *result.get_unchecked_mut(1) = *mat.get_unchecked(2) * *mat.get_unchecked(3)
+                    - *mat.get_unchecked(0) * *mat.get_unchecked(5);
+                *result.get_unchecked_mut(2) = *mat.get_unchecked(0) * *mat.get_unchecked(4)
+                    - *mat.get_unchecked(1) * *mat.get_unchecked(3);
+            }
         }
         _ => {
             unimplemented!();
         }
     }
-}
-
-fn norm<T: RlstScalar>(vector: &[T]) -> T {
-    vector.iter().map(|&i| i * i).sum::<T>().sqrt()
 }
 
 impl<'a, T: RealScalar> GeometryMap<'a, T> {
@@ -47,7 +57,7 @@ impl<'a, T: RealScalar> GeometryMap<'a, T> {
         entities: &'a Array2D<usize>,
     ) -> Self {
         let tdim = reference_cell::dim(element.cell_type());
-        assert_eq!(points.shape()[0], tdim);
+        debug_assert!(points.shape()[0] == tdim);
         let gdim = geometry_points.shape()[0];
         let npoints = points.shape()[1];
 
@@ -78,35 +88,38 @@ impl<'a, T: RealScalar> GeometryMapTrait for GeometryMap<'a, T> {
     }
     fn points(&self, entity_index: usize, points: &mut [T]) {
         let npts = self.table.shape()[1];
-        assert_eq!(points.len(), self.gdim * npts);
+        debug_assert!(points.len() == self.gdim * npts);
 
-        points.fill(T::from(0.0).unwrap());
-        // TODO: can I use rlst better here?
+        points.fill(T::zero());
         for i in 0..self.entities.shape()[0] {
-            let v = self.entities[[i, entity_index]];
+            let v = unsafe { *self.entities.get_unchecked([i, entity_index]) };
             for point_index in 0..npts {
-                let t = *self.table.get([0, point_index, i, 0]).unwrap();
+                let t = unsafe { *self.table.get_unchecked([0, point_index, i, 0]) };
                 for gd in 0..self.gdim {
-                    points[gd + self.gdim * point_index] +=
-                        *self.geometry_points.get([gd, v]).unwrap() * t;
+                    unsafe {
+                        *points.get_unchecked_mut(gd + self.gdim * point_index) +=
+                            *self.geometry_points.get_unchecked([gd, v]) * t
+                    };
                 }
             }
         }
     }
     fn jacobians(&self, entity_index: usize, jacobians: &mut [T]) {
         let npts = self.table.shape()[1];
-        assert_eq!(jacobians.len(), self.gdim * self.tdim * npts);
+        debug_assert!(jacobians.len() == self.gdim * self.tdim * npts);
 
-        jacobians.fill(T::from(0.0).unwrap());
-        // TODO: can I use rlst better here?
+        jacobians.fill(T::zero());
         for i in 0..self.entities.shape()[0] {
-            let v = self.entities[[i, entity_index]];
+            let v = unsafe { *self.entities.get_unchecked([i, entity_index]) };
             for point_index in 0..npts {
-                for gd in 0..self.gdim {
-                    for td in 0..self.tdim {
-                        jacobians[gd + self.gdim * td + self.gdim * self.tdim * point_index] +=
-                            *self.geometry_points.get([gd, v]).unwrap()
-                                * *self.table.get([1 + td, point_index, i, 0]).unwrap();
+                for td in 0..self.tdim {
+                    let t = unsafe { *self.table.get_unchecked([1 + td, point_index, i, 0]) };
+                    for gd in 0..self.gdim {
+                        unsafe {
+                            *jacobians.get_unchecked_mut(
+                                gd + self.gdim * td + self.gdim * self.tdim * point_index,
+                            ) += *self.geometry_points.get_unchecked([gd, v]) * t
+                        };
                     }
                 }
             }
@@ -124,49 +137,27 @@ impl<'a, T: RealScalar> GeometryMapTrait for GeometryMap<'a, T> {
             panic!("Can only compute normal for entities where tdim + 1 == gdim");
         }
         let npts = self.table.shape()[1];
-        assert_eq!(jacobians.len(), self.gdim * self.tdim * npts);
-        assert_eq!(jdets.len(), npts);
-        assert_eq!(normals.len(), self.gdim * npts);
+        debug_assert!(jacobians.len() == self.gdim * self.tdim * npts);
+        debug_assert!(jdets.len() == npts);
+        debug_assert!(normals.len() == self.gdim * npts);
 
-        // TODO: can we remove this memory assignment?
-        let mut temp = rlst_dynamic_array2!(T, [self.tdim, self.tdim]);
+        self.jacobians(entity_index, jacobians);
 
         for point_index in 0..npts {
-            for gd in 0..self.gdim {
-                for td in 0..self.tdim {
-                    jacobians[gd + self.gdim * td + self.gdim * self.tdim * point_index] = self
-                        .entities
-                        .view()
-                        .slice(1, entity_index)
-                        .iter()
-                        .enumerate()
-                        .map(|(i, v)| {
-                            *self.geometry_points.get([gd, v]).unwrap()
-                                * *self.table.get([1 + td, point_index, i, 0]).unwrap()
-                        })
-                        .sum::<T>();
-                }
-            }
-            for gd in 1..self.gdim {
-                for td in 0..self.tdim {
-                    temp[[gd - 1, td]] =
-                        jacobians[gd + self.gdim * td + self.gdim * self.tdim * point_index];
-                }
-            }
-            for gd in 0..self.gdim {
-                normals[gd + self.gdim * point_index] =
-                    if gd % 2 == 0 { det(&temp) } else { -det(&temp) };
-                if gd < self.tdim {
-                    for td in 0..self.tdim {
-                        temp[[gd, td]] =
-                            jacobians[gd + self.gdim * td + self.gdim * self.tdim * point_index];
-                    }
-                }
-            }
-            jdets[point_index] =
-                norm(&normals[self.gdim * point_index..self.gdim * (point_index + 1)]);
-            for gd in 0..self.gdim {
-                normals[gd + self.gdim * point_index] /= jdets[point_index];
+            let j = unsafe {
+                &jacobians.get_unchecked(
+                    self.gdim * self.tdim * point_index..self.gdim * self.tdim * (point_index + 1),
+                )
+            };
+            let n = unsafe {
+                &mut normals
+                    .get_unchecked_mut(self.gdim * point_index..self.gdim * (point_index + 1))
+            };
+            let jd = unsafe { jdets.get_unchecked_mut(point_index) };
+            cross(j, n);
+            *jd = norm(n);
+            for n_i in n.iter_mut() {
+                *n_i /= *jd;
             }
         }
     }

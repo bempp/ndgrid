@@ -8,7 +8,7 @@ pub trait GmshExport {
     fn to_gmsh_string(&self) -> String;
 
     /// Export as Gmsh
-    fn export_as_gmsh(&self, filename: String) {
+    fn export_as_gmsh(&self, filename: &str) {
         let gmsh_s = self.to_gmsh_string();
         fs::write(filename, gmsh_s).expect("Unable to write file");
     }
