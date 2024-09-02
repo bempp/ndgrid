@@ -3,8 +3,7 @@ name: 📖
 on:
   push:
   pull_request:
-    branches:
-      - main
+    branches: [main]
   merge_group:
 
 jobs:
