@@ -1,10 +1,19 @@
 //! Geometry where each entity of a given dimension is represented by the same element
+#[cfg(feature = "serde")]
+use crate::traits::ConvertToSerializable;
 use crate::types::{Array2D, RealScalar};
+#[cfg(feature = "serde")]
+use ndelement::{
+    ciarlet::{lagrange, CiarletElement},
+    types::Continuity,
+};
 use ndelement::{
     reference_cell,
     traits::{ElementFamily, FiniteElement},
     types::ReferenceCellType,
 };
+#[cfg(feature = "serde")]
+use rlst::RawAccess;
 use rlst::{rlst_dynamic_array2, RawAccessMut, Shape};
 use std::fmt::{Debug, Formatter};
 
@@ -21,6 +30,59 @@ impl<T: RealScalar, E: FiniteElement> Debug for SingleElementGeometry<T, E> {
             .field("points", &self.points)
             .field("cells", &self.cells)
             .finish()
+    }
+}
+
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, Debug, serde::Deserialize)]
+#[serde(bound = "for<'de2> T: serde::Deserialize<'de2>")]
+pub struct SerializableGeometry<T: RealScalar + serde::Serialize>
+where
+    for<'de2> T: serde::Deserialize<'de2>,
+{
+    points: (Vec<T>, [usize; 2]),
+    cells: (Vec<usize>, [usize; 2]),
+    elements: Vec<(ReferenceCellType, usize)>,
+}
+
+#[cfg(feature = "serde")]
+impl<T: RealScalar + serde::Serialize> ConvertToSerializable
+    for SingleElementGeometry<T, CiarletElement<T>>
+where
+    for<'de2> T: serde::Deserialize<'de2>,
+{
+    type SerializableType = SerializableGeometry<T>;
+    fn to_serializable(&self) -> SerializableGeometry<T> {
+        SerializableGeometry {
+            points: (self.points.data().to_vec(), self.points.shape()),
+            cells: (self.cells.data().to_vec(), self.cells.shape()),
+            elements: self
+                .elements
+                .iter()
+                .map(|e| (e.cell_type(), e.embedded_superdegree()))
+                .collect::<Vec<_>>(),
+        }
+    }
+    fn from_serializable(s: SerializableGeometry<T>) -> Self {
+        Self {
+            points: {
+                let (data, shape) = &s.points;
+                let mut p = rlst_dynamic_array2!(T, *shape);
+                p.data_mut().copy_from_slice(data.as_slice());
+                p
+            },
+            cells: {
+                let (data, shape) = &s.cells;
+                let mut p = rlst_dynamic_array2!(usize, *shape);
+                p.data_mut().copy_from_slice(data.as_slice());
+                p
+            },
+            elements: s
+                .elements
+                .iter()
+                .map(|(cell, degree)| lagrange::create(*cell, *degree, Continuity::Standard))
+                .collect::<Vec<_>>(),
+        }
     }
 }
 

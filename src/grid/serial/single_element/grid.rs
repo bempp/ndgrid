@@ -1,10 +1,17 @@
 //! Single element grid
+#[cfg(feature = "serde")]
+use crate::{
+    geometry::single_element::SerializableGeometry,
+    topology::serial::single_type::SerializableTopology, traits::ConvertToSerializable,
+};
 use crate::{
     geometry::{GeometryMap, SingleElementEntityGeometry, SingleElementGeometry},
     topology::serial::{SingleTypeEntityTopology, SingleTypeTopology},
     traits::{Entity, Grid},
     types::{Ownership, RealScalar},
 };
+#[cfg(feature = "serde")]
+use ndelement::ciarlet::CiarletElement;
 use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType};
 use rlst::{rlst_array_from_slice2, RawAccess};
 
@@ -118,6 +125,36 @@ impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> I
 pub struct SingleElementGrid<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> {
     topology: SingleTypeTopology,
     geometry: SingleElementGeometry<T, E>,
+}
+
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, Debug, serde::Deserialize)]
+#[serde(bound = "for<'de2> T: serde::Deserialize<'de2>")]
+pub struct SerializableGrid<T: RealScalar + serde::Serialize>
+where
+    for<'de2> T: serde::Deserialize<'de2>,
+{
+    topology: SerializableTopology,
+    geometry: SerializableGeometry<T>,
+}
+
+#[cfg(feature = "serde")]
+impl<T: RealScalar + serde::Serialize> ConvertToSerializable
+    for SingleElementGrid<T, CiarletElement<T>>
+{
+    type SerializableType = SerializableGrid<T>;
+    fn to_serializable(&self) -> SerializableGrid<T> {
+        SerializableGrid {
+            topology: self.topology.to_serializable(),
+            geometry: self.geometry.to_serializable(),
+        }
+    }
+    fn from_serializable(s: SerializableGrid<T>) -> Self {
+        Self {
+            topology: SingleTypeTopology::from_serializable(s.topology),
+            geometry: SingleElementGeometry::from_serializable(s.geometry),
+        }
+    }
 }
 
 impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> SingleElementGrid<T, E> {

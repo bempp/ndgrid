@@ -1,10 +1,14 @@
 //! Topology for grids where entities of each tdim are the same type
 
+#[cfg(feature = "serde")]
+use crate::traits::ConvertToSerializable;
 use crate::traits::Topology;
 use crate::types::Array2D;
 use itertools::izip;
 use ndelement::reference_cell;
 use ndelement::types::ReferenceCellType;
+#[cfg(feature = "serde")]
+use rlst::RawAccessMut;
 use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
 use std::iter::Copied;
 
@@ -17,6 +21,62 @@ pub struct SingleTypeTopology {
     entity_counts: Vec<usize>,
     pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,
     pub(crate) upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
+}
+
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, Debug, serde::Deserialize)]
+pub struct SerializableTopology {
+    dim: usize,
+    ids: Vec<Option<Vec<usize>>>,
+    entity_types: Vec<ReferenceCellType>,
+    entity_counts: Vec<usize>,
+    downward_connectivity: Vec<Vec<(Vec<usize>, [usize; 2])>>,
+    upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
+}
+
+#[cfg(feature = "serde")]
+impl ConvertToSerializable for SingleTypeTopology {
+    type SerializableType = SerializableTopology;
+    fn to_serializable(&self) -> SerializableTopology {
+        SerializableTopology {
+            dim: self.dim,
+            ids: self.ids.clone(),
+            entity_types: self.entity_types.clone(),
+            entity_counts: self.entity_counts.clone(),
+            downward_connectivity: self
+                .downward_connectivity
+                .iter()
+                .map(|a| {
+                    a.iter()
+                        .map(|b| (b.data().to_vec(), b.shape()))
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>(),
+            upward_connectivity: self.upward_connectivity.clone(),
+        }
+    }
+    fn from_serializable(s: SerializableTopology) -> Self {
+        Self {
+            dim: s.dim,
+            ids: s.ids,
+            entity_types: s.entity_types,
+            entity_counts: s.entity_counts,
+            downward_connectivity: s
+                .downward_connectivity
+                .iter()
+                .map(|a| {
+                    a.iter()
+                        .map(|(data, shape)| {
+                            let mut c = rlst_dynamic_array2!(usize, *shape);
+                            c.data_mut().copy_from_slice(data);
+                            c
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>(),
+            upward_connectivity: s.upward_connectivity,
+        }
+    }
 }
 
 unsafe impl Sync for SingleTypeTopology {}
