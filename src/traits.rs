@@ -20,8 +20,7 @@ pub(crate) use io::ConvertToSerializable;
 pub use io::GmshExport;
 #[cfg(feature = "serde")]
 pub use io::{RONExport, RONImport};
-#[cfg(feature = "serde")]
-#[cfg(feature = "mpi")]
+#[cfg(all(feature = "serde", feature = "mpi"))]
 pub use io::{RONExportParallel, RONImportParallel};
 #[cfg(feature = "mpi")]
 pub use parallel::{ParallelBuilder, ParallelGrid};

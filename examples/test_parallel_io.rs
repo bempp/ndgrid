@@ -1,17 +1,17 @@
 //? mpirun -n {{NPROCESSES}} --features "mpi,serde"
 
-#[cfg(feature = "mpi")]
+#[cfg(all(feature = "mpi", feature = "serde"))]
 use mpi::{collective::CommunicatorCollectives, environment::Universe, traits::Communicator};
-#[cfg(feature = "mpi")]
+#[cfg(all(feature = "mpi", feature = "serde"))]
 use ndelement::{ciarlet::CiarletElement, types::ReferenceCellType};
-#[cfg(feature = "mpi")]
+#[cfg(all(feature = "mpi", feature = "serde"))]
 use ndgrid::{
     grid::parallel::ParallelGrid,
     traits::{Builder, Grid, ParallelBuilder, RONExportParallel, RONImportParallel},
     SingleElementGrid, SingleElementGridBuilder,
 };
 
-#[cfg(feature = "mpi")]
+#[cfg(all(feature = "mpi", feature = "serde"))]
 fn create_single_element_grid_data(b: &mut SingleElementGridBuilder<f64>, n: usize) {
     for y in 0..n {
         for x in 0..n {
@@ -32,7 +32,7 @@ fn create_single_element_grid_data(b: &mut SingleElementGridBuilder<f64>, n: usi
     }
 }
 
-#[cfg(feature = "mpi")]
+#[cfg(all(feature = "mpi", feature = "serde"))]
 fn example_single_element_grid<C: Communicator>(
     comm: &C,
     n: usize,
@@ -49,7 +49,7 @@ fn example_single_element_grid<C: Communicator>(
     }
 }
 
-#[cfg(feature = "mpi")]
+#[cfg(all(feature = "mpi", feature = "serde"))]
 fn test_parallel_export<C: Communicator>(comm: &C) {
     let size = comm.size();
 
@@ -59,7 +59,7 @@ fn test_parallel_export<C: Communicator>(comm: &C) {
     grid.export_as_ron(&filename);
 }
 
-#[cfg(feature = "mpi")]
+#[cfg(all(feature = "mpi", feature = "serde"))]
 fn test_parallel_import<C: Communicator>(comm: &C) {
     let size = comm.size();
 
@@ -77,7 +77,7 @@ fn test_parallel_import<C: Communicator>(comm: &C) {
     );
 }
 
-#[cfg(feature = "mpi")]
+#[cfg(all(feature = "mpi", feature = "serde"))]
 fn main() {
     let universe: Universe = mpi::initialize().unwrap();
     let world = universe.world();
@@ -95,5 +95,5 @@ fn main() {
     }
     test_parallel_import(&world);
 }
-#[cfg(not(feature = "mpi"))]
+#[cfg(not(all(feature = "mpi", feature = "serde")))]
 fn main() {}
