@@ -100,6 +100,21 @@ fn orient_entity(entity_type: ReferenceCellType, vertices: &mut [usize]) {
                 vertices.swap(0, 1);
             }
         }
+        ReferenceCellType::Quadrilateral => {
+            let minimum = *vertices.iter().min().unwrap();
+            if vertices[1] == minimum {
+                vertices.swap(0, 1);
+                vertices.swap(2, 3);
+            } else if vertices[2] == minimum {
+                vertices.swap(0, 2);
+                vertices.swap(1, 3);
+            } else if vertices[3] == minimum {
+                vertices.swap(0, 3);
+            }
+            if vertices[1] > vertices[2] {
+                vertices.swap(1, 2);
+            }
+        }
         _ => {
             unimplemented!();
         }
