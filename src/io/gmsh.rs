@@ -26,6 +26,18 @@ fn get_permutation_to_gmsh(cell_type: ReferenceCellType, degree: usize) -> Vec<u
                 panic!("Unsupported degree");
             }
         },
+        ReferenceCellType::Tetrahedron => match degree {
+            1 => vec![0, 1, 2, 3],
+            _ => {
+                panic!("Unsupported degree");
+            }
+        },
+        ReferenceCellType::Hexahedron => match degree {
+            1 => vec![0, 1, 3, 2, 4, 5, 7, 6],
+            _ => {
+                panic!("Unsupported degree");
+            }
+        },
         _ => {
             panic!("Unsupported cell type.");
         }
@@ -51,6 +63,18 @@ fn get_gmsh_cell(cell_type: ReferenceCellType, degree: usize) -> usize {
                 panic!("Unsupported degree");
             }
         },
+        ReferenceCellType::Tetrahedron => match degree {
+            1 => 4,
+            _ => {
+                panic!("Unsupported degree");
+            }
+        },
+        ReferenceCellType::Hexahedron => match degree {
+            1 => 5,
+            _ => {
+                panic!("Unsupported degree");
+            }
+        },
         _ => {
             panic!("Unsupported cell type.");
         }
@@ -69,7 +93,7 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
         gmsh_s.push_str("$EndMeshFormat\n");
         gmsh_s.push_str("$Nodes\n");
         gmsh_s.push_str(&format!("1 {node_count} 1 {node_count}\n"));
-        gmsh_s.push_str(&format!("2 1 0 {node_count}\n"));
+        gmsh_s.push_str(&format!("{tdim} 1 0 {node_count}\n"));
         for i in 0..node_count {
             gmsh_s.push_str(&format!("{}\n", i + 1));
         }
@@ -111,7 +135,7 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
             let gmsh_perm = get_permutation_to_gmsh(cell_type, degree);
 
             gmsh_s.push_str(&format!(
-                "2 1 {} {}\n",
+                "{tdim} 1 {} {}\n",
                 get_gmsh_cell(cell_type, degree),
                 cells.len()
             ));
@@ -163,5 +187,46 @@ mod test {
         b.add_cell(5, &[4, 5, 6, 7]);
         let g = b.create_grid();
         g.export_as_gmsh("_test_io_cube.msh");
+    }
+
+    #[test]
+    fn test_gmsh_output_tetrahedra() {
+        let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Tetrahedron, 1));
+        b.add_point(0, &[0.0, 0.0, 0.0]);
+        b.add_point(1, &[1.0, 0.0, 0.0]);
+        b.add_point(2, &[0.0, 1.0, 0.0]);
+        b.add_point(3, &[1.0, 1.0, 0.0]);
+        b.add_point(4, &[0.0, 0.0, 1.0]);
+        b.add_point(5, &[1.0, 0.0, 1.0]);
+        b.add_point(6, &[0.0, 1.0, 1.0]);
+        b.add_point(7, &[1.0, 1.0, 1.0]);
+        b.add_cell(0, &[0, 1, 5, 7]);
+        b.add_cell(1, &[0, 2, 6, 7]);
+        b.add_cell(2, &[0, 4, 5, 7]);
+        b.add_cell(3, &[0, 1, 3, 7]);
+        b.add_cell(4, &[0, 2, 3, 7]);
+        b.add_cell(5, &[0, 4, 6, 7]);
+        let g = b.create_grid();
+        g.export_as_gmsh("_test_io_tetrahedra.msh");
+    }
+    #[test]
+    fn test_gmsh_output_hexahedra() {
+        let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Hexahedron, 1));
+        b.add_point(0, &[0.0, 0.0, 0.0]);
+        b.add_point(1, &[1.0, 0.0, 0.0]);
+        b.add_point(2, &[0.0, 1.0, 0.0]);
+        b.add_point(3, &[1.0, 1.0, 0.0]);
+        b.add_point(4, &[0.0, 0.0, 1.0]);
+        b.add_point(5, &[1.0, 0.0, 1.0]);
+        b.add_point(6, &[0.0, 1.0, 1.0]);
+        b.add_point(7, &[1.0, 1.0, 1.0]);
+        b.add_point(8, &[0.0, 0.0, 2.0]);
+        b.add_point(9, &[1.0, 0.0, 2.0]);
+        b.add_point(10, &[0.0, 1.0, 2.0]);
+        b.add_point(11, &[1.0, 1.0, 1.5]);
+        b.add_cell(1, &[0, 1, 2, 3, 4, 5, 6, 7]);
+        b.add_cell(2, &[4, 5, 6, 7, 8, 9, 10, 11]);
+        let g = b.create_grid();
+        g.export_as_gmsh("_test_io_hexahedra.msh");
     }
 }
