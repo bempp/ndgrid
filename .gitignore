@@ -10,6 +10,7 @@ Cargo.lock
 **/*.rs.bk
 
 *.pyc
+python/ndgrid/_ndgridrs
 
 examples.sh
 
