@@ -21,6 +21,7 @@ dependencies = [
     "numpy",
     "cffi",
     'patchelf; platform_system == "Linux"',
+    "ndelement @ /home/mscroggs/development/ndelement/target/wheels/ndelement-0.1.0.dev2-py3-none-manylinux_2_35_x86_64.whl"
 ]
 packages = ["ndgrid"]
 
