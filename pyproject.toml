@@ -21,6 +21,7 @@ dependencies = [
     "numpy",
     "cffi",
     'patchelf; platform_system == "Linux"',
+    "ndelement"
 ]
 packages = ["ndgrid"]
 
