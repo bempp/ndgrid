@@ -10,8 +10,13 @@ use crate::{
     traits::{Entity, Grid},
     types::{Ownership, RealScalar},
 };
-use ndelement::{ciarlet::{CiarletElement, LagrangeElementFamily}, reference_cell, traits::{FiniteElement, ElementFamily}, types::{ReferenceCellType, Continuity}};
-use rlst::{rlst_array_from_slice2, RawAccess, rlst_dynamic_array2, RawAccessMut};
+use ndelement::{
+    ciarlet::{CiarletElement, LagrangeElementFamily},
+    reference_cell,
+    traits::{ElementFamily, FiniteElement},
+    types::{Continuity, ReferenceCellType},
+};
+use rlst::{rlst_array_from_slice2, rlst_dynamic_array2, RawAccess, RawAccessMut};
 
 /// Single element grid entity
 #[derive(Debug)]
@@ -171,19 +176,14 @@ impl<T: RealScalar> SingleElementGrid<T, CiarletElement<T>> {
         cell_type: ReferenceCellType,
         geometry_degree: usize,
     ) -> Self {
-
         let npts = coordinates.len() / gdim;
         let mut points = rlst_dynamic_array2!(T, [gdim, npts]);
         points.data_mut().copy_from_slice(coordinates);
 
         let family = LagrangeElementFamily::<T>::new(geometry_degree, Continuity::Standard);
 
-        let geometry = SingleElementGeometry::<T, CiarletElement<T>>::new(
-            cell_type,
-            points,
-            cells,
-            &family,
-        );
+        let geometry =
+            SingleElementGeometry::<T, CiarletElement<T>>::new(cell_type, points, cells, &family);
 
         let points_per_cell = family.element(cell_type).dim();
         let tpoints_per_cell = reference_cell::entity_counts(cell_type)[0];
@@ -191,17 +191,12 @@ impl<T: RealScalar> SingleElementGrid<T, CiarletElement<T>> {
 
         let mut tcells = vec![0; tpoints_per_cell * ncells];
         for c in 0..ncells {
-            tcells[c*tpoints_per_cell..(c+1)*tpoints_per_cell].copy_from_slice(&cells[
-                c * points_per_cell..c * points_per_cell + tpoints_per_cell
-            ]);
+            tcells[c * tpoints_per_cell..(c + 1) * tpoints_per_cell].copy_from_slice(
+                &cells[c * points_per_cell..c * points_per_cell + tpoints_per_cell],
+            );
         }
 
-        let topology = SingleTypeTopology::new(
-            &tcells,
-            cell_type,
-            None,
-            None,
-        );
+        let topology = SingleTypeTopology::new(&tcells, cell_type, None, None);
 
         Self { topology, geometry }
     }

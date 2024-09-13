@@ -1,6 +1,6 @@
 """Grid."""
 
-from ndelement import ReferenceCellType
+from ndelement.reference_cell import ReferenceCellType
 import numpy as np
 import numpy.typing as npt
 from ndgrid._ndgridrs import lib as _lib, ffi as _ffi
@@ -55,24 +55,28 @@ def from_raw_data(
 ) -> Grid:
     dtype = coordinates.dtype
     if dtype == np.float64:
-        return Grid(_lib.single_element_grid_new_from_raw_data_f64(
-            _ffi.cast("double*", coordinates.ctypes.data),
-            coordinates.shape[0],
-            coordinates.shape[1],
-            _ffi.cast("uintptr_t*", cells.ctypes.data),
-            cells.shape[0],
-            cell_type.value,
-            geometry_degree,
-        ))
+        return Grid(
+            _lib.single_element_grid_new_from_raw_data_f64(
+                _ffi.cast("double*", coordinates.ctypes.data),
+                coordinates.shape[0],
+                coordinates.shape[1],
+                _ffi.cast("uintptr_t*", cells.ctypes.data),
+                cells.shape[0],
+                cell_type.value,
+                geometry_degree,
+            )
+        )
     elif dtype == np.float32:
-        return Grid(_lib.single_element_grid_new_from_raw_data_f32(
-            _ffi.cast("float*", coordinates.ctypes.data),
-            coordinates.shape[0],
-            coordinates.shape[1],
-            _ffi.cast("uintptr_t*", cells.ctypes.data),
-            cells.shape[0],
-            cell_type.value,
-            geometry_degree,
-        ))
+        return Grid(
+            _lib.single_element_grid_new_from_raw_data_f32(
+                _ffi.cast("float*", coordinates.ctypes.data),
+                coordinates.shape[0],
+                coordinates.shape[1],
+                _ffi.cast("uintptr_t*", cells.ctypes.data),
+                cells.shape[0],
+                cell_type.value,
+                geometry_degree,
+            )
+        )
     else:
         raise TypeError(f"Unsupported dtype: {dtype}")
