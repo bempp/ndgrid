@@ -1,5 +1,6 @@
 import numpy as np
 from ndgrid.grid import from_raw_data
+from ndgrid.shapes import regular_sphere
 from ndelement.reference_cell import ReferenceCellType
 
 
@@ -18,3 +19,10 @@ def test_from_raw_data():
 
     assert grid.topology_dim == 2
     assert grid.geometry_dim == 3
+
+
+def test_entities():
+    grid = regular_sphere(4)
+    for i in range(grid.entity_count(ReferenceCellType.Triangle)):
+        entity = grid.entity(2, i)
+        assert entity.local_index == i

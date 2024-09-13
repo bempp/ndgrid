@@ -15,6 +15,38 @@ _ctypes = {
 }
 
 
+class Entity(object):
+    """Entity."""
+
+    def __init__(self, rs_entity):
+        """Initialise."""
+        self._rs_entity = rs_entity
+
+    def __del__(self):
+        """Delete."""
+        _lib.grid_free_entity(self._rs_entity)
+
+    @property
+    def dtype(self):
+        """Data type."""
+        return _dtypes[_lib.entity_dtype(self._rs_entity)]
+
+    @property
+    def _ctype(self):
+        """C data type."""
+        return _ctypes[self.dtype]
+
+    @property
+    def local_index(self):
+        """The local index of the entity."""
+        return _lib.entity_local_index(self._rs_entity)
+
+    @property
+    def global_index(self):
+        """The global index of the entity."""
+        return _lib.entity_global_index(self._rs_entity)
+
+
 class Grid(object):
     """Grid."""
 
@@ -25,6 +57,14 @@ class Grid(object):
     def __del__(self):
         """Delete."""
         _lib.grid_free_grid(self._rs_grid)
+
+    def entity_count(self, etype: ReferenceCellType) -> int:
+        """Get the number of entities of the given type."""
+        return _lib.grid_entity_count(self._rs_grid, etype.value)
+
+    def entity(self, dim: int, local_index: int) -> Entity:
+        """Get an entity from its local index."""
+        return Entity(_lib.grid_entity(self._rs_grid, dim, local_index))
 
     @property
     def dtype(self):

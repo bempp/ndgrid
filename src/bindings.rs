@@ -11,9 +11,11 @@ pub enum DType {
 
 mod grid {
     use super::DType;
-    use crate::grid::SingleElementGrid;
-    use crate::traits::Grid;
-    use crate::types::RealScalar;
+    use crate::{
+        grid::{serial::SingleElementGridEntity, SingleElementGrid},
+        traits::{Entity, Grid},
+        types::RealScalar,
+    };
     use ndelement::{
         ciarlet::CiarletElement,
         ciarlet::LagrangeElementFamily,
@@ -29,11 +31,24 @@ mod grid {
         SerialSingleElementGrid = 0,
     }
 
+    #[derive(Debug, PartialEq, Clone, Copy)]
+    #[repr(u8)]
+    pub enum EntityType {
+        SingleElementGridEntity = 0,
+    }
+
     #[repr(C)]
     pub struct GridWrapper {
         pub grid: *const c_void,
         pub dtype: DType,
         pub gtype: GridType,
+    }
+
+    #[repr(C)]
+    pub struct EntityWrapper {
+        pub entity: *const c_void,
+        pub dtype: DType,
+        pub etype: EntityType,
     }
 
     impl Drop for GridWrapper {
@@ -56,6 +71,36 @@ mod grid {
     pub unsafe extern "C" fn grid_free_grid(g: *mut GridWrapper) {
         assert!(!g.is_null());
         unsafe { drop(Box::from_raw(g)) }
+    }
+
+    impl Drop for EntityWrapper {
+        fn drop(&mut self) {
+            let Self {
+                entity,
+                dtype,
+                etype,
+            } = self;
+            match etype {
+                EntityType::SingleElementGridEntity => match dtype {
+                    DType::F32 => drop(unsafe {
+                        Box::from_raw(
+                            *entity as *mut SingleElementGridEntity<f32, CiarletElement<f32>>,
+                        )
+                    }),
+                    DType::F64 => drop(unsafe {
+                        Box::from_raw(
+                            *entity as *mut SingleElementGridEntity<f64, CiarletElement<f64>>,
+                        )
+                    }),
+                },
+            }
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn grid_free_entity(e: *mut EntityWrapper) {
+        assert!(!e.is_null());
+        unsafe { drop(Box::from_raw(e)) }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -165,8 +210,100 @@ mod grid {
     }
 
     #[no_mangle]
+    pub unsafe extern "C" fn grid_entity_count(grid: *const GridWrapper, entity_type: u8) -> usize {
+        match (*grid).gtype {
+            GridType::SerialSingleElementGrid => match (*grid).dtype {
+                DType::F32 => (*extract_grid::<SingleElementGrid<f32, CiarletElement<f32>>>(grid))
+                    .entity_count(ReferenceCellType::from(entity_type).unwrap()),
+                DType::F64 => (*extract_grid::<SingleElementGrid<f64, CiarletElement<f64>>>(grid))
+                    .entity_count(ReferenceCellType::from(entity_type).unwrap()),
+            },
+        }
+    }
+
+    unsafe fn grid_entity_internal<T: Grid>(
+        grid: *const GridWrapper,
+        dim: usize,
+        local_index: usize,
+        etype: EntityType,
+    ) -> *const EntityWrapper {
+        let entity = EntityWrapper {
+            entity: Box::into_raw(Box::new(
+                (*extract_grid::<T>(grid)).entity(dim, local_index).unwrap(),
+            )) as *const c_void,
+            dtype: (*grid).dtype,
+            etype,
+        };
+        Box::into_raw(Box::new(entity))
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn grid_entity(
+        grid: *const GridWrapper,
+        dim: usize,
+        local_index: usize,
+    ) -> *const EntityWrapper {
+        match (*grid).gtype {
+            GridType::SerialSingleElementGrid => match (*grid).dtype {
+                DType::F32 => grid_entity_internal::<SingleElementGrid<f32, CiarletElement<f32>>>(
+                    grid,
+                    dim,
+                    local_index,
+                    EntityType::SingleElementGridEntity,
+                ),
+                DType::F64 => grid_entity_internal::<SingleElementGrid<f64, CiarletElement<f64>>>(
+                    grid,
+                    dim,
+                    local_index,
+                    EntityType::SingleElementGridEntity,
+                ),
+            },
+        }
+    }
+    #[no_mangle]
     pub unsafe extern "C" fn grid_dtype(grid: *const GridWrapper) -> u8 {
         (*grid).dtype as u8
+    }
+
+    unsafe fn extract_entity<E: Entity>(entity: *const EntityWrapper) -> *const E {
+        (*entity).entity as *const E
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn entity_local_index(entity: *const EntityWrapper) -> usize {
+        match (*entity).etype {
+            EntityType::SingleElementGridEntity => match (*entity).dtype {
+                DType::F32 => {
+                    (*extract_entity::<SingleElementGridEntity<f32, CiarletElement<f32>>>(entity))
+                        .local_index()
+                }
+                DType::F64 => {
+                    (*extract_entity::<SingleElementGridEntity<f64, CiarletElement<f64>>>(entity))
+                        .local_index()
+                }
+            },
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn entity_global_index(entity: *const EntityWrapper) -> usize {
+        match (*entity).etype {
+            EntityType::SingleElementGridEntity => match (*entity).dtype {
+                DType::F32 => {
+                    (*extract_entity::<SingleElementGridEntity<f32, CiarletElement<f32>>>(entity))
+                        .global_index()
+                }
+                DType::F64 => {
+                    (*extract_entity::<SingleElementGridEntity<f64, CiarletElement<f64>>>(entity))
+                        .global_index()
+                }
+            },
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn entity_dtype(entity: *const EntityWrapper) -> u8 {
+        (*entity).dtype as u8
     }
 }
 
