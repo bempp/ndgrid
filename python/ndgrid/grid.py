@@ -1,6 +1,8 @@
 """Grid."""
 
+import typing
 from ndelement.reference_cell import ReferenceCellType
+from ndgrid.ownership import Owned, Ghost
 import numpy as np
 import numpy.typing as npt
 from ndgrid._ndgridrs import lib as _lib, ffi as _ffi
@@ -32,19 +34,46 @@ class Entity(object):
         return _dtypes[_lib.entity_dtype(self._rs_entity)]
 
     @property
-    def _ctype(self):
+    def _ctype(self) -> str:
         """C data type."""
         return _ctypes[self.dtype]
 
     @property
-    def local_index(self):
+    def local_index(self) -> int:
         """The local index of the entity."""
         return _lib.entity_local_index(self._rs_entity)
 
     @property
-    def global_index(self):
+    def global_index(self) -> int:
         """The global index of the entity."""
         return _lib.entity_global_index(self._rs_entity)
+
+    # TODO: test
+    @property
+    def id(self) -> typing.Optional[int]:
+        """The id of the entity."""
+        if _lib.entity_has_id(self._rs_entity):
+            return _lib.entity_id(self._rs_entity)
+        else:
+            return None
+
+    # TODO: test
+    @property
+    def entity_type(self) -> ReferenceCellType:
+        """The type of the entity."""
+        return ReferenceCellType(_lib.entity_entity_type(self._rs_entity))
+
+    # TODO: test
+    @property
+    def ownership(self) -> typing.Union[Owned, Ghost]:
+        """The type of the entity."""
+        if _lib.entity_is_owned(self._rs_entity):
+            return Owned()
+        else:
+            return Ghost(
+                _lib.entity_ownership_process(self._rs_entity),
+                _lib.entity_ownership_index(self._rs_entity),
+            )
 
 
 class Grid(object):
@@ -65,6 +94,18 @@ class Grid(object):
     def entity(self, dim: int, local_index: int) -> Entity:
         """Get an entity from its local index."""
         return Entity(_lib.grid_entity(self._rs_grid, dim, local_index))
+
+    # TODO: test
+    def entity_from_id(self, dim: int, id: int) -> Entity:
+        """Get an entity from its insertion id."""
+        return Entity(_lib.grid_entity_from_id(self._rs_grid, dim, id))
+
+    # TODO: test
+    def entity_types(self, dim: int) -> typing.List[ReferenceCellType]:
+        """Get the entity types of the given dimension."""
+        types = np.empty(_lib.entity_types_size(self._rs_grid, dim), dtype=np.uint8)
+        _lib.entity_types(self._rs_grid, dim, _ffi.cast("uint8_t* ", types.ctypes.data))
+        return [ReferenceCellType(i) for i in types]
 
     @property
     def dtype(self):

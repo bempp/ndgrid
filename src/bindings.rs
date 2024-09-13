@@ -14,7 +14,7 @@ mod grid {
     use crate::{
         grid::{serial::SingleElementGridEntity, SingleElementGrid},
         traits::{Entity, Grid},
-        types::RealScalar,
+        types::{RealScalar, Ownership},
     };
     use ndelement::{
         ciarlet::CiarletElement,
@@ -260,6 +260,73 @@ mod grid {
             },
         }
     }
+
+    unsafe fn grid_entity_from_id_internal<T: Grid>(
+        grid: *const GridWrapper,
+        dim: usize,
+        id: usize,
+        etype: EntityType,
+    ) -> *const EntityWrapper {
+        let entity = EntityWrapper {
+            entity: Box::into_raw(Box::new(
+                (*extract_grid::<T>(grid)).entity_from_id(dim, id).unwrap(),
+            )) as *const c_void,
+            dtype: (*grid).dtype,
+            etype,
+        };
+        Box::into_raw(Box::new(entity))
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn grid_entity_from_id(
+        grid: *const GridWrapper,
+        dim: usize,
+        id: usize,
+    ) -> *const EntityWrapper {
+        match (*grid).gtype {
+            GridType::SerialSingleElementGrid => match (*grid).dtype {
+                DType::F32 => grid_entity_from_id_internal::<SingleElementGrid<f32, CiarletElement<f32>>>(
+                    grid,
+                    dim,
+                    id,
+                    EntityType::SingleElementGridEntity,
+                ),
+                DType::F64 => grid_entity_from_id_internal::<SingleElementGrid<f64, CiarletElement<f64>>>(
+                    grid,
+                    dim,
+                    id,
+                    EntityType::SingleElementGridEntity,
+                ),
+            },
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn grid_entity_types_size(grid: *const GridWrapper, dim: usize) -> usize {
+        match (*grid).gtype {
+            GridType::SerialSingleElementGrid => match (*grid).dtype {
+                DType::F32 => (*extract_grid::<SingleElementGrid<f32, CiarletElement<f32>>>(grid))
+                    .entity_types(dim),
+                DType::F64 => (*extract_grid::<SingleElementGrid<f64, CiarletElement<f64>>>(grid))
+                    .entity_types(dim),
+            },
+        }.len()
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn grid_entity_types(grid: *const GridWrapper, dim: usize, types: *mut u8) {
+        for (i, t) in match (*grid).gtype {
+            GridType::SerialSingleElementGrid => match (*grid).dtype {
+                DType::F32 => (*extract_grid::<SingleElementGrid<f32, CiarletElement<f32>>>(grid))
+                    .entity_types(dim),
+                DType::F64 => (*extract_grid::<SingleElementGrid<f64, CiarletElement<f64>>>(grid))
+                    .entity_types(dim),
+            },
+        }.iter().enumerate() {
+            *types.add(i) = *t as u8;
+        }
+    }
+
     #[no_mangle]
     pub unsafe extern "C" fn grid_dtype(grid: *const GridWrapper) -> u8 {
         (*grid).dtype as u8
@@ -302,12 +369,118 @@ mod grid {
     }
 
     #[no_mangle]
+    pub unsafe extern "C" fn entity_entity_type(entity: *const EntityWrapper) -> u8 {
+        match (*entity).etype {
+            EntityType::SingleElementGridEntity => match (*entity).dtype {
+                DType::F32 => 
+                    (*extract_entity::<SingleElementGridEntity<f32, CiarletElement<f32>>>(entity)).entity_type() as u8,
+                
+                DType::F64 =>
+                    (*extract_entity::<SingleElementGridEntity<f64, CiarletElement<f64>>>(entity)).entity_type() as u8,
+            },
+        }
+    }
+    #[no_mangle]
+    pub unsafe extern "C" fn entity_has_id(entity: *const EntityWrapper) -> bool {
+        match (*entity).etype {
+            EntityType::SingleElementGridEntity => match (*entity).dtype {
+                DType::F32 => {
+                    (*extract_entity::<SingleElementGridEntity<f32, CiarletElement<f32>>>(entity))
+                        .id()
+                }
+                DType::F64 => {
+                    (*extract_entity::<SingleElementGridEntity<f64, CiarletElement<f64>>>(entity))
+                        .id()
+                }
+            },
+        }.is_some()
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn entity_id(entity: *const EntityWrapper) -> usize {
+        match (*entity).etype {
+            EntityType::SingleElementGridEntity => match (*entity).dtype {
+                DType::F32 => {
+                    (*extract_entity::<SingleElementGridEntity<f32, CiarletElement<f32>>>(entity))
+                        .id()
+                }
+                DType::F64 => {
+                    (*extract_entity::<SingleElementGridEntity<f64, CiarletElement<f64>>>(entity))
+                        .id()
+                }
+            },
+        }.unwrap()
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn entity_is_owned(entity: *const EntityWrapper) -> bool {
+        let ownership = match (*entity).etype {
+            EntityType::SingleElementGridEntity => match (*entity).dtype {
+                DType::F32 => {
+                    (*extract_entity::<SingleElementGridEntity<f32, CiarletElement<f32>>>(entity))
+                        .ownership()
+                }
+                DType::F64 => {
+                    (*extract_entity::<SingleElementGridEntity<f64, CiarletElement<f64>>>(entity))
+                        .ownership()
+                }
+            },
+        };
+
+        ownership == Ownership::Owned
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn entity_ownership_process(entity: *const EntityWrapper) -> usize {
+        let ownership = match (*entity).etype {
+            EntityType::SingleElementGridEntity => match (*entity).dtype {
+                DType::F32 => {
+                    (*extract_entity::<SingleElementGridEntity<f32, CiarletElement<f32>>>(entity))
+                        .ownership()
+                }
+                DType::F64 => {
+                    (*extract_entity::<SingleElementGridEntity<f64, CiarletElement<f64>>>(entity))
+                        .ownership()
+                }
+            },
+        };
+
+        if let Ownership::Ghost(process, _index) = ownership {
+            process
+        } else {
+            panic!();
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn entity_ownership_index(entity: *const EntityWrapper) -> usize {
+        let ownership = match (*entity).etype {
+            EntityType::SingleElementGridEntity => match (*entity).dtype {
+                DType::F32 => {
+                    (*extract_entity::<SingleElementGridEntity<f32, CiarletElement<f32>>>(entity))
+                        .ownership()
+                }
+                DType::F64 => {
+                    (*extract_entity::<SingleElementGridEntity<f64, CiarletElement<f64>>>(entity))
+                        .ownership()
+                }
+            },
+        };
+
+        if let Ownership::Ghost(_process, index) = ownership {
+            index
+        } else {
+            panic!();
+        }
+    }
+
+    #[no_mangle]
     pub unsafe extern "C" fn entity_dtype(entity: *const EntityWrapper) -> u8 {
         (*entity).dtype as u8
     }
 }
 
-mod shape {
+mod shapes {
     use super::grid::{GridType, GridWrapper};
     use super::DType;
     use crate::shapes::regular_sphere;
