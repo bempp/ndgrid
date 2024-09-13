@@ -1,5 +1,6 @@
 """Ownership."""
 
+
 class Ownership(object):
     """Ownership base class."""
 

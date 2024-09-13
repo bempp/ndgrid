@@ -14,7 +14,7 @@ mod grid {
     use crate::{
         grid::{serial::SingleElementGridEntity, SingleElementGrid},
         traits::{Entity, Grid},
-        types::{RealScalar, Ownership},
+        types::{Ownership, RealScalar},
     };
     use ndelement::{
         ciarlet::CiarletElement,
@@ -285,18 +285,12 @@ mod grid {
     ) -> *const EntityWrapper {
         match (*grid).gtype {
             GridType::SerialSingleElementGrid => match (*grid).dtype {
-                DType::F32 => grid_entity_from_id_internal::<SingleElementGrid<f32, CiarletElement<f32>>>(
-                    grid,
-                    dim,
-                    id,
-                    EntityType::SingleElementGridEntity,
-                ),
-                DType::F64 => grid_entity_from_id_internal::<SingleElementGrid<f64, CiarletElement<f64>>>(
-                    grid,
-                    dim,
-                    id,
-                    EntityType::SingleElementGridEntity,
-                ),
+                DType::F32 => grid_entity_from_id_internal::<
+                    SingleElementGrid<f32, CiarletElement<f32>>,
+                >(grid, dim, id, EntityType::SingleElementGridEntity),
+                DType::F64 => grid_entity_from_id_internal::<
+                    SingleElementGrid<f64, CiarletElement<f64>>,
+                >(grid, dim, id, EntityType::SingleElementGridEntity),
             },
         }
     }
@@ -310,11 +304,16 @@ mod grid {
                 DType::F64 => (*extract_grid::<SingleElementGrid<f64, CiarletElement<f64>>>(grid))
                     .entity_types(dim),
             },
-        }.len()
+        }
+        .len()
     }
 
     #[no_mangle]
-    pub unsafe extern "C" fn grid_entity_types(grid: *const GridWrapper, dim: usize, types: *mut u8) {
+    pub unsafe extern "C" fn grid_entity_types(
+        grid: *const GridWrapper,
+        dim: usize,
+        types: *mut u8,
+    ) {
         for (i, t) in match (*grid).gtype {
             GridType::SerialSingleElementGrid => match (*grid).dtype {
                 DType::F32 => (*extract_grid::<SingleElementGrid<f32, CiarletElement<f32>>>(grid))
@@ -322,7 +321,10 @@ mod grid {
                 DType::F64 => (*extract_grid::<SingleElementGrid<f64, CiarletElement<f64>>>(grid))
                     .entity_types(dim),
             },
-        }.iter().enumerate() {
+        }
+        .iter()
+        .enumerate()
+        {
             *types.add(i) = *t as u8;
         }
     }
@@ -372,11 +374,15 @@ mod grid {
     pub unsafe extern "C" fn entity_entity_type(entity: *const EntityWrapper) -> u8 {
         match (*entity).etype {
             EntityType::SingleElementGridEntity => match (*entity).dtype {
-                DType::F32 => 
-                    (*extract_entity::<SingleElementGridEntity<f32, CiarletElement<f32>>>(entity)).entity_type() as u8,
-                
-                DType::F64 =>
-                    (*extract_entity::<SingleElementGridEntity<f64, CiarletElement<f64>>>(entity)).entity_type() as u8,
+                DType::F32 => {
+                    (*extract_entity::<SingleElementGridEntity<f32, CiarletElement<f32>>>(entity))
+                        .entity_type() as u8
+                }
+
+                DType::F64 => {
+                    (*extract_entity::<SingleElementGridEntity<f64, CiarletElement<f64>>>(entity))
+                        .entity_type() as u8
+                }
             },
         }
     }
@@ -393,7 +399,8 @@ mod grid {
                         .id()
                 }
             },
-        }.is_some()
+        }
+        .is_some()
     }
 
     #[no_mangle]
@@ -409,7 +416,8 @@ mod grid {
                         .id()
                 }
             },
-        }.unwrap()
+        }
+        .unwrap()
     }
 
     #[no_mangle]
