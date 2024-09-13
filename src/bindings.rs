@@ -52,7 +52,7 @@ mod grid {
     }
 
     #[no_mangle]
-    pub unsafe extern "C" fn grid_free_grid(g: *mut GridWrapper) {
+    pub unsafe extern "C" fn free_grid(g: *mut GridWrapper) {
         assert!(!g.is_null());
         unsafe { drop(Box::from_raw(g)) }
     }
@@ -290,6 +290,7 @@ mod grid {
 }
 
 mod entity {
+    use super::topology::{TopologyType, TopologyWrapper};
     use super::DType;
     use crate::{grid::serial::SingleElementGridEntity, traits::Entity, types::Ownership};
     use ndelement::ciarlet::CiarletElement;
@@ -333,7 +334,7 @@ mod entity {
     }
 
     #[no_mangle]
-    pub unsafe extern "C" fn grid_free_entity(e: *mut EntityWrapper) {
+    pub unsafe extern "C" fn free_entity(e: *mut EntityWrapper) {
         assert!(!e.is_null());
         unsafe { drop(Box::from_raw(e)) }
     }
@@ -486,9 +487,86 @@ mod entity {
         }
     }
 
+    unsafe fn entity_topology_internal<E: Entity>(
+        entity: *const EntityWrapper,
+        ttype: TopologyType,
+    ) -> *const TopologyWrapper {
+        let topology = TopologyWrapper {
+            topology: Box::into_raw(Box::new((*extract_entity::<E>(entity)).topology()))
+                as *const c_void,
+            ttype,
+        };
+        Box::into_raw(Box::new(topology))
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn entity_topology(
+        entity: *const EntityWrapper,
+    ) -> *const TopologyWrapper {
+        match (*entity).etype {
+            EntityType::SingleElementGridEntity => match (*entity).dtype {
+                DType::F32 => entity_topology_internal::<
+                    SingleElementGridEntity<f32, CiarletElement<f32>>,
+                >(entity, TopologyType::SingleTypeEntityTopology),
+                DType::F64 => entity_topology_internal::<
+                    SingleElementGridEntity<f64, CiarletElement<f64>>,
+                >(entity, TopologyType::SingleTypeEntityTopology),
+            },
+        }
+    }
     #[no_mangle]
     pub unsafe extern "C" fn entity_dtype(entity: *const EntityWrapper) -> u8 {
         (*entity).dtype as u8
+    }
+}
+
+mod topology {
+    use crate::{topology::serial::SingleTypeEntityTopology, traits::Topology};
+    use std::ffi::c_void;
+    #[derive(Debug, PartialEq, Clone, Copy)]
+    #[repr(u8)]
+    pub enum TopologyType {
+        SingleTypeEntityTopology = 0,
+    }
+
+    #[repr(C)]
+    pub struct TopologyWrapper {
+        pub topology: *const c_void,
+        pub ttype: TopologyType,
+    }
+
+    impl Drop for TopologyWrapper {
+        fn drop(&mut self) {
+            let Self { topology, ttype } = self;
+            match ttype {
+                TopologyType::SingleTypeEntityTopology => {
+                    drop(unsafe { Box::from_raw(*topology as *mut SingleTypeEntityTopology) })
+                }
+            }
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn free_topology(t: *mut TopologyWrapper) {
+        assert!(!t.is_null());
+        unsafe { drop(Box::from_raw(t)) }
+    }
+
+    unsafe fn extract_topology<T: Topology>(topology: *const TopologyWrapper) -> *const T {
+        (*topology).topology as *const T
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn topology_sub_entity(
+        topology: *const TopologyWrapper,
+        dim: usize,
+        index: usize,
+    ) -> usize {
+        match (*topology).ttype {
+            TopologyType::SingleTypeEntityTopology => {
+                (*extract_topology::<SingleTypeEntityTopology>(topology)).sub_entity(dim, index)
+            }
+        }
     }
 }
 

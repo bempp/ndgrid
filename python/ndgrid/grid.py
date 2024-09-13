@@ -17,6 +17,23 @@ _ctypes = {
 }
 
 
+class Topology(object):
+    """Entity topology."""
+
+    def __init__(self, rs_topology):
+        """Initialise."""
+        self._rs_topology = rs_topology
+
+    def __del__(self):
+        """Delete."""
+        _lib.free_topology(self._rs_topology)
+
+    # TODO: test
+    def sub_entity(self, dim: int, index: int) -> int:
+        """Get the index of a subentity."""
+        return _lib.topology_sub_entity(self._rs_topology, dim, index)
+
+
 class Entity(object):
     """Entity."""
 
@@ -26,7 +43,7 @@ class Entity(object):
 
     def __del__(self):
         """Delete."""
-        _lib.grid_free_entity(self._rs_entity)
+        _lib.free_entity(self._rs_entity)
 
     @property
     def dtype(self):
@@ -37,6 +54,12 @@ class Entity(object):
     def _ctype(self) -> str:
         """C data type."""
         return _ctypes[self.dtype]
+
+    # TODO: test
+    @property
+    def topology(self) -> Topology:
+        """Entity topology."""
+        return Topology(_lib.entity_topology(self._rs_entity))
 
     @property
     def local_index(self) -> int:
@@ -85,7 +108,7 @@ class Grid(object):
 
     def __del__(self):
         """Delete."""
-        _lib.grid_free_grid(self._rs_grid)
+        _lib.free_grid(self._rs_grid)
 
     def entity_count(self, etype: ReferenceCellType) -> int:
         """Get the number of entities of the given type."""
