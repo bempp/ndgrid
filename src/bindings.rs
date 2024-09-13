@@ -290,6 +290,7 @@ mod grid {
 }
 
 mod entity {
+    use super::geometry::{GeometryType, GeometryWrapper};
     use super::topology::{TopologyType, TopologyWrapper};
     use super::DType;
     use crate::{grid::serial::SingleElementGridEntity, traits::Entity, types::Ownership};
@@ -514,6 +515,44 @@ mod entity {
             },
         }
     }
+
+    unsafe fn entity_geometry_internal<E: Entity>(
+        entity: *const EntityWrapper,
+        gtype: GeometryType,
+        dtype: DType,
+    ) -> *const GeometryWrapper {
+        let geometry = GeometryWrapper {
+            geometry: Box::into_raw(Box::new((*extract_entity::<E>(entity)).geometry()))
+                as *const c_void,
+            gtype,
+            dtype,
+        };
+        Box::into_raw(Box::new(geometry))
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn entity_geometry(
+        entity: *const EntityWrapper,
+    ) -> *const GeometryWrapper {
+        match (*entity).etype {
+            EntityType::SingleElementGridEntity => match (*entity).dtype {
+                DType::F32 => {
+                    entity_geometry_internal::<SingleElementGridEntity<f32, CiarletElement<f32>>>(
+                        entity,
+                        GeometryType::SingleElementEntityGeometry,
+                        (*entity).dtype,
+                    )
+                }
+                DType::F64 => {
+                    entity_geometry_internal::<SingleElementGridEntity<f64, CiarletElement<f64>>>(
+                        entity,
+                        GeometryType::SingleElementEntityGeometry,
+                        (*entity).dtype,
+                    )
+                }
+            },
+        }
+    }
     #[no_mangle]
     pub unsafe extern "C" fn entity_dtype(entity: *const EntityWrapper) -> u8 {
         (*entity).dtype as u8
@@ -523,6 +562,7 @@ mod entity {
 mod topology {
     use crate::{topology::serial::SingleTypeEntityTopology, traits::Topology};
     use std::ffi::c_void;
+
     #[derive(Debug, PartialEq, Clone, Copy)]
     #[repr(u8)]
     pub enum TopologyType {
@@ -568,6 +608,60 @@ mod topology {
             }
         }
     }
+}
+
+mod geometry {
+    use super::DType;
+    use crate::geometry::SingleElementEntityGeometry;
+    use ndelement::ciarlet::CiarletElement;
+    use std::ffi::c_void;
+
+    #[derive(Debug, PartialEq, Clone, Copy)]
+    #[repr(u8)]
+    pub enum GeometryType {
+        SingleElementEntityGeometry = 0,
+    }
+
+    #[repr(C)]
+    pub struct GeometryWrapper {
+        pub geometry: *const c_void,
+        pub dtype: DType,
+        pub gtype: GeometryType,
+    }
+
+    impl Drop for GeometryWrapper {
+        fn drop(&mut self) {
+            let Self {
+                geometry,
+                dtype,
+                gtype,
+            } = self;
+            match gtype {
+                GeometryType::SingleElementEntityGeometry => match dtype {
+                    DType::F32 => drop(unsafe {
+                        Box::from_raw(
+                            *geometry as *mut SingleElementEntityGeometry<f32, CiarletElement<f32>>,
+                        )
+                    }),
+                    DType::F64 => drop(unsafe {
+                        Box::from_raw(
+                            *geometry as *mut SingleElementEntityGeometry<f64, CiarletElement<f64>>,
+                        )
+                    }),
+                },
+            }
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn free_geometry(g: *mut GeometryWrapper) {
+        assert!(!g.is_null());
+        unsafe { drop(Box::from_raw(g)) }
+    }
+
+    //unsafe fn extract_geometry<G: Geometry>(geometry: *const GeometryWrapper) -> *const G {
+    //    (*geometry).geometry as *const G
+    //}
 }
 
 mod shapes {
