@@ -63,11 +63,10 @@ class Geometry(object):
         """Delete."""
         _lib.free_geometry(self._rs_geometry)
 
-    # TODO: test
     def points(self) -> npt.NDArray:
         """Get points that define the geometry."""
-        pts = np.empty((self.point_count, self._dim), dtype=self._dtype)
-        _lib.geometry_points(self._rs_geometry, _ffi.cast("c_void* ", pts.ctypes.data))
+        pts = np.empty((self.point_count, self._dim), dtype=self.dtype)
+        _lib.geometry_points(self._rs_geometry, _ffi.cast("void* ", pts.ctypes.data))
         return pts
 
     @property
@@ -80,13 +79,11 @@ class Geometry(object):
         """C data type."""
         return _ctypes[self.dtype]
 
-    # TODO: test
     @property
     def point_count(self) -> int:
         """Number of points."""
         return _lib.geometry_point_count(self._rs_geometry)
 
-    # TODO: test
     @property
     def degree(self) -> int:
         """Degree of geometry element."""
@@ -109,7 +106,7 @@ class GeometryMap(object):
         """Get the physical points for an entity."""
         assert points.dtype == self.dtype
         _lib.geometry_map_points(
-            self._rs_gmap, entity_index, _ffi.cast("c_void* ", points.ctypes.data)
+            self._rs_gmap, entity_index, _ffi.cast("void* ", points.ctypes.data)
         )
 
     # TODO: test
@@ -117,7 +114,7 @@ class GeometryMap(object):
         """Get the jacobians for an entity."""
         assert jacobians.dtype == self.dtype
         _lib.geometry_map_jacobians(
-            self._rs_gmap, entity_index, _ffi.cast("c_void* ", jacobians.ctypes.data)
+            self._rs_gmap, entity_index, _ffi.cast("void* ", jacobians.ctypes.data)
         )
 
     # TODO: test
@@ -135,9 +132,9 @@ class GeometryMap(object):
         _lib.geometry_map_jacobians_dets_normals(
             self._rs_gmap,
             entity_index,
-            _ffi.cast("c_void* ", jacobians.ctypes.data),
-            _ffi.cast("c_void* ", jdets.ctypes.data),
-            _ffi.cast("c_void* ", normals.ctypes.data),
+            _ffi.cast("void* ", jacobians.ctypes.data),
+            _ffi.cast("void* ", jdets.ctypes.data),
+            _ffi.cast("void* ", normals.ctypes.data),
         )
 
     @property
@@ -192,13 +189,11 @@ class Entity(object):
         """C data type."""
         return _ctypes[self.dtype]
 
-    # TODO: test
     @property
     def topology(self) -> Topology:
         """Entity topology."""
         return Topology(_lib.entity_topology(self._rs_entity))
 
-    # TODO: test
     @property
     def geometry(self) -> Geometry:
         """Entity geometry."""
@@ -214,7 +209,6 @@ class Entity(object):
         """The global index of the entity."""
         return _lib.entity_global_index(self._rs_entity)
 
-    # TODO: test
     @property
     def id(self) -> typing.Optional[int]:
         """The id of the entity."""
@@ -223,13 +217,11 @@ class Entity(object):
         else:
             return None
 
-    # TODO: test
     @property
     def entity_type(self) -> ReferenceCellType:
         """The type of the entity."""
         return ReferenceCellType(_lib.entity_entity_type(self._rs_entity))
 
-    # TODO: test
     @property
     def ownership(self) -> typing.Union[Owned, Ghost]:
         """The type of the entity."""
@@ -261,16 +253,14 @@ class Grid(object):
         """Get an entity from its local index."""
         return Entity(_lib.grid_entity(self._rs_grid, dim, local_index), self.geometry_dim, dim)
 
-    # TODO: test
     def entity_from_id(self, dim: int, id: int) -> Entity:
         """Get an entity from its insertion id."""
         return Entity(_lib.grid_entity_from_id(self._rs_grid, dim, id), self.geometry_dim, dim)
 
-    # TODO: test
     def entity_types(self, dim: int) -> typing.List[ReferenceCellType]:
         """Get the entity types of the given dimension."""
-        types = np.empty(_lib.entity_types_size(self._rs_grid, dim), dtype=np.uint8)
-        _lib.entity_types(self._rs_grid, dim, _ffi.cast("uint8_t* ", types.ctypes.data))
+        types = np.empty(_lib.grid_entity_types_size(self._rs_grid, dim), dtype=np.uint8)
+        _lib.grid_entity_types(self._rs_grid, dim, _ffi.cast("uint8_t* ", types.ctypes.data))
         return [ReferenceCellType(i) for i in types]
 
     @property

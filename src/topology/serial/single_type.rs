@@ -16,7 +16,7 @@ use std::iter::Copied;
 #[derive(Debug)]
 pub struct SingleTypeTopology {
     dim: usize,
-    ids: Vec<Option<Vec<usize>>>,
+    pub(crate) ids: Vec<Option<Vec<usize>>>,
     entity_types: Vec<ReferenceCellType>,
     entity_counts: Vec<usize>,
     pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,

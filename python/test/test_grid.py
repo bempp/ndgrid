@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 from ndgrid.grid import from_raw_data
 from ndgrid.shapes import regular_sphere
@@ -21,20 +22,55 @@ def test_from_raw_data():
     assert grid.geometry_dim == 3
 
 
-def test_entities():
-    grid = regular_sphere(4)
+@pytest.mark.parametrize("level", range(4))
+def test_entities(level):
+    grid = regular_sphere(level)
     for i in range(grid.entity_count(ReferenceCellType.Triangle)):
         entity = grid.entity(2, i)
         assert entity.local_index == i
+        if entity.id is not None:
+            assert i == grid.entity_from_id(2, entity.id).local_index
 
 
-def test_subentities():
+@pytest.mark.parametrize("level", range(4))
+def test_entity_types(level):
     etypes = [
         ReferenceCellType.Point,
         ReferenceCellType.Interval,
         ReferenceCellType.Triangle,
     ]
-    grid = regular_sphere(4)
+    grid = regular_sphere(level)
+    for d, e in enumerate(etypes):
+        assert grid.entity_types(d) == [e]
+
+        for i in range(grid.entity_count(e)):
+            entity = grid.entity(d, i)
+            assert entity.entity_type == e
+
+
+@pytest.mark.parametrize("level", range(4))
+def test_ownership(level):
+    etypes = [
+        ReferenceCellType.Point,
+        ReferenceCellType.Interval,
+        ReferenceCellType.Triangle,
+    ]
+    grid = regular_sphere(level)
+    for d, e in enumerate(etypes):
+        for i in range(grid.entity_count(e)):
+            entity = grid.entity(d, i)
+            assert entity.ownership.is_owned
+
+
+
+@pytest.mark.parametrize("level", range(4))
+def test_subentities(level):
+    etypes = [
+        ReferenceCellType.Point,
+        ReferenceCellType.Interval,
+        ReferenceCellType.Triangle,
+    ]
+    grid = regular_sphere(level)
     connected_entities = [
         [[[] for _ in etypes] for i in range(grid.entity_count(e))] for e in etypes
     ]
@@ -58,3 +94,16 @@ def test_subentities():
             for d2, ce_did2 in enumerate(ce_di):
                 if d2 > d:
                     assert set(ce_did2) == set(entity.topology.connected_entities(d2))
+
+
+@pytest.mark.parametrize("level", range(4))
+def test_geometry(level):
+    grid = regular_sphere(level)
+
+    for cell in range(grid.entity_count(ReferenceCellType.Triangle)):
+        entity = grid.entity(2, cell)
+        assert entity.geometry.degree == 1
+        points = entity.geometry.points()
+        assert points.shape[0] == entity.geometry.point_count
+        for pt in points:
+            assert np.isclose(pt.dot(pt), 1.0)
