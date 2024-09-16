@@ -608,13 +608,68 @@ mod topology {
             }
         }
     }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn topology_sub_entities_size(
+        topology: *const TopologyWrapper,
+        dim: usize,
+    ) -> usize {
+        match (*topology).ttype {
+            TopologyType::SingleTypeEntityTopology => {
+                (*extract_topology::<SingleTypeEntityTopology>(topology)).sub_entity_iter(dim)
+            }
+        }.len()
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn topology_sub_entities(
+        topology: *const TopologyWrapper,
+        dim: usize,
+        entities: *mut usize,
+    ) {
+        for (i, e) in match (*topology).ttype {
+            TopologyType::SingleTypeEntityTopology => {
+                (*extract_topology::<SingleTypeEntityTopology>(topology)).sub_entity_iter(dim)
+            }
+        }.enumerate() {
+            *entities.add(i) = e;
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn topology_connected_entities_size(
+        topology: *const TopologyWrapper,
+        dim: usize,
+    ) -> usize {
+        match (*topology).ttype {
+            TopologyType::SingleTypeEntityTopology => {
+                (*extract_topology::<SingleTypeEntityTopology>(topology)).connected_entity_iter(dim)
+            }
+        }.len()
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn topology_connected_entities(
+        topology: *const TopologyWrapper,
+        dim: usize,
+        entities: *mut usize,
+    ) {
+        for (i, e) in match (*topology).ttype {
+            TopologyType::SingleTypeEntityTopology => {
+                (*extract_topology::<SingleTypeEntityTopology>(topology)).connected_entity_iter(dim)
+            }
+        }.enumerate() {
+            *entities.add(i) = e;
+        }
+    }
 }
 
 mod geometry {
     use super::DType;
-    use crate::geometry::SingleElementEntityGeometry;
+    use crate::{geometry::SingleElementEntityGeometry, traits::{Point, Geometry}, types::RealScalar};
     use ndelement::ciarlet::CiarletElement;
     use std::ffi::c_void;
+    use std::slice::from_raw_parts_mut;
 
     #[derive(Debug, PartialEq, Clone, Copy)]
     #[repr(u8)]
@@ -659,9 +714,52 @@ mod geometry {
         unsafe { drop(Box::from_raw(g)) }
     }
 
-    //unsafe fn extract_geometry<G: Geometry>(geometry: *const GeometryWrapper) -> *const G {
-    //    (*geometry).geometry as *const G
-    //}
+    unsafe fn extract_geometry<G: Geometry>(geometry: *const GeometryWrapper) -> *const G {
+        (*geometry).geometry as *const G
+    }
+
+    unsafe fn geometry_points_internal<T: RealScalar, G: Geometry<T=T>>(geometry: *mut GeometryWrapper, points: *mut c_void) {
+        let points = points as *mut T;
+        for (i, pt) in (*extract_geometry::<G>(geometry)).points().enumerate() {
+            let gdim = pt.dim();
+            pt.coords(from_raw_parts_mut(points.add(gdim * i), gdim));
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn geometry_points(geometry: *mut GeometryWrapper, points: *mut c_void) {
+        match (*geometry).gtype {
+            GeometryType::SingleElementEntityGeometry => match (*geometry).dtype {
+                DType::F32 => geometry_points_internal::<f32, SingleElementEntityGeometry<f32, CiarletElement<f32>>>(geometry, points),
+                DType::F64 => geometry_points_internal::<f64, SingleElementEntityGeometry<f64, CiarletElement<f64>>>(geometry, points),
+            }
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn geometry_point_count(geometry: *mut GeometryWrapper) -> usize {
+        match (*geometry).gtype {
+            GeometryType::SingleElementEntityGeometry => match (*geometry).dtype {
+                DType::F32 => (*extract_geometry::<SingleElementEntityGeometry<f32, CiarletElement<f32>>>(geometry)).point_count(),
+                DType::F64 => (*extract_geometry::<SingleElementEntityGeometry<f64, CiarletElement<f64>>>(geometry)).point_count(),
+            }
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn geometry_degree(geometry: *mut GeometryWrapper) -> usize {
+        match (*geometry).gtype {
+            GeometryType::SingleElementEntityGeometry => match (*geometry).dtype {
+                DType::F32 => (*extract_geometry::<SingleElementEntityGeometry<f32, CiarletElement<f32>>>(geometry)).degree(),
+                DType::F64 => (*extract_geometry::<SingleElementEntityGeometry<f64, CiarletElement<f64>>>(geometry)).degree(),
+            }
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn geometry_dtype(geometry: *const GeometryWrapper) -> u8 {
+        (*geometry).dtype as u8
+    }
 }
 
 mod shapes {

@@ -33,13 +33,71 @@ class Topology(object):
         """Get the index of a subentity."""
         return _lib.topology_sub_entity(self._rs_topology, dim, index)
 
+    # TODO: test
+    def sub_entities(self) -> typing.List[int]:
+        """Get points that define the geometry."""
+        entities = np.empty(_lib.topology_sub_entities_size(self._rs_topology, dim), dtype=self.uintp)
+        _lib.topology_sub_entities(self._rs_topology, _ffi.cast("uintpr_t* ", entities.ctypes.data))
+        return [int(i) for i in entities]
+
+    # TODO: test
+    def connected_entities(self) -> typing.List[int]:
+        """Get points that define the geometry."""
+        entities = np.empty(_lib.topology_connected_entities_size(self._rs_topology, dim), dtype=self.uintp)
+        _lib.topology_connected_entities(self._rs_topology, _ffi.cast("uintpr_t* ", entities.ctypes.data))
+        return [int(i) for i in entities]
+
+
+class Geometry(object):
+    """Entity geometry."""
+
+    def __init__(self, rs_geometry, dim: int):
+        """Initialise."""
+        self._rs_geometry = rs_geometry
+        self._dim = dim
+
+    def __del__(self):
+        """Delete."""
+        _lib.free_geometry(self._rs_geometry)
+
+    # TODO: test
+    def points(self) -> npt.NDArray:
+        """Get points that define the geometry."""
+        pts = np.empty((self.point_count, self._dim), dtype=self._dtype)
+        _lib.geometry_points(self._rs_geometry, _ffi.cast("c_void* ", pts.ctypes.data))
+        return ptn
+
+    @property
+    def dtype(self):
+        """Data type."""
+        return _dtypes[_lib.geometry_dtype(self._rs_geometry)]
+
+    @property
+    def _ctype(self) -> str:
+        """C data type."""
+        return _ctypes[self.dtype]
+
+    # TODO: test
+    @property
+    def point_count(self) -> int:
+        """Number of points."""
+        return _lib.geometry_point_count(self._rs_geometry)
+
+    # TODO: test
+    @property
+    def degree(self) -> int:
+        """Degree of geometry element."""
+        return _lib.geometry_degree(self._rs_geometry)
+
 
 class Entity(object):
     """Entity."""
 
-    def __init__(self, rs_entity):
+    def __init__(self, rs_entity, gdim: int, tdim: int):
         """Initialise."""
         self._rs_entity = rs_entity
+        self._gdim = gdim
+        self._tdim = tdim
 
     def __del__(self):
         """Delete."""
@@ -60,6 +118,12 @@ class Entity(object):
     def topology(self) -> Topology:
         """Entity topology."""
         return Topology(_lib.entity_topology(self._rs_entity))
+
+    # TODO: test
+    @property
+    def geometry(self) -> Geometry:
+        """Entity geometry."""
+        return Geometry(_lib.entity_geometry(self._rs_entity), self._gdim)
 
     @property
     def local_index(self) -> int:
@@ -116,12 +180,12 @@ class Grid(object):
 
     def entity(self, dim: int, local_index: int) -> Entity:
         """Get an entity from its local index."""
-        return Entity(_lib.grid_entity(self._rs_grid, dim, local_index))
+        return Entity(_lib.grid_entity(self._rs_grid, dim, local_index), self.geometry_dim, dim)
 
     # TODO: test
     def entity_from_id(self, dim: int, id: int) -> Entity:
         """Get an entity from its insertion id."""
-        return Entity(_lib.grid_entity_from_id(self._rs_grid, dim, id))
+        return Entity(_lib.grid_entity_from_id(self._rs_grid, dim, id), self.geometry_dim, dim)
 
     # TODO: test
     def entity_types(self, dim: int) -> typing.List[ReferenceCellType]:
