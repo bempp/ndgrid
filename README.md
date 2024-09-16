@@ -11,7 +11,7 @@ ndgrid = "0.1.0"
 ```
 
 ### Python
-You can install the latest release of ndelement by running:
+You can install the latest release of ndgrid by running:
 
 ```bash
 pip3 install ndgrid
