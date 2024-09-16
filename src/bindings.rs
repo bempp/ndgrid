@@ -11,11 +11,13 @@ pub enum DType {
 
 mod grid {
     use super::entity::{EntityType, EntityWrapper};
+    use super::geometry_map::GeometryMapWrapper;
     use super::DType;
     use crate::{grid::SingleElementGrid, traits::Grid, types::RealScalar};
     use ndelement::{
         ciarlet::CiarletElement,
         ciarlet::LagrangeElementFamily,
+        reference_cell,
         traits::{ElementFamily, FiniteElement},
         types::{Continuity, ReferenceCellType},
     };
@@ -135,7 +137,7 @@ mod grid {
         )
     }
 
-    unsafe fn extract_grid<G: Grid>(grid: *const GridWrapper) -> *const G {
+    pub(crate) unsafe fn extract_grid<G: Grid>(grid: *const GridWrapper) -> *const G {
         (*grid).grid as *const G
     }
 
@@ -245,6 +247,47 @@ mod grid {
                 DType::F64 => grid_entity_from_id_internal::<
                     SingleElementGrid<f64, CiarletElement<f64>>,
                 >(grid, dim, id, EntityType::SingleElementGridEntity),
+            },
+        }
+    }
+
+    unsafe fn grid_geometry_map_internal<
+        T: RealScalar,
+        G: Grid<EntityDescriptor = ReferenceCellType, T = T>,
+    >(
+        grid: *const GridWrapper,
+        entity_type: u8,
+        points: *const T,
+        npoints: usize,
+    ) -> *const GeometryMapWrapper {
+        let etype = ReferenceCellType::from(entity_type).unwrap();
+        let gmap = GeometryMapWrapper {
+            geometry_map: Box::into_raw(Box::new((*extract_grid::<G>(grid)).geometry_map(
+                etype,
+                from_raw_parts(points, npoints * reference_cell::dim(etype)),
+            ))) as *const c_void,
+            dtype: (*grid).dtype,
+        };
+        Box::into_raw(Box::new(gmap))
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn grid_geometry_map(
+        grid: *const GridWrapper,
+        entity_type: u8,
+        points: *const c_void,
+        npoints: usize,
+    ) -> *const GeometryMapWrapper {
+        match (*grid).gtype {
+            GridType::SerialSingleElementGrid => match (*grid).dtype {
+                DType::F32 => grid_geometry_map_internal::<
+                    f32,
+                    SingleElementGrid<f32, CiarletElement<f32>>,
+                >(grid, entity_type, points as *const f32, npoints),
+                DType::F64 => grid_geometry_map_internal::<
+                    f64,
+                    SingleElementGrid<f64, CiarletElement<f64>>,
+                >(grid, entity_type, points as *const f64, npoints),
             },
         }
     }
@@ -618,7 +661,8 @@ mod topology {
             TopologyType::SingleTypeEntityTopology => {
                 (*extract_topology::<SingleTypeEntityTopology>(topology)).sub_entity_iter(dim)
             }
-        }.len()
+        }
+        .len()
     }
 
     #[no_mangle]
@@ -631,7 +675,9 @@ mod topology {
             TopologyType::SingleTypeEntityTopology => {
                 (*extract_topology::<SingleTypeEntityTopology>(topology)).sub_entity_iter(dim)
             }
-        }.enumerate() {
+        }
+        .enumerate()
+        {
             *entities.add(i) = e;
         }
     }
@@ -645,7 +691,8 @@ mod topology {
             TopologyType::SingleTypeEntityTopology => {
                 (*extract_topology::<SingleTypeEntityTopology>(topology)).connected_entity_iter(dim)
             }
-        }.len()
+        }
+        .len()
     }
 
     #[no_mangle]
@@ -658,7 +705,9 @@ mod topology {
             TopologyType::SingleTypeEntityTopology => {
                 (*extract_topology::<SingleTypeEntityTopology>(topology)).connected_entity_iter(dim)
             }
-        }.enumerate() {
+        }
+        .enumerate()
+        {
             *entities.add(i) = e;
         }
     }
@@ -666,7 +715,11 @@ mod topology {
 
 mod geometry {
     use super::DType;
-    use crate::{geometry::SingleElementEntityGeometry, traits::{Point, Geometry}, types::RealScalar};
+    use crate::{
+        geometry::SingleElementEntityGeometry,
+        traits::{Geometry, Point},
+        types::RealScalar,
+    };
     use ndelement::ciarlet::CiarletElement;
     use std::ffi::c_void;
     use std::slice::from_raw_parts_mut;
@@ -718,7 +771,10 @@ mod geometry {
         (*geometry).geometry as *const G
     }
 
-    unsafe fn geometry_points_internal<T: RealScalar, G: Geometry<T=T>>(geometry: *mut GeometryWrapper, points: *mut c_void) {
+    unsafe fn geometry_points_internal<T: RealScalar, G: Geometry<T = T>>(
+        geometry: *mut GeometryWrapper,
+        points: *mut c_void,
+    ) {
         let points = points as *mut T;
         for (i, pt) in (*extract_geometry::<G>(geometry)).points().enumerate() {
             let gdim = pt.dim();
@@ -730,9 +786,15 @@ mod geometry {
     pub unsafe extern "C" fn geometry_points(geometry: *mut GeometryWrapper, points: *mut c_void) {
         match (*geometry).gtype {
             GeometryType::SingleElementEntityGeometry => match (*geometry).dtype {
-                DType::F32 => geometry_points_internal::<f32, SingleElementEntityGeometry<f32, CiarletElement<f32>>>(geometry, points),
-                DType::F64 => geometry_points_internal::<f64, SingleElementEntityGeometry<f64, CiarletElement<f64>>>(geometry, points),
-            }
+                DType::F32 => geometry_points_internal::<
+                    f32,
+                    SingleElementEntityGeometry<f32, CiarletElement<f32>>,
+                >(geometry, points),
+                DType::F64 => geometry_points_internal::<
+                    f64,
+                    SingleElementEntityGeometry<f64, CiarletElement<f64>>,
+                >(geometry, points),
+            },
         }
     }
 
@@ -740,9 +802,15 @@ mod geometry {
     pub unsafe extern "C" fn geometry_point_count(geometry: *mut GeometryWrapper) -> usize {
         match (*geometry).gtype {
             GeometryType::SingleElementEntityGeometry => match (*geometry).dtype {
-                DType::F32 => (*extract_geometry::<SingleElementEntityGeometry<f32, CiarletElement<f32>>>(geometry)).point_count(),
-                DType::F64 => (*extract_geometry::<SingleElementEntityGeometry<f64, CiarletElement<f64>>>(geometry)).point_count(),
-            }
+                DType::F32 => (*extract_geometry::<
+                    SingleElementEntityGeometry<f32, CiarletElement<f32>>,
+                >(geometry))
+                .point_count(),
+                DType::F64 => (*extract_geometry::<
+                    SingleElementEntityGeometry<f64, CiarletElement<f64>>,
+                >(geometry))
+                .point_count(),
+            },
         }
     }
 
@@ -750,15 +818,206 @@ mod geometry {
     pub unsafe extern "C" fn geometry_degree(geometry: *mut GeometryWrapper) -> usize {
         match (*geometry).gtype {
             GeometryType::SingleElementEntityGeometry => match (*geometry).dtype {
-                DType::F32 => (*extract_geometry::<SingleElementEntityGeometry<f32, CiarletElement<f32>>>(geometry)).degree(),
-                DType::F64 => (*extract_geometry::<SingleElementEntityGeometry<f64, CiarletElement<f64>>>(geometry)).degree(),
-            }
+                DType::F32 => (*extract_geometry::<
+                    SingleElementEntityGeometry<f32, CiarletElement<f32>>,
+                >(geometry))
+                .degree(),
+                DType::F64 => (*extract_geometry::<
+                    SingleElementEntityGeometry<f64, CiarletElement<f64>>,
+                >(geometry))
+                .degree(),
+            },
         }
     }
 
     #[no_mangle]
     pub unsafe extern "C" fn geometry_dtype(geometry: *const GeometryWrapper) -> u8 {
         (*geometry).dtype as u8
+    }
+}
+
+mod geometry_map {
+    use super::DType;
+    use crate::{
+        geometry::GeometryMap, traits::GeometryMap as GeometryMapTrait, types::RealScalar,
+    };
+    use std::ffi::c_void;
+    use std::slice::from_raw_parts_mut;
+
+    #[repr(C)]
+    pub struct GeometryMapWrapper {
+        pub geometry_map: *const c_void,
+        pub dtype: DType,
+    }
+
+    impl Drop for GeometryMapWrapper {
+        fn drop(&mut self) {
+            let Self {
+                geometry_map,
+                dtype,
+            } = self;
+            match dtype {
+                DType::F32 => {
+                    drop(unsafe { Box::from_raw(*geometry_map as *mut GeometryMap<f32>) })
+                }
+                DType::F64 => {
+                    drop(unsafe { Box::from_raw(*geometry_map as *mut GeometryMap<f64>) })
+                }
+            }
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn free_geometry_map(g: *mut GeometryMapWrapper) {
+        assert!(!g.is_null());
+        unsafe { drop(Box::from_raw(g)) }
+    }
+
+    unsafe fn extract_geometry_map<'a, T: RealScalar>(
+        gmap: *const GeometryMapWrapper,
+    ) -> *const GeometryMap<'a, T> {
+        (*gmap).geometry_map as *const GeometryMap<T>
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn geometry_map_entity_topology_dimension(
+        gmap: *mut GeometryMapWrapper,
+    ) -> usize {
+        match (*gmap).dtype {
+            DType::F32 => (*extract_geometry_map::<f32>(gmap)).entity_topology_dimension(),
+            DType::F64 => (*extract_geometry_map::<f64>(gmap)).entity_topology_dimension(),
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn geometry_map_geometry_dimension(
+        gmap: *mut GeometryMapWrapper,
+    ) -> usize {
+        match (*gmap).dtype {
+            DType::F32 => (*extract_geometry_map::<f32>(gmap)).geometry_dimension(),
+            DType::F64 => (*extract_geometry_map::<f64>(gmap)).geometry_dimension(),
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn geometry_map_point_count(gmap: *mut GeometryMapWrapper) -> usize {
+        match (*gmap).dtype {
+            DType::F32 => (*extract_geometry_map::<f32>(gmap)).point_count(),
+            DType::F64 => (*extract_geometry_map::<f64>(gmap)).point_count(),
+        }
+    }
+
+    unsafe fn geometry_map_points_internal<T: RealScalar>(
+        gmap: *mut GeometryMapWrapper,
+        entity_index: usize,
+        points: *mut T,
+    ) {
+        let map = extract_geometry_map::<T>(gmap);
+        (*map).points(
+            entity_index,
+            from_raw_parts_mut(points, (*map).geometry_dimension() * (*map).point_count()),
+        );
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn geometry_map_points(
+        gmap: *mut GeometryMapWrapper,
+        entity_index: usize,
+        points: *mut c_void,
+    ) {
+        match (*gmap).dtype {
+            DType::F32 => {
+                geometry_map_points_internal::<f32>(gmap, entity_index, points as *mut f32)
+            }
+            DType::F64 => {
+                geometry_map_points_internal::<f64>(gmap, entity_index, points as *mut f64)
+            }
+        }
+    }
+
+    unsafe fn geometry_map_jacobians_internal<T: RealScalar>(
+        gmap: *mut GeometryMapWrapper,
+        entity_index: usize,
+        jacobians: *mut T,
+    ) {
+        let map = extract_geometry_map::<T>(gmap);
+        (*map).jacobians(
+            entity_index,
+            from_raw_parts_mut(
+                jacobians,
+                (*map).geometry_dimension()
+                    * (*map).entity_topology_dimension()
+                    * (*map).point_count(),
+            ),
+        );
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn geometry_map_jacobians(
+        gmap: *mut GeometryMapWrapper,
+        entity_index: usize,
+        jacobians: *mut c_void,
+    ) {
+        match (*gmap).dtype {
+            DType::F32 => {
+                geometry_map_jacobians_internal::<f32>(gmap, entity_index, jacobians as *mut f32)
+            }
+            DType::F64 => {
+                geometry_map_jacobians_internal::<f64>(gmap, entity_index, jacobians as *mut f64)
+            }
+        }
+    }
+
+    unsafe fn geometry_map_jacobians_dets_normals_internal<T: RealScalar>(
+        gmap: *mut GeometryMapWrapper,
+        entity_index: usize,
+        jacobians: *mut T,
+        jdets: *mut T,
+        normals: *mut T,
+    ) {
+        let map = extract_geometry_map::<T>(gmap);
+        (*map).jacobians_dets_normals(
+            entity_index,
+            from_raw_parts_mut(
+                jacobians,
+                (*map).geometry_dimension()
+                    * (*map).entity_topology_dimension()
+                    * (*map).point_count(),
+            ),
+            from_raw_parts_mut(jdets, (*map).point_count()),
+            from_raw_parts_mut(normals, (*map).geometry_dimension() * (*map).point_count()),
+        );
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn geometry_map_jacobians_dets_normals(
+        gmap: *mut GeometryMapWrapper,
+        entity_index: usize,
+        jacobians: *mut c_void,
+        jdets: *mut c_void,
+        normals: *mut c_void,
+    ) {
+        match (*gmap).dtype {
+            DType::F32 => geometry_map_jacobians_dets_normals_internal::<f32>(
+                gmap,
+                entity_index,
+                jacobians as *mut f32,
+                jdets as *mut f32,
+                normals as *mut f32,
+            ),
+            DType::F64 => geometry_map_jacobians_dets_normals_internal::<f64>(
+                gmap,
+                entity_index,
+                jacobians as *mut f64,
+                jdets as *mut f64,
+                normals as *mut f64,
+            ),
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn geometry_map_dtype(gmap: *const GeometryMapWrapper) -> u8 {
+        (*gmap).dtype as u8
     }
 }
 

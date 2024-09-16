@@ -34,17 +34,23 @@ class Topology(object):
         return _lib.topology_sub_entity(self._rs_topology, dim, index)
 
     # TODO: test
-    def sub_entities(self) -> typing.List[int]:
+    def sub_entities(self, dim: int) -> typing.List[int]:
         """Get points that define the geometry."""
-        entities = np.empty(_lib.topology_sub_entities_size(self._rs_topology, dim), dtype=self.uintp)
+        entities = np.empty(
+            _lib.topology_sub_entities_size(self._rs_topology, dim), dtype=self.uintp
+        )
         _lib.topology_sub_entities(self._rs_topology, _ffi.cast("uintpr_t* ", entities.ctypes.data))
         return [int(i) for i in entities]
 
     # TODO: test
-    def connected_entities(self) -> typing.List[int]:
+    def connected_entities(self, dim: int) -> typing.List[int]:
         """Get points that define the geometry."""
-        entities = np.empty(_lib.topology_connected_entities_size(self._rs_topology, dim), dtype=self.uintp)
-        _lib.topology_connected_entities(self._rs_topology, _ffi.cast("uintpr_t* ", entities.ctypes.data))
+        entities = np.empty(
+            _lib.topology_connected_entities_size(self._rs_topology, dim), dtype=self.uintp
+        )
+        _lib.topology_connected_entities(
+            self._rs_topology, _ffi.cast("uintpr_t* ", entities.ctypes.data)
+        )
         return [int(i) for i in entities]
 
 
@@ -65,7 +71,7 @@ class Geometry(object):
         """Get points that define the geometry."""
         pts = np.empty((self.point_count, self._dim), dtype=self._dtype)
         _lib.geometry_points(self._rs_geometry, _ffi.cast("c_void* ", pts.ctypes.data))
-        return ptn
+        return pts
 
     @property
     def dtype(self):
@@ -88,6 +94,82 @@ class Geometry(object):
     def degree(self) -> int:
         """Degree of geometry element."""
         return _lib.geometry_degree(self._rs_geometry)
+
+
+class GeometryMap(object):
+    """Geometry map."""
+
+    def __init__(self, rs_gmap):
+        """Initialise."""
+        self._rs_gmap = rs_gmap
+
+    def __del__(self):
+        """Delete."""
+        _lib.free_geometry_map(self._rs_gmap)
+
+    # TODO: test
+    def points(self, entity_index: int, points: npt.NDArray[np.floating]):
+        """Get the physical points for an entity."""
+        assert points.dtype == self.dtype
+        _lib.geometry_map_points(
+            self._rs_gmap, entity_index, _ffi.cast("c_void* ", points.ctypes.data)
+        )
+
+    # TODO: test
+    def jacobians(self, entity_index: int, jacobians: npt.NDArray[np.floating]):
+        """Get the jacobians for an entity."""
+        assert jacobians.dtype == self.dtype
+        _lib.geometry_map_jacobians(
+            self._rs_gmap, entity_index, _ffi.cast("c_void* ", jacobians.ctypes.data)
+        )
+
+    # TODO: test
+    def jacobians_dets_normals(
+        self,
+        entity_index: int,
+        jacobians: npt.NDArray[np.floating],
+        jdets: npt.NDArray[np.floating],
+        normals: npt.NDArray[np.floating],
+    ):
+        """Get the jacobians, their determinants, and the normals for an entity."""
+        assert jacobians.dtype == self.dtype
+        assert jdets.dtype == self.dtype
+        assert normals.dtype == self.dtype
+        _lib.geometry_map_jacobians_dets_normals(
+            self._rs_gmap,
+            entity_index,
+            _ffi.cast("c_void* ", jacobians.ctypes.data),
+            _ffi.cast("c_void* ", jdets.ctypes.data),
+            _ffi.cast("c_void* ", normals.ctypes.data),
+        )
+
+    @property
+    def dtype(self):
+        """Data type."""
+        return _dtypes[_lib.geometry_map_dtype(self._rs_gmap)]
+
+    @property
+    def _ctype(self) -> str:
+        """C data type."""
+        return _ctypes[self.dtype]
+
+    # TODO: test
+    @property
+    def entity_topology_dimension(self) -> int:
+        """The topoloical dimension of the entity being mapped."""
+        return _lib.geometry_map_entity_topology_dimension(self._rs_gmap)
+
+    # TODO: test
+    @property
+    def geometry_dimension(self) -> int:
+        """The geometric dimension of the physical space."""
+        return _lib.geometry_map_geometry_dimension(self._rs_gmap)
+
+    # TODO: test
+    @property
+    def point_count(self) -> int:
+        """The number of reference points that this map uses."""
+        return _lib.geometry_map_point_count(self._rs_gmap)
 
 
 class Entity(object):
