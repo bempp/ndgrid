@@ -1,3 +1,3 @@
 """NDGrid."""
 
-from ndgrid import grid, shapes
+from ndgrid import grid, ownership, shapes
