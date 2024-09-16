@@ -26,7 +26,7 @@ itertools = "0.13.*"
 mpi = { version = "0.8.*", optional = true }
 ndelement = { git = "https://github.com/bempp/ndelement.git" }
 num = "0.4"
-rlst = "0.2.0"
+rlst = { version = "0.2.0", default-features = false }
 serde = { version = "1", features = ["derive"], optional = true }
 ron = { version = "0.8", optional = true }
 
