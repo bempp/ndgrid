@@ -332,7 +332,7 @@ pub mod grid {
     }
 }
 
-mod entity {
+pub mod entity {
     use super::geometry::{GeometryType, GeometryWrapper};
     use super::topology::{TopologyType, TopologyWrapper};
     use super::DType;
@@ -602,7 +602,7 @@ mod entity {
     }
 }
 
-mod topology {
+pub mod topology {
     use crate::{topology::serial::SingleTypeEntityTopology, traits::Topology};
     use std::ffi::c_void;
 
@@ -713,7 +713,7 @@ mod topology {
     }
 }
 
-mod geometry {
+pub mod geometry {
     use super::DType;
     use crate::{
         geometry::SingleElementEntityGeometry,
@@ -836,7 +836,7 @@ mod geometry {
     }
 }
 
-mod geometry_map {
+pub mod geometry_map {
     use super::DType;
     use crate::{
         geometry::GeometryMap, traits::GeometryMap as GeometryMapTrait, types::RealScalar,
@@ -1021,7 +1021,7 @@ mod geometry_map {
     }
 }
 
-mod shapes {
+pub mod shapes {
     use super::grid::{GridType, GridWrapper};
     use super::DType;
     use crate::shapes::regular_sphere;
