@@ -28,28 +28,25 @@ class Topology(object):
         """Delete."""
         _lib.free_topology(self._rs_topology)
 
-    # TODO: test
     def sub_entity(self, dim: int, index: int) -> int:
         """Get the index of a subentity."""
         return _lib.topology_sub_entity(self._rs_topology, dim, index)
 
-    # TODO: test
     def sub_entities(self, dim: int) -> typing.List[int]:
         """Get points that define the geometry."""
-        entities = np.empty(
-            _lib.topology_sub_entities_size(self._rs_topology, dim), dtype=self.uintp
+        entities = np.empty(_lib.topology_sub_entities_size(self._rs_topology, dim), dtype=np.uintp)
+        _lib.topology_sub_entities(
+            self._rs_topology, dim, _ffi.cast("uintptr_t* ", entities.ctypes.data)
         )
-        _lib.topology_sub_entities(self._rs_topology, _ffi.cast("uintpr_t* ", entities.ctypes.data))
         return [int(i) for i in entities]
 
-    # TODO: test
     def connected_entities(self, dim: int) -> typing.List[int]:
         """Get points that define the geometry."""
         entities = np.empty(
-            _lib.topology_connected_entities_size(self._rs_topology, dim), dtype=self.uintp
+            _lib.topology_connected_entities_size(self._rs_topology, dim), dtype=np.uintp
         )
         _lib.topology_connected_entities(
-            self._rs_topology, _ffi.cast("uintpr_t* ", entities.ctypes.data)
+            self._rs_topology, dim, _ffi.cast("uintptr_t* ", entities.ctypes.data)
         )
         return [int(i) for i in entities]
 
