@@ -1,4 +1,5 @@
 """Ownership."""
+
 from abc import ABC, abstractproperty
 
 

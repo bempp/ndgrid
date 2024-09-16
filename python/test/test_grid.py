@@ -62,7 +62,6 @@ def test_ownership(level):
             assert entity.ownership.is_owned
 
 
-
 @pytest.mark.parametrize("level", range(4))
 def test_subentities(level):
     etypes = [
