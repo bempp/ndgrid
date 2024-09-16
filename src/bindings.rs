@@ -9,7 +9,7 @@ pub enum DType {
     F64 = 1,
 }
 
-mod grid {
+pub mod grid {
     use super::entity::{EntityType, EntityWrapper};
     use super::geometry_map::GeometryMapWrapper;
     use super::DType;
