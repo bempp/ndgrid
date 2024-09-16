@@ -101,7 +101,6 @@ class GeometryMap(object):
         """Delete."""
         _lib.free_geometry_map(self._rs_gmap)
 
-    # TODO: test
     def points(self, entity_index: int, points: npt.NDArray[np.floating]):
         """Get the physical points for an entity."""
         assert points.dtype == self.dtype
@@ -109,7 +108,6 @@ class GeometryMap(object):
             self._rs_gmap, entity_index, _ffi.cast("void* ", points.ctypes.data)
         )
 
-    # TODO: test
     def jacobians(self, entity_index: int, jacobians: npt.NDArray[np.floating]):
         """Get the jacobians for an entity."""
         assert jacobians.dtype == self.dtype
@@ -117,7 +115,6 @@ class GeometryMap(object):
             self._rs_gmap, entity_index, _ffi.cast("void* ", jacobians.ctypes.data)
         )
 
-    # TODO: test
     def jacobians_dets_normals(
         self,
         entity_index: int,
@@ -147,19 +144,16 @@ class GeometryMap(object):
         """C data type."""
         return _ctypes[self.dtype]
 
-    # TODO: test
     @property
     def entity_topology_dimension(self) -> int:
         """The topoloical dimension of the entity being mapped."""
         return _lib.geometry_map_entity_topology_dimension(self._rs_gmap)
 
-    # TODO: test
     @property
     def geometry_dimension(self) -> int:
         """The geometric dimension of the physical space."""
         return _lib.geometry_map_geometry_dimension(self._rs_gmap)
 
-    # TODO: test
     @property
     def point_count(self) -> int:
         """The number of reference points that this map uses."""
@@ -262,6 +256,20 @@ class Grid(object):
         types = np.empty(_lib.grid_entity_types_size(self._rs_grid, dim), dtype=np.uint8)
         _lib.grid_entity_types(self._rs_grid, dim, _ffi.cast("uint8_t* ", types.ctypes.data))
         return [ReferenceCellType(i) for i in types]
+
+    def geometry_map(
+        self, entity_type: ReferenceCellType, points: npt.NDArray[np.floating]
+    ) -> GeometryMap:
+        """Get a geometry map for the given points on an entity."""
+        assert points.dtype == self.dtype
+        return GeometryMap(
+            _lib.grid_geometry_map(
+                self._rs_grid,
+                entity_type.value,
+                _ffi.cast("void* ", points.ctypes.data),
+                points.shape[0],
+            )
+        )
 
     @property
     def dtype(self):
