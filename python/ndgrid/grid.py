@@ -231,13 +231,15 @@ class Entity(object):
 class Grid(object):
     """Grid."""
 
-    def __init__(self, rs_grid):
+    def __init__(self, rs_grid, owned: bool = True):
         """Initialise."""
         self._rs_grid = rs_grid
+        self._owned = owned
 
     def __del__(self):
         """Delete."""
-        _lib.free_grid(self._rs_grid)
+        if self._owned:
+            _lib.free_grid(self._rs_grid)
 
     def entity_count(self, etype: ReferenceCellType) -> int:
         """Get the number of entities of the given type."""
