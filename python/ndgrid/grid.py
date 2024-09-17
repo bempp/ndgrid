@@ -6,6 +6,7 @@ from ndgrid.ownership import Owned, Ghost
 import numpy as np
 import numpy.typing as npt
 from ndgrid._ndgridrs import lib as _lib, ffi as _ffi
+from _cffi_backend import _CDataBase
 
 _dtypes = {
     0: np.float32,
@@ -20,13 +21,15 @@ _ctypes = {
 class Topology(object):
     """Entity topology."""
 
-    def __init__(self, rs_topology):
+    def __init__(self, rs_topology: _CDataBase, owned: bool = True):
         """Initialise."""
         self._rs_topology = rs_topology
+        self._owned = owned
 
     def __del__(self):
         """Delete."""
-        _lib.free_topology(self._rs_topology)
+        if self._owned:
+            _lib.free_topology(self._rs_topology)
 
     def sub_entity(self, dim: int, index: int) -> int:
         """Get the index of a subentity."""
@@ -54,14 +57,16 @@ class Topology(object):
 class Geometry(object):
     """Entity geometry."""
 
-    def __init__(self, rs_geometry, dim: int):
+    def __init__(self, rs_geometry: _CDataBase, dim: int, owned: bool = True):
         """Initialise."""
         self._rs_geometry = rs_geometry
         self._dim = dim
+        self._owned = owned
 
     def __del__(self):
         """Delete."""
-        _lib.free_geometry(self._rs_geometry)
+        if self._owned:
+            _lib.free_geometry(self._rs_geometry)
 
     def points(self) -> npt.NDArray:
         """Get points that define the geometry."""
@@ -93,13 +98,15 @@ class Geometry(object):
 class GeometryMap(object):
     """Geometry map."""
 
-    def __init__(self, rs_gmap):
+    def __init__(self, rs_gmap: _CDataBase, owned: bool = True):
         """Initialise."""
         self._rs_gmap = rs_gmap
+        self._owned = owned
 
     def __del__(self):
         """Delete."""
-        _lib.free_geometry_map(self._rs_gmap)
+        if self._owned:
+            _lib.free_geometry_map(self._rs_gmap)
 
     def points(self, entity_index: int, points: npt.NDArray[np.floating]):
         """Get the physical points for an entity."""
@@ -163,15 +170,17 @@ class GeometryMap(object):
 class Entity(object):
     """Entity."""
 
-    def __init__(self, rs_entity, gdim: int, tdim: int):
+    def __init__(self, rs_entity: _CDataBase, gdim: int, tdim: int, owned: bool = True):
         """Initialise."""
         self._rs_entity = rs_entity
         self._gdim = gdim
         self._tdim = tdim
+        self._owned = owned
 
     def __del__(self):
         """Delete."""
-        _lib.free_entity(self._rs_entity)
+        if self._owned:
+            _lib.free_entity(self._rs_entity)
 
     @property
     def dtype(self):
@@ -231,7 +240,7 @@ class Entity(object):
 class Grid(object):
     """Grid."""
 
-    def __init__(self, rs_grid, owned: bool = True):
+    def __init__(self, rs_grid: _CDataBase, owned: bool = True):
         """Initialise."""
         self._rs_grid = rs_grid
         self._owned = owned
@@ -296,7 +305,7 @@ class Grid(object):
 
 def from_raw_data(
     coordinates: npt.NDArray[np.floating],
-    cells: npt.NDArray[int],
+    cells: npt.NDArray[np.int64],
     cell_type: ReferenceCellType,
     geometry_degree: int,
 ) -> Grid:
