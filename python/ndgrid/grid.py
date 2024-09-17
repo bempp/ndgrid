@@ -227,7 +227,7 @@ class Entity(object):
 
     @property
     def ownership(self) -> typing.Union[Owned, Ghost]:
-        """The type of the entity."""
+        """The ownership of the entity."""
         if _lib.entity_is_owned(self._rs_entity):
             return Owned()
         else:
