@@ -32,6 +32,7 @@ repository = "https://github.com/bempp/ndgrid"
 [tool.maturin]
 python-source = "python"
 module-name = "ndgrid._ndgridrs"
+no-default-features = true
 
 [tool.ruff]
 line-length = 100
