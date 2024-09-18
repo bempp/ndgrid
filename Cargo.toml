@@ -3,7 +3,7 @@ mpi = ["dep:mpi", "dep:coupe", "ndelement/mpi"]
 serde = ["dep:serde", "ndelement/serde", "dep:ron"]
 strict = []
 sleef = ["rlst/sleef"]
-default = "sleef"
+default = ["sleef"]
 
 [package]
 name = "ndgrid"
