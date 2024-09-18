@@ -26,7 +26,7 @@ crate-type = ["lib", "cdylib"]
 coupe = { version = "0.1", optional = true }
 itertools = "0.13.*"
 mpi = { version = "0.8.*", optional = true }
-ndelement = { "0.1.2", default-features = false }
+ndelement = { version = "0.1.2", default-features = false }
 num = "0.4"
 rlst = { version = "0.2", default-features = false }
 serde = { version = "1", features = ["derive"], optional = true }
