@@ -2,6 +2,8 @@
 mpi = ["dep:mpi", "dep:coupe", "ndelement/mpi"]
 serde = ["dep:serde", "ndelement/serde", "dep:ron"]
 strict = []
+sleef = ["rlst/sleef"]
+default = ["sleef"]
 
 [package]
 name = "ndgrid"
@@ -26,7 +28,7 @@ itertools = "0.13.*"
 mpi = { version = "0.8.*", optional = true }
 ndelement = "0.1.1"
 num = "0.4"
-rlst = { version = "0.2.0", default-features = false }
+rlst = { version = "0.2", default-features = false }
 serde = { version = "1", features = ["derive"], optional = true }
 ron = { version = "0.8", optional = true }
 
