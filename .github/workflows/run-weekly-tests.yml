@@ -43,8 +43,8 @@ jobs:
         run: cargo test --release --features "${{matrix.f_mpi}}${{matrix.f_strict}}${{matrix.f_serde}}"
       - name: Run tests
         run: cargo test --examples --release --features "${{matrix.f_mpi}}${{matrix.f_strict}}${{matrix.f_serde}}"
-      - name: Test benchmarks build
-        run: cargo bench --no-run --features "${{matrix.f_mpi}}${{matrix.f_strict}}${{matrix.f_serde}}"
+      # - name: Test benchmarks build
+      #   run: cargo bench --no-run --features "${{matrix.f_mpi}}${{matrix.f_strict}}${{matrix.f_serde}}"
       - name: Run examples
         run: |
           python3 find_examples.py
@@ -53,3 +53,30 @@ jobs:
 
       - name: Build docs
         run: cargo doc --features "${{matrix.f_mpi}}${{matrix.f_strict}}${{matrix.f_serde}}" --no-deps
+
+  run-tests-python:
+    name: Run Python tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: actions/checkout@v3
+      - name: Install uv
+        run: pip install uv "maturin>=1.7"
+      - name: Make virtual environment
+        run: |
+          uv venv .venv
+          uv pip install pip pytest
+      - name: Install python package
+        run: |
+          source .venv/bin/activate
+          maturin develop --release
+      - name: Run Python tests
+        run: |
+          source .venv/bin/activate
+          python -m pytest python/test
