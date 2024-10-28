@@ -719,7 +719,6 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         let weights = vec![1.0; self.point_count()];
 
         KMeans {
-            part_count: nprocesses,
             delta_threshold: 0.0,
             ..Default::default()
         }
