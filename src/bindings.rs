@@ -49,7 +49,7 @@ pub mod grid {
         gdim: usize,
         cells: *const usize,
         ncells: usize,
-        cell_type: u8,
+        cell_type: ReferenceCellType,
         geometry_degree: usize,
         dtype: DType,
     ) -> *mut GridT {
@@ -59,7 +59,7 @@ pub mod grid {
             gdim: usize,
             cells: *const usize,
             ncells: usize,
-            cell_type: u8,
+            cell_type: ReferenceCellType,
             geometry_degree: usize,
         ) -> *mut GridT {
             let wrapper = grid_t_create();
@@ -67,7 +67,7 @@ pub mod grid {
             let coordinates = unsafe { from_raw_parts(coordinates, npts * gdim) };
             let points_per_cell =
                 LagrangeElementFamily::<T>::new(geometry_degree, Continuity::Standard)
-                    .element(ReferenceCellType::from(cell_type).unwrap())
+                    .element(cell_type)
                     .dim();
             let cells = unsafe { from_raw_parts(cells, ncells * points_per_cell) };
 
@@ -76,7 +76,7 @@ pub mod grid {
                     coordinates,
                     gdim,
                     cells,
-                    ReferenceCellType::from(cell_type).unwrap(),
+                    cell_type,
                     geometry_degree,
                 ),
             );
