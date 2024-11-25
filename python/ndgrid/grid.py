@@ -8,14 +8,11 @@ import numpy.typing as npt
 from ndgrid._ndgridrs import lib as _lib, ffi as _ffi
 from _cffi_backend import _CDataBase
 
-_dtypes = {
-    0: np.float32,
-    1: np.float64,
+_rtypes = {
+    np.float32: _lib.DType_F32,
+    np.float64: _lib.DType_F64,
 }
-_ctypes = {
-    np.float32: "float",
-    np.float64: "double",
-}
+_dtypes = {j: i for i, j in _rtypes.items()}
 
 
 class Topology(object):
@@ -29,7 +26,7 @@ class Topology(object):
     def __del__(self):
         """Delete."""
         if self._owned:
-            _lib.free_topology(self._rs_topology)
+            _lib.topology_t_free(self._rs_topology)
 
     def sub_entity(self, dim: int, index: int) -> int:
         """Get the index of a subentity."""
@@ -66,7 +63,7 @@ class Geometry(object):
     def __del__(self):
         """Delete."""
         if self._owned:
-            _lib.free_geometry(self._rs_geometry)
+            _lib.geometry_t_free(self._rs_geometry)
 
     def points(self) -> npt.NDArray:
         """Get points that define the geometry."""
@@ -78,11 +75,6 @@ class Geometry(object):
     def dtype(self):
         """Data type."""
         return _dtypes[_lib.geometry_dtype(self._rs_geometry)]
-
-    @property
-    def _ctype(self) -> str:
-        """C data type."""
-        return _ctypes[self.dtype]
 
     @property
     def point_count(self) -> int:
@@ -106,7 +98,7 @@ class GeometryMap(object):
     def __del__(self):
         """Delete."""
         if self._owned:
-            _lib.free_geometry_map(self._rs_gmap)
+            _lib.geometry_map_t_free(self._rs_gmap)
 
     def points(self, entity_index: int, points: npt.NDArray[np.floating]):
         """Get the physical points for an entity."""
@@ -147,11 +139,6 @@ class GeometryMap(object):
         return _dtypes[_lib.geometry_map_dtype(self._rs_gmap)]
 
     @property
-    def _ctype(self) -> str:
-        """C data type."""
-        return _ctypes[self.dtype]
-
-    @property
     def entity_topology_dimension(self) -> int:
         """The topoloical dimension of the entity being mapped."""
         return _lib.geometry_map_entity_topology_dimension(self._rs_gmap)
@@ -180,17 +167,12 @@ class Entity(object):
     def __del__(self):
         """Delete."""
         if self._owned:
-            _lib.free_entity(self._rs_entity)
+            _lib.entity_t_free(self._rs_entity)
 
     @property
     def dtype(self):
         """Data type."""
         return _dtypes[_lib.entity_dtype(self._rs_entity)]
-
-    @property
-    def _ctype(self) -> str:
-        """C data type."""
-        return _ctypes[self.dtype]
 
     @property
     def topology(self) -> Topology:
@@ -248,7 +230,7 @@ class Grid(object):
     def __del__(self):
         """Delete."""
         if self._owned:
-            _lib.free_grid(self._rs_grid)
+            _lib.grid_t_free(self._rs_grid)
 
     def entity_count(self, etype: ReferenceCellType) -> int:
         """Get the number of entities of the given type."""
@@ -288,11 +270,6 @@ class Grid(object):
         return _dtypes[_lib.grid_dtype(self._rs_grid)]
 
     @property
-    def _ctype(self):
-        """C data type."""
-        return _ctypes[self.dtype]
-
-    @property
     def topology_dim(self):
         """Topology dimension."""
         return _lib.grid_tdim(self._rs_grid)
@@ -309,30 +286,15 @@ def from_raw_data(
     cell_type: ReferenceCellType,
     geometry_degree: int,
 ) -> Grid:
-    dtype = coordinates.dtype
-    if dtype == np.float64:
-        return Grid(
-            _lib.single_element_grid_new_from_raw_data_f64(
-                _ffi.cast("double*", coordinates.ctypes.data),
-                coordinates.shape[0],
-                coordinates.shape[1],
-                _ffi.cast("uintptr_t*", cells.ctypes.data),
-                cells.shape[0],
-                cell_type.value,
-                geometry_degree,
-            )
+    return Grid(
+        _lib.single_element_grid_new(
+            _ffi.cast("void*", coordinates.ctypes.data),
+            coordinates.shape[0],
+            coordinates.shape[1],
+            _ffi.cast("uintptr_t*", cells.ctypes.data),
+            cells.shape[0],
+            cell_type.value,
+            geometry_degree,
+            _rtypes[coordinates.dtype.type],
         )
-    elif dtype == np.float32:
-        return Grid(
-            _lib.single_element_grid_new_from_raw_data_f32(
-                _ffi.cast("float*", coordinates.ctypes.data),
-                coordinates.shape[0],
-                coordinates.shape[1],
-                _ffi.cast("uintptr_t*", cells.ctypes.data),
-                cells.shape[0],
-                cell_type.value,
-                geometry_degree,
-            )
-        )
-    else:
-        raise TypeError(f"Unsupported dtype: {dtype}")
+    )

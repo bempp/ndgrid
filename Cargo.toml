@@ -35,7 +35,7 @@ num = "0.4"
 rlst = { version = "0.2", default-features = false }
 serde = { version = "1", features = ["derive"], optional = true }
 ron = { version = "0.8", optional = true }
-c-api-tools = { path = "../c-api-tools" }
+c-api-tools = { git = "https://github.com/bempp/c-api-tools.git" }
 
 [dev-dependencies]
 approx = "0.5"
