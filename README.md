@@ -7,7 +7,7 @@ ndgrid is an open-source library written in Rust for n-dimensional grids/meshes.
 You can use the latest release of ndgrid by adding the following to `[dependencies]` section of your Cargo.toml file:
 
 ```toml
-ndgrid = "0.1.3"
+ndgrid = "0.1.4"
 ```
 
 ### Python
