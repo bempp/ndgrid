@@ -369,24 +369,24 @@ pub mod topology {
     use c_api_tools::concretise_types;
 
     #[concretise_types(
-        gen_type(name = "ttype", replace_with = ["SingleTypeEntityTopology"]),
-        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["{{ttype}}"]),
+        gen_type(name = "", replace_with = [""]),
+        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology"]),
     )]
     pub fn topology_sub_entity<T: Topology>(topology: &T, dim: usize, index: usize) -> usize {
         topology.sub_entity(dim, index)
     }
 
     #[concretise_types(
-        gen_type(name = "ttype", replace_with = ["SingleTypeEntityTopology"]),
-        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["{{ttype}}"]),
+        gen_type(name = "", replace_with = [""]),
+        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology"]),
     )]
     pub fn topology_sub_entities_size<T: Topology>(topology: &T, dim: usize) -> usize {
         topology.sub_entity_iter(dim).map(|_| 1).sum()
     }
 
     #[concretise_types(
-        gen_type(name = "ttype", replace_with = ["SingleTypeEntityTopology"]),
-        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["{{ttype}}"]),
+        gen_type(name = "", replace_with = [""]),
+        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology"]),
     )]
     pub fn topology_sub_entities<T: Topology>(topology: &T, dim: usize, entities: *mut usize) {
         for (i, e) in topology.sub_entity_iter(dim).enumerate() {
@@ -397,16 +397,16 @@ pub mod topology {
     }
 
     #[concretise_types(
-        gen_type(name = "ttype", replace_with = ["SingleTypeEntityTopology"]),
-        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["{{ttype}}"]),
+        gen_type(name = "", replace_with = [""]),
+        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology"]),
     )]
     pub fn topology_connected_entities_size<T: Topology>(topology: &T, dim: usize) -> usize {
         topology.connected_entity_iter(dim).map(|_| 1).sum()
     }
 
     #[concretise_types(
-        gen_type(name = "ttype", replace_with = ["SingleTypeEntityTopology"]),
-        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["{{ttype}}"]),
+        gen_type(name = "", replace_with = [""]),
+        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology"]),
     )]
     pub fn topology_connected_entities<T: Topology>(
         topology: &T,
