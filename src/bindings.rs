@@ -53,7 +53,7 @@ pub mod grid {
         geometry_degree: usize,
         dtype: DType,
     ) -> *mut GridT {
-        pub fn single_elemeng_grid_impl<T: RealScalar>(
+        pub fn single_element_grid_impl<T: RealScalar>(
             coordinates: *const T,
             npts: usize,
             gdim: usize,
@@ -84,7 +84,7 @@ pub mod grid {
         }
 
         match dtype {
-            DType::F32 => single_elemeng_grid_impl(
+            DType::F32 => single_element_grid_impl(
                 coordinates as *const f32,
                 npts,
                 gdim,
@@ -93,7 +93,7 @@ pub mod grid {
                 cell_type,
                 geometry_degree,
             ),
-            DType::F64 => single_elemeng_grid_impl(
+            DType::F64 => single_element_grid_impl(
                 coordinates as *const f64,
                 npts,
                 gdim,
