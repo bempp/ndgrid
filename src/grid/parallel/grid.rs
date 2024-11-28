@@ -78,8 +78,8 @@ impl<'a, E: Entity, EntityIter: Iterator<Item = E>> ParallelGridEntityIter<'a, E
         }
     }
 }
-impl<'a, E: Entity, EntityIter: Iterator<Item = E>> Iterator
-    for ParallelGridEntityIter<'a, E, EntityIter>
+impl<E: Entity, EntityIter: Iterator<Item = E>> Iterator
+    for ParallelGridEntityIter<'_, E, EntityIter>
 {
     type Item = ParallelGridEntity<E>;
 
@@ -240,7 +240,7 @@ where
     }
 }
 
-impl<'g, C: Communicator, G: Grid + Sync> ParallelGridTrait<C> for ParallelGrid<'g, C, G> {
+impl<C: Communicator, G: Grid + Sync> ParallelGridTrait<C> for ParallelGrid<'_, C, G> {
     type LocalGrid<'a>
         = LocalGrid<G>
     where
@@ -252,7 +252,7 @@ impl<'g, C: Communicator, G: Grid + Sync> ParallelGridTrait<C> for ParallelGrid<
         &self.local_grid
     }
 }
-impl<'g, C: Communicator, G: Grid + Sync> Grid for ParallelGrid<'g, C, G> {
+impl<C: Communicator, G: Grid + Sync> Grid for ParallelGrid<'_, C, G> {
     type T = G::T;
     type Entity<'a>
         = <LocalGrid<G> as Grid>::Entity<'a>
