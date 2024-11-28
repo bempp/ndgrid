@@ -363,7 +363,7 @@ impl<'t> SingleTypeEntityTopology<'t> {
         }
     }
 }
-impl<'t> Topology for SingleTypeEntityTopology<'t> {
+impl Topology for SingleTypeEntityTopology<'_> {
     type EntityIndexIter<'a>
         = Copied<std::slice::Iter<'a, usize>>
     where

@@ -13,7 +13,7 @@ impl<'a, T: RealScalar> Point<'a, T> {
         Self { coordinates }
     }
 }
-impl<'a, T: RealScalar> PointTrait for Point<'a, T> {
+impl<T: RealScalar> PointTrait for Point<'_, T> {
     type T = T;
 
     fn dim(&self) -> usize {

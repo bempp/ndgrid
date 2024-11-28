@@ -49,8 +49,8 @@ impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
         }
     }
 }
-impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Entity
-    for SingleElementGridEntity<'e, T, E>
+impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Entity
+    for SingleElementGridEntity<'_, T, E>
 {
     type T = T;
     type EntityDescriptor = ReferenceCellType;

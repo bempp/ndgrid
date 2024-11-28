@@ -34,7 +34,7 @@ impl<'a, T: RealScalar, E: FiniteElement> SingleElementEntityGeometry<'a, T, E> 
     }
 }
 
-impl<'g, T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeometry<'g, T, E> {
+impl<T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeometry<'_, T, E> {
     type T = T;
     type Point<'a>
         = Point<'a, T>
