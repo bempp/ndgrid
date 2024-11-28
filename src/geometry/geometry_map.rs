@@ -74,7 +74,7 @@ impl<'a, T: RealScalar> GeometryMap<'a, T> {
     }
 }
 
-impl<'a, T: RealScalar> GeometryMapTrait for GeometryMap<'a, T> {
+impl<T: RealScalar> GeometryMapTrait for GeometryMap<'_, T> {
     type T = T;
 
     fn entity_topology_dimension(&self) -> usize {

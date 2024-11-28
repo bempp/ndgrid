@@ -25,7 +25,10 @@ where
     B::EntityDescriptor: Equivalence,
     B::Grid: Sync,
 {
-    type ParallelGrid<'a, C: Communicator + 'a> = ParallelGrid<'a, C, B::Grid> where Self: 'a;
+    type ParallelGrid<'a, C: Communicator + 'a>
+        = ParallelGrid<'a, C, B::Grid>
+    where
+        Self: 'a;
     fn create_parallel_grid<'a, C: Communicator>(
         &self,
         comm: &'a C,

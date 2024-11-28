@@ -49,13 +49,19 @@ impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
         }
     }
 }
-impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Entity
-    for SingleElementGridEntity<'e, T, E>
+impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Entity
+    for SingleElementGridEntity<'_, T, E>
 {
     type T = T;
     type EntityDescriptor = ReferenceCellType;
-    type Topology<'a> = SingleTypeEntityTopology<'a> where Self: 'a;
-    type Geometry<'a> = SingleElementEntityGeometry<'a, T, E> where Self: 'a;
+    type Topology<'a>
+        = SingleTypeEntityTopology<'a>
+    where
+        Self: 'a;
+    type Geometry<'a>
+        = SingleElementEntityGeometry<'a, T, E>
+    where
+        Self: 'a;
     fn entity_type(&self) -> ReferenceCellType {
         self.grid.topology.entity_types()[self.entity_dim]
     }
@@ -206,10 +212,17 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     for SingleElementGrid<T, E>
 {
     type T = T;
-    type Entity<'a> = SingleElementGridEntity<'a, T, E> where Self: 'a;
-    type GeometryMap<'a> = GeometryMap<'a, T> where Self: 'a;
+    type Entity<'a>
+        = SingleElementGridEntity<'a, T, E>
+    where
+        Self: 'a;
+    type GeometryMap<'a>
+        = GeometryMap<'a, T>
+    where
+        Self: 'a;
     type EntityDescriptor = ReferenceCellType;
-    type EntityIter<'a> = SingleElementGridEntityIter<'a, T, E>
+    type EntityIter<'a>
+        = SingleElementGridEntityIter<'a, T, E>
     where
         Self: 'a;
 
