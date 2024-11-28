@@ -29,8 +29,14 @@ impl<E: Entity> ParallelGridEntity<E> {
 impl<E: Entity> Entity for ParallelGridEntity<E> {
     type T = E::T;
     type EntityDescriptor = E::EntityDescriptor;
-    type Topology<'a> = E::Topology<'a> where Self: 'a;
-    type Geometry<'a> = E::Geometry<'a> where Self: 'a;
+    type Topology<'a>
+        = E::Topology<'a>
+    where
+        Self: 'a;
+    type Geometry<'a>
+        = E::Geometry<'a>
+    where
+        Self: 'a;
     fn entity_type(&self) -> E::EntityDescriptor {
         self.serial_entity.entity_type()
     }
@@ -142,10 +148,17 @@ impl<G: Grid + Sync> LocalGrid<G> {
 }
 impl<G: Grid + Sync> Grid for LocalGrid<G> {
     type T = G::T;
-    type Entity<'a> = ParallelGridEntity<G::Entity<'a>> where Self: 'a;
-    type GeometryMap<'a> = G::GeometryMap<'a> where Self: 'a;
+    type Entity<'a>
+        = ParallelGridEntity<G::Entity<'a>>
+    where
+        Self: 'a;
+    type GeometryMap<'a>
+        = G::GeometryMap<'a>
+    where
+        Self: 'a;
     type EntityDescriptor = G::EntityDescriptor;
-    type EntityIter<'a> = ParallelGridEntityIter<'a, G::Entity<'a>, G::EntityIter<'a>>
+    type EntityIter<'a>
+        = ParallelGridEntityIter<'a, G::Entity<'a>, G::EntityIter<'a>>
     where
         Self: 'a;
 
@@ -228,7 +241,10 @@ where
 }
 
 impl<'g, C: Communicator, G: Grid + Sync> ParallelGridTrait<C> for ParallelGrid<'g, C, G> {
-    type LocalGrid<'a> = LocalGrid<G> where Self: 'a;
+    type LocalGrid<'a>
+        = LocalGrid<G>
+    where
+        Self: 'a;
     fn comm(&self) -> &C {
         self.comm
     }
@@ -238,10 +254,19 @@ impl<'g, C: Communicator, G: Grid + Sync> ParallelGridTrait<C> for ParallelGrid<
 }
 impl<'g, C: Communicator, G: Grid + Sync> Grid for ParallelGrid<'g, C, G> {
     type T = G::T;
-    type Entity<'a> = <LocalGrid<G> as Grid>::Entity<'a> where Self: 'a;
-    type GeometryMap<'a> = <LocalGrid<G> as Grid>::GeometryMap<'a> where Self: 'a;
+    type Entity<'a>
+        = <LocalGrid<G> as Grid>::Entity<'a>
+    where
+        Self: 'a;
+    type GeometryMap<'a>
+        = <LocalGrid<G> as Grid>::GeometryMap<'a>
+    where
+        Self: 'a;
     type EntityDescriptor = <LocalGrid<G> as Grid>::EntityDescriptor;
-    type EntityIter<'a> = <LocalGrid<G> as Grid>::EntityIter<'a> where Self: 'a;
+    type EntityIter<'a>
+        = <LocalGrid<G> as Grid>::EntityIter<'a>
+    where
+        Self: 'a;
 
     fn geometry_dim(&self) -> usize {
         self.local_grid.geometry_dim()

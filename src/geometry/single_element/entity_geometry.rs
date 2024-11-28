@@ -36,8 +36,14 @@ impl<'a, T: RealScalar, E: FiniteElement> SingleElementEntityGeometry<'a, T, E> 
 
 impl<'g, T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeometry<'g, T, E> {
     type T = T;
-    type Point<'a> = Point<'a, T> where Self: 'a;
-    type PointIter<'a> = PointIter<'a, T> where Self: 'a;
+    type Point<'a>
+        = Point<'a, T>
+    where
+        Self: 'a;
+    type PointIter<'a>
+        = PointIter<'a, T>
+    where
+        Self: 'a;
 
     fn points(&self) -> PointIter<'_, T> {
         let gdim = self.geometry.dim();

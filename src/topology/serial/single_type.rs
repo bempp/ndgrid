@@ -364,11 +364,13 @@ impl<'t> SingleTypeEntityTopology<'t> {
     }
 }
 impl<'t> Topology for SingleTypeEntityTopology<'t> {
-    type EntityIndexIter<'a> = Copied<std::slice::Iter<'a, usize>>
+    type EntityIndexIter<'a>
+        = Copied<std::slice::Iter<'a, usize>>
     where
         Self: 'a;
 
-    type ConnectedEntityIndexIter<'a> = Copied<std::slice::Iter<'a, usize>>
+    type ConnectedEntityIndexIter<'a>
+        = Copied<std::slice::Iter<'a, usize>>
     where
         Self: 'a;
 
