@@ -42,7 +42,6 @@ pub mod grid {
     use std::slice::from_raw_parts;
 
     #[no_mangle]
-    #[allow(clippy::too_many_arguments)]
     pub extern "C" fn single_element_grid_new(
         coordinates: *const c_void,
         npts: usize,
@@ -350,6 +349,7 @@ pub mod grid {
             }
         }
 
+        #[allow(clippy::too_many_arguments)]
         #[no_mangle]
         pub unsafe extern "C" fn single_element_grid_borrowed_create(
             tdim: usize,
