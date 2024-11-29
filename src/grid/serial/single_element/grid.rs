@@ -8,7 +8,7 @@ use crate::{
     geometry::{GeometryMap, SingleElementEntityGeometry, SingleElementGeometry},
     topology::serial::{SingleTypeEntityTopology, SingleTypeTopology},
     traits::{Entity, Grid},
-    types::{Ownership, RealScalar},
+    types::{Array2D, Ownership, RealScalar},
 };
 use ndelement::{
     ciarlet::{CiarletElement, LagrangeElementFamily},
@@ -217,7 +217,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     where
         Self: 'a;
     type GeometryMap<'a>
-        = GeometryMap<'a, T>
+        = GeometryMap<'a, T, Array2D<T>, Array2D<usize>>
     where
         Self: 'a;
     type EntityDescriptor = ReferenceCellType;
@@ -279,7 +279,11 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
         })?
     }
 
-    fn geometry_map(&self, entity_type: ReferenceCellType, points: &[T]) -> GeometryMap<'_, T> {
+    fn geometry_map(
+        &self,
+        entity_type: ReferenceCellType,
+        points: &[T],
+    ) -> GeometryMap<'_, T, Array2D<T>, Array2D<usize>> {
         let entity_dim = reference_cell::dim(entity_type);
         let npoints = points.len() / entity_dim;
         let rlst_points = rlst_array_from_slice2!(points, [entity_dim, npoints]);

@@ -2,10 +2,10 @@
 mod entity_geometry;
 mod geometry;
 
-pub use entity_geometry::SingleElementEntityGeometry;
+pub use entity_geometry::{SingleElementEntityGeometry, SingleElementEntityGeometryBorrowed};
 #[cfg(feature = "serde")]
 pub(crate) use geometry::SerializableGeometry;
-pub use geometry::SingleElementGeometry;
+pub use geometry::{SingleElementGeometry, SingleElementGeometryBorrowed};
 
 #[cfg(test)]
 mod test {

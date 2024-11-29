@@ -5,4 +5,4 @@ pub mod serial;
 
 #[cfg(feature = "mpi")]
 pub use parallel::ParallelGrid;
-pub use serial::{SingleElementGrid, SingleElementGridBuilder};
+pub use serial::{SingleElementGrid, SingleElementGridBorrowed, SingleElementGridBuilder};

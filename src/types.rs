@@ -2,7 +2,7 @@
 #[cfg(feature = "mpi")]
 use mpi::traits::Equivalence;
 use num::Float;
-use rlst::{Array, BaseArray, LinAlg, RlstScalar, VectorContainer};
+use rlst::{Array, BaseArray, LinAlg, RlstScalar, SliceContainer, VectorContainer};
 
 /// A real scalar
 pub trait RealScalar: Float + LinAlg + RlstScalar<Real = Self> {}
@@ -14,6 +14,12 @@ impl RealScalar for f64 {}
 pub type ArrayND<const N: usize, T> = Array<T, BaseArray<T, VectorContainer<T>, N>, N>;
 /// A 2-dimensional array
 pub type Array2D<T> = ArrayND<2, T>;
+
+/// An N-dimensional array with borrowed data
+pub type ArrayNDBorrowed<'a, const N: usize, T> =
+    Array<T, BaseArray<T, SliceContainer<'a, T>, N>, N>;
+/// A 2-dimensional array with borrowed data
+pub type Array2DBorrowed<'a, T> = ArrayNDBorrowed<'a, 2, T>;
 
 /// A (cell, local index) pair
 ///

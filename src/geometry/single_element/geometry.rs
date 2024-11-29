@@ -1,7 +1,7 @@
 //! Geometry where each entity of a given dimension is represented by the same element
 #[cfg(feature = "serde")]
 use crate::traits::ConvertToSerializable;
-use crate::types::{Array2D, RealScalar};
+use crate::types::{Array2D, Array2DBorrowed, RealScalar};
 #[cfg(feature = "serde")]
 use ndelement::{
     ciarlet::{lagrange, CiarletElement},
@@ -129,6 +129,58 @@ impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
     }
     /// Cells
     pub fn cells(&self) -> &Array2D<usize> {
+        &self.cells
+    }
+    /// Element for a sub-entity
+    pub fn entity_element(&self, tdim: usize) -> &E {
+        &self.elements[tdim - 1]
+    }
+    /// Element for a cell
+    pub fn element(&self) -> &E {
+        &self.elements[self.elements.len() - 1]
+    }
+}
+
+/// Single element geometry with borrowed data
+pub struct SingleElementGeometryBorrowed<'a, T: RealScalar, E: FiniteElement> {
+    points: Array2DBorrowed<'a, T>,
+    cells: Array2DBorrowed<'a, usize>,
+    elements: Vec<E>,
+}
+
+impl<T: RealScalar, E: FiniteElement> Debug for SingleElementGeometryBorrowed<'_, T, E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        f.debug_struct("SingleElementGeometryBorrowed")
+            .field("points", &self.points)
+            .field("cells", &self.cells)
+            .finish()
+    }
+}
+
+impl<'a, T: RealScalar, E: FiniteElement> SingleElementGeometryBorrowed<'a, T, E> {
+    /// Create single element geometry
+    pub fn new(
+        points: Array2DBorrowed<'a, T>,
+        cells: Array2DBorrowed<'a, usize>,
+        elements: Vec<E>,
+    ) -> Self {
+        Self {
+            points,
+            cells,
+            elements,
+        }
+    }
+
+    /// Geometric dimension
+    pub fn dim(&self) -> usize {
+        self.points().shape()[0]
+    }
+    /// Points
+    pub fn points(&self) -> &Array2DBorrowed<T> {
+        &self.points
+    }
+    /// Cells
+    pub fn cells(&self) -> &Array2DBorrowed<usize> {
         &self.cells
     }
     /// Element for a sub-entity

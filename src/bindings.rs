@@ -29,7 +29,7 @@ pub mod grid {
         entity_t_create, entity_t_unwrap, geometry_map_t_create, geometry_map_t_unwrap,
         grid_t_create, grid_t_unwrap, EntityT, GeometryMapT, GridT,
     };
-    use crate::{traits::Grid, types::RealScalar, SingleElementGrid};
+    use crate::{traits::Grid, types::RealScalar, SingleElementGrid, SingleElementGridBorrowed};
     use c_api_tools::{concretise_types, DType, DTypeIdentifier};
     use ndelement::{
         ciarlet::CiarletElement,
@@ -108,7 +108,7 @@ pub mod grid {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn grid_tdim<G: Grid>(grid: &G) -> usize {
         grid.topology_dim()
@@ -116,7 +116,7 @@ pub mod grid {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn grid_gdim<G: Grid>(grid: &G) -> usize {
         grid.geometry_dim()
@@ -124,7 +124,7 @@ pub mod grid {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn grid_entity_count<G: Grid<EntityDescriptor = ReferenceCellType>>(
         grid: &G,
@@ -135,7 +135,7 @@ pub mod grid {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn grid_entity<G: Grid>(
         grid: &'static G,
@@ -155,7 +155,7 @@ pub mod grid {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn grid_entity_from_id<G: Grid>(grid: &'static G, dim: usize, id: usize) -> *const EntityT {
         let wrapper = entity_t_create();
@@ -171,7 +171,7 @@ pub mod grid {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn grid_geometry_map<G: Grid<EntityDescriptor = ReferenceCellType>>(
         grid: &'static G,
@@ -192,7 +192,7 @@ pub mod grid {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn grid_entity_types_size<G: Grid>(grid: &G, dim: usize) -> usize {
         grid.entity_types(dim).len()
@@ -200,7 +200,7 @@ pub mod grid {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn grid_entity_types<G: Grid<EntityDescriptor = ReferenceCellType>>(
         grid: &G,
@@ -216,7 +216,7 @@ pub mod grid {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn grid_dtype<T: RealScalar + DTypeIdentifier, G: Grid<T = T>>(_grid: &G) -> DType {
         <T as DTypeIdentifier>::dtype()
@@ -251,7 +251,7 @@ pub mod entity {
         TopologyT,
     };
     use crate::{
-        grid::serial::SingleElementGridEntity,
+        grid::serial::{SingleElementGridEntity, SingleElementGridEntityBorrowed},
         traits::Entity,
         types::{Ownership, RealScalar},
     };
@@ -260,7 +260,7 @@ pub mod entity {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridEntityBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn entity_local_index<E: Entity>(entity: &E) -> usize {
         entity.local_index()
@@ -268,7 +268,7 @@ pub mod entity {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridEntityBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn entity_global_index<E: Entity>(entity: &E) -> usize {
         entity.global_index()
@@ -276,7 +276,7 @@ pub mod entity {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridEntityBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn entity_entity_type<E: Entity<EntityDescriptor = ReferenceCellType>>(
         entity: &E,
@@ -286,7 +286,7 @@ pub mod entity {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridEntityBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn entity_has_id<E: Entity>(entity: &E) -> bool {
         entity.id().is_some()
@@ -294,7 +294,7 @@ pub mod entity {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridEntityBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn entity_id<E: Entity>(entity: &E) -> usize {
         entity.id().unwrap()
@@ -302,7 +302,7 @@ pub mod entity {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridEntityBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn entity_is_owned<E: Entity>(entity: &E) -> bool {
         entity.ownership() == Ownership::Owned
@@ -310,7 +310,7 @@ pub mod entity {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridEntityBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn entity_ownership_process<E: Entity>(entity: &E) -> usize {
         if let Ownership::Ghost(process, _index) = entity.ownership() {
@@ -322,7 +322,7 @@ pub mod entity {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridEntityBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn entity_ownership_index<E: Entity>(entity: &E) -> usize {
         if let Ownership::Ghost(_process, index) = entity.ownership() {
@@ -334,7 +334,7 @@ pub mod entity {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridEntityBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn entity_topology<E: Entity>(entity: &'static E) -> *mut TopologyT {
         let wrapper = topology_t_create();
@@ -345,7 +345,7 @@ pub mod entity {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridEntityBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn entity_geometry<E: Entity>(entity: &'static E) -> *mut GeometryT {
         let wrapper = geometry_t_create();
@@ -356,7 +356,7 @@ pub mod entity {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "EntityT", replace_with = ["SingleElementGridEntity<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridEntityBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn entity_dtype<T: RealScalar + DTypeIdentifier, E: Entity<T = T>>(_entity: &E) -> DType {
         <T as DTypeIdentifier>::dtype()
@@ -365,12 +365,15 @@ pub mod entity {
 
 pub mod topology {
     use super::TopologyT;
-    use crate::{topology::serial::SingleTypeEntityTopology, traits::Topology};
+    use crate::{
+        topology::serial::{SingleTypeEntityTopology, SingleTypeEntityTopologyBorrowed},
+        traits::Topology,
+    };
     use c_api_tools::concretise_types;
 
     #[concretise_types(
         gen_type(name = "", replace_with = [""]),
-        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology"]),
+        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology", "SingleTypeEntityTopologyBorrowed"]),
     )]
     pub fn topology_sub_entity<T: Topology>(topology: &T, dim: usize, index: usize) -> usize {
         topology.sub_entity(dim, index)
@@ -378,7 +381,7 @@ pub mod topology {
 
     #[concretise_types(
         gen_type(name = "", replace_with = [""]),
-        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology"]),
+        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology", "SingleTypeEntityTopologyBorrowed"]),
     )]
     pub fn topology_sub_entities_size<T: Topology>(topology: &T, dim: usize) -> usize {
         topology.sub_entity_iter(dim).map(|_| 1).sum()
@@ -386,7 +389,7 @@ pub mod topology {
 
     #[concretise_types(
         gen_type(name = "", replace_with = [""]),
-        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology"]),
+        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology", "SingleTypeEntityTopologyBorrowed"]),
     )]
     pub fn topology_sub_entities<T: Topology>(topology: &T, dim: usize, entities: *mut usize) {
         for (i, e) in topology.sub_entity_iter(dim).enumerate() {
@@ -398,7 +401,7 @@ pub mod topology {
 
     #[concretise_types(
         gen_type(name = "", replace_with = [""]),
-        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology"]),
+        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology", "SingleTypeEntityTopologyBorrowed"]),
     )]
     pub fn topology_connected_entities_size<T: Topology>(topology: &T, dim: usize) -> usize {
         topology.connected_entity_iter(dim).map(|_| 1).sum()
@@ -406,7 +409,7 @@ pub mod topology {
 
     #[concretise_types(
         gen_type(name = "", replace_with = [""]),
-        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology"]),
+        field(arg = 0, name = "wrap", wrapper = "TopologyT", replace_with = ["SingleTypeEntityTopology", "SingleTypeEntityTopologyBorrowed"]),
     )]
     pub fn topology_connected_entities<T: Topology>(
         topology: &T,
@@ -424,7 +427,7 @@ pub mod topology {
 pub mod geometry {
     use super::GeometryT;
     use crate::{
-        geometry::SingleElementEntityGeometry,
+        geometry::{SingleElementEntityGeometry, SingleElementEntityGeometryBorrowed},
         traits::{Geometry, Point},
         types::RealScalar,
     };
@@ -435,7 +438,7 @@ pub mod geometry {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GeometryT", replace_with = ["SingleElementEntityGeometry<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GeometryT", replace_with = ["SingleElementEntityGeometry<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementEntityGeometryBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn geometry_points<G: Geometry>(geometry: &G, points: *mut c_void) {
         let points = points as *mut G::T;
@@ -447,7 +450,7 @@ pub mod geometry {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GeometryT", replace_with = ["SingleElementEntityGeometry<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GeometryT", replace_with = ["SingleElementEntityGeometry<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementEntityGeometryBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn geometry_point_count<G: Geometry>(geometry: &G) -> usize {
         geometry.point_count()
@@ -455,7 +458,7 @@ pub mod geometry {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GeometryT", replace_with = ["SingleElementEntityGeometry<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GeometryT", replace_with = ["SingleElementEntityGeometry<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementEntityGeometryBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn geometry_degree<G: Geometry>(geometry: &G) -> usize {
         geometry.degree()
@@ -463,7 +466,7 @@ pub mod geometry {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GeometryT", replace_with = ["SingleElementEntityGeometry<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        field(arg = 0, name = "wrap", wrapper = "GeometryT", replace_with = ["SingleElementEntityGeometry<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementEntityGeometryBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
     )]
     pub fn geometry_dtype<T: RealScalar + DTypeIdentifier, G: Geometry<T = T>>(
         _geometry: &G,
@@ -475,7 +478,9 @@ pub mod geometry {
 pub mod geometry_map {
     use super::GeometryMapT;
     use crate::{
-        geometry::GeometryMap, traits::GeometryMap as GeometryMapTrait, types::RealScalar,
+        geometry::GeometryMap,
+        traits::GeometryMap as GeometryMapTrait,
+        types::{Array2D, Array2DBorrowed, RealScalar},
     };
     use c_api_tools::{concretise_types, DType, DTypeIdentifier};
     use std::ffi::c_void;
@@ -483,7 +488,8 @@ pub mod geometry_map {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}>"]),
+        gen_type(name = "atype", replace_with = ["Array2D<", "Array2DBorrowed<'_, "]),
+        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}, {{atype}}{{dtype}}>, {{atype}}usize>>"]),
     )]
     pub fn geometry_map_entity_topology_dimension<GM: GeometryMapTrait>(gmap: &GM) -> usize {
         gmap.entity_topology_dimension()
@@ -491,7 +497,8 @@ pub mod geometry_map {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}>"]),
+        gen_type(name = "atype", replace_with = ["Array2D<", "Array2DBorrowed<'_, "]),
+        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}, {{atype}}{{dtype}}>, {{atype}}usize>>"]),
     )]
     pub fn geometry_map_geometry_dimension<GM: GeometryMapTrait>(gmap: &GM) -> usize {
         gmap.geometry_dimension()
@@ -499,7 +506,8 @@ pub mod geometry_map {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}>"]),
+        gen_type(name = "atype", replace_with = ["Array2D<", "Array2DBorrowed<'_, "]),
+        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}, {{atype}}{{dtype}}>, {{atype}}usize>>"]),
     )]
     pub fn geometry_map_point_count<GM: GeometryMapTrait>(gmap: &GM) -> usize {
         gmap.point_count()
@@ -507,7 +515,8 @@ pub mod geometry_map {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}>"]),
+        gen_type(name = "atype", replace_with = ["Array2D<", "Array2DBorrowed<'_, "]),
+        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}, {{atype}}{{dtype}}>, {{atype}}usize>>"]),
     )]
     pub fn geometry_map_points<GM: GeometryMapTrait>(
         gmap: &GM,
@@ -522,7 +531,8 @@ pub mod geometry_map {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}>"]),
+        gen_type(name = "atype", replace_with = ["Array2D<", "Array2DBorrowed<'_, "]),
+        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}, {{atype}}{{dtype}}>, {{atype}}usize>>"]),
     )]
     pub fn geometry_map_jacobians<GM: GeometryMapTrait>(
         gmap: &GM,
@@ -539,7 +549,8 @@ pub mod geometry_map {
     }
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}>"]),
+        gen_type(name = "atype", replace_with = ["Array2D<", "Array2DBorrowed<'_, "]),
+        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}, {{atype}}{{dtype}}>, {{atype}}usize>>"]),
     )]
     pub fn geometry_map_jacobians_dets_normals<GM: GeometryMapTrait>(
         gmap: &GM,
@@ -568,7 +579,8 @@ pub mod geometry_map {
 
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
-        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}>"]),
+        gen_type(name = "atype", replace_with = ["Array2D<", "Array2DBorrowed<'_, "]),
+        field(arg = 0, name = "wrap", wrapper = "GeometryMapT", replace_with = ["GeometryMap<{{dtype}}, {{atype}}{{dtype}}>, {{atype}}usize>>"]),
     )]
     pub fn geometry_map_dtype<T: RealScalar + DTypeIdentifier, GM: GeometryMapTrait<T = T>>(
         _gmap: &GM,
