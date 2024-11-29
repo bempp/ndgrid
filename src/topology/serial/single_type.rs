@@ -410,7 +410,7 @@ impl Topology for SingleTypeEntityTopology<'_> {
 #[derive(Debug)]
 pub struct SingleTypeTopologyBorrowed<'a> {
     dim: usize,
-    pub(crate) ids: &'a [Option<Vec<usize>>],
+    pub(crate) ids: Vec<Option<&'a [usize]>>,
     entity_types: &'a [ReferenceCellType],
     entity_counts: &'a [usize],
     pub(crate) downward_connectivity: Vec<Vec<Array2DBorrowed<'a, usize>>>,
@@ -421,7 +421,7 @@ impl<'a> SingleTypeTopologyBorrowed<'a> {
     /// Create new
     pub fn new(
         dim: usize,
-        ids: &'a [Option<Vec<usize>>],
+        ids: Vec<Option<&'a [usize]>>,
         entity_types: &'a [ReferenceCellType],
         entity_counts: &'a [usize],
         downward_connectivity: Vec<Vec<Array2DBorrowed<'a, usize>>>,

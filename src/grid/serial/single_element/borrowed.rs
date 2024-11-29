@@ -141,7 +141,7 @@ impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
     /// Create new from raw data
     pub fn new(
         tdim: usize,
-        ids: &'a [Option<Vec<usize>>],
+        ids: Vec<Option<&'a [usize]>>,
         entity_types: &'a [ReferenceCellType],
         entity_counts: &'a [usize],
         downward_connectivity: Vec<Vec<Array2DBorrowed<'a, usize>>>,

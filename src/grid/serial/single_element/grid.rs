@@ -206,6 +206,13 @@ impl<T: RealScalar> SingleElementGrid<T, CiarletElement<T>> {
 
         Self { topology, geometry }
     }
+
+    pub(crate) fn internal_geometry(&self) -> &SingleElementGeometry<T, CiarletElement<T>> {
+        &self.geometry
+    }
+    pub(crate) fn internal_topology(&self) -> &SingleTypeTopology {
+        &self.topology
+    }
 }
 
 impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid

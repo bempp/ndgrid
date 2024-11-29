@@ -106,6 +106,381 @@ pub mod grid {
         }
     }
 
+    #[repr(u8)]
+    #[derive(Debug)]
+    pub enum GridType {
+        SingleElementGrid,
+        SingleElementGridBorrowed,
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn grid_type(grid: *mut GridT) -> GridType {
+        #[concretise_types(
+            gen_type(name = "dtype", replace_with = ["f32", "f64"]),
+            field(arg = 1, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        )]
+        pub unsafe fn grid_type_internal<T: RealScalar, G: Grid<T = T>>(
+            grid_t: *mut GridT,
+            _grid: &G,
+        ) -> GridType {
+            if grid_t
+                .as_ref()
+                .unwrap()
+                .inner()
+                .downcast_ref::<SingleElementGrid<T, CiarletElement<T>>>()
+                .is_some()
+            {
+                GridType::SingleElementGrid
+            } else if grid_t
+                .as_ref()
+                .unwrap()
+                .inner()
+                .downcast_ref::<SingleElementGridBorrowed<T, CiarletElement<T>>>()
+                .is_some()
+            {
+                GridType::SingleElementGridBorrowed
+            } else {
+                {
+                    panic!("Unknown type.");
+                };
+            }
+        }
+        grid_type_internal(grid, grid)
+    }
+
+    pub mod single_element_grid {
+        use super::super::{grid_t_create, grid_t_unwrap, GridT};
+        use crate::{
+            traits::Grid, types::RealScalar, SingleElementGrid, SingleElementGridBorrowed,
+        };
+        use c_api_tools::{concretise_types, DType, DTypeIdentifier};
+        use core::ffi::c_void;
+        use ndelement::{
+            ciarlet::{CiarletElement, LagrangeElementFamily},
+            traits::ElementFamily,
+            types::{Continuity, ReferenceCellType},
+        };
+        use rlst::{rlst_array_from_slice2, RawAccess, Shape};
+        use std::slice::from_raw_parts;
+
+        pub struct InternalDataContainer {
+            _ptr: Box<dyn std::any::Any>,
+        }
+
+        /// Free the instance of the wrapper.
+        #[no_mangle]
+        pub unsafe extern "C" fn internal_data_container_free(ptr: *mut InternalDataContainer) {
+            if ptr.is_null() {
+                return;
+            }
+            unsafe {
+                drop(Box::from_raw(ptr));
+            }
+        }
+
+        #[repr(C)]
+        pub struct SingleElementGridCData {
+            internal_storage: *const InternalDataContainer,
+            tdim: usize,
+            id_sizes: *const usize,
+            id_pointers: *const *const usize,
+            entity_types: *const ReferenceCellType,
+            entity_counts: *const usize,
+            downward_connectivity: *const *const *const usize,
+            downward_connectivity_shape0: *const *const usize,
+            upward_connectivity: *const *const *const *const usize,
+            upward_connectivity_lens: *const *const *const usize,
+            points: *const c_void,
+            gdim: usize,
+            npoints: usize,
+            dtype: DType,
+            cells: *const usize,
+            points_per_cell: usize,
+            ncells: usize,
+            geometry_degree: usize,
+        }
+
+        #[allow(clippy::type_complexity)]
+        struct SingleElementGridInternalData {
+            _id_sizes: Vec<usize>,
+            _id_pointers: Vec<*const usize>,
+            _dc: (Vec<Vec<*const usize>>, Vec<*const *const usize>),
+            _dcsh: (Vec<Vec<usize>>, Vec<*const usize>),
+            _uc: (
+                Vec<Vec<Vec<*const usize>>>,
+                Vec<Vec<*const *const usize>>,
+                Vec<*const *const *const usize>,
+            ),
+            _ucl: (
+                Vec<Vec<Vec<usize>>>,
+                Vec<Vec<*const usize>>,
+                Vec<*const *const usize>,
+            ),
+        }
+
+        #[concretise_types(
+            gen_type(name = "dtype", replace_with = ["f32", "f64"]),
+            field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>"]),
+        )]
+        pub fn single_element_grid_cdata<T: RealScalar + DTypeIdentifier>(
+            grid: &SingleElementGrid<T, CiarletElement<T>>,
+        ) -> SingleElementGridCData {
+            let tdim = grid.topology_dim();
+            let gdim = grid.geometry_dim();
+            let dtype = <T as DTypeIdentifier>::dtype();
+
+            let id_sizes_data = grid
+                .internal_topology()
+                .ids
+                .iter()
+                .map(|i| if let Some(j) = i { j.len() } else { 0 })
+                .collect::<Vec<_>>();
+            let id_sizes = id_sizes_data.as_ptr();
+
+            let null_data = [];
+            let id_pointers_data = grid
+                .internal_topology()
+                .ids
+                .iter()
+                .map(|i| {
+                    if let Some(j) = i {
+                        j.as_ptr()
+                    } else {
+                        null_data.as_ptr()
+                    }
+                })
+                .collect::<Vec<_>>();
+            let id_pointers = id_pointers_data.as_ptr();
+
+            let entity_types = grid.internal_topology().entity_types().as_ptr();
+            let entity_counts = grid.internal_topology().entity_counts().as_ptr();
+
+            let dc0 = grid
+                .internal_topology()
+                .downward_connectivity()
+                .iter()
+                .map(|i| i.iter().map(|j| j.data().as_ptr()).collect::<Vec<_>>())
+                .collect::<Vec<_>>();
+            let dc1 = dc0.iter().map(|i| i.as_ptr()).collect::<Vec<_>>();
+            let dc = (dc0, dc1);
+            let downward_connectivity = dc.1.as_ptr();
+
+            let dcsh0 = grid
+                .internal_topology()
+                .downward_connectivity()
+                .iter()
+                .map(|i| i.iter().map(|j| j.shape()[0]).collect::<Vec<_>>())
+                .collect::<Vec<_>>();
+            let dcsh1 = dcsh0.iter().map(|i| i.as_ptr()).collect::<Vec<_>>();
+            let dcsh = (dcsh0, dcsh1);
+            let downward_connectivity_shape0 = dcsh.1.as_ptr();
+
+            let uc0 = grid
+                .internal_topology()
+                .upward_connectivity()
+                .iter()
+                .map(|i| {
+                    i.iter()
+                        .map(|j| j.iter().map(|k| k.as_ptr()).collect::<Vec<_>>())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+            let uc1 = uc0
+                .iter()
+                .map(|i| i.iter().map(|j| j.as_ptr()).collect::<Vec<_>>())
+                .collect::<Vec<_>>();
+            let uc2 = uc1.iter().map(|i| i.as_ptr()).collect::<Vec<_>>();
+            let uc = (uc0, uc1, uc2);
+            let upward_connectivity = uc.2.as_ptr();
+            let ucl0 = grid
+                .internal_topology()
+                .upward_connectivity()
+                .iter()
+                .map(|i| {
+                    i.iter()
+                        .map(|j| j.iter().map(|k| k.len()).collect::<Vec<_>>())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+            let ucl1 = ucl0
+                .iter()
+                .map(|i| i.iter().map(|j| j.as_ptr()).collect::<Vec<_>>())
+                .collect::<Vec<_>>();
+            let ucl2 = ucl1.iter().map(|i| i.as_ptr()).collect::<Vec<_>>();
+            let ucl = (ucl0, ucl1, ucl2);
+            let upward_connectivity_lens = ucl.2.as_ptr();
+
+            let points = grid.internal_geometry().points().data().as_ptr() as *const c_void;
+            let npoints = grid.internal_geometry().points().shape()[1];
+            let cells = grid.internal_geometry().cells().data().as_ptr();
+            let [points_per_cell, ncells] = grid.internal_geometry().cells().shape();
+            let geometry_degree = grid.internal_geometry().element().degree();
+
+            let obj = InternalDataContainer { _ptr: Box::new(()) };
+            let internal_storage = Box::into_raw(Box::new(obj));
+            unsafe {
+                (*internal_storage)._ptr = Box::new(SingleElementGridInternalData {
+                    _id_sizes: id_sizes_data,
+                    _id_pointers: id_pointers_data,
+                    _dc: dc,
+                    _dcsh: dcsh,
+                    _uc: uc,
+                    _ucl: ucl,
+                });
+            }
+            SingleElementGridCData {
+                internal_storage,
+                tdim,
+                id_sizes,
+                id_pointers,
+                entity_types,
+                entity_counts,
+                downward_connectivity,
+                downward_connectivity_shape0,
+                upward_connectivity,
+                upward_connectivity_lens,
+                points,
+                gdim,
+                npoints,
+                dtype,
+                cells,
+                points_per_cell,
+                ncells,
+                geometry_degree,
+            }
+        }
+
+        #[no_mangle]
+        pub unsafe extern "C" fn single_element_grid_borrowed_create(
+            tdim: usize,
+            id_sizes: *const usize,
+            id_pointers: *const *const usize,
+            entity_types: *const ReferenceCellType,
+            entity_counts: *const usize,
+            downward_connectivity: *const *const *const usize,
+            downward_connectivity_shape0: *const *const usize,
+            upward_connectivity: *const *const *const *const usize,
+            upward_connectivity_lens: *const *const *const usize,
+            points: *const c_void,
+            gdim: usize,
+            npoints: usize,
+            dtype: DType,
+            cells: *const usize,
+            points_per_cell: usize,
+            ncells: usize,
+            geometry_degree: usize,
+        ) -> *mut GridT {
+            let wrapper = grid_t_create();
+            let inner = unsafe { grid_t_unwrap(wrapper) }.unwrap();
+
+            let ids = (0..=tdim)
+                .map(|d| {
+                    if *id_sizes.add(d) == 0 {
+                        None
+                    } else {
+                        Some(from_raw_parts(*id_pointers.add(d), *id_sizes.add(d)))
+                    }
+                })
+                .collect::<Vec<_>>();
+            let entity_types = from_raw_parts(entity_types, tdim + 1);
+            let entity_counts = from_raw_parts(entity_counts, tdim + 1);
+            let downward_connectivity = (0..tdim + 1)
+                .map(|d| {
+                    (0..d + 1)
+                        .map(|i| {
+                            let shape = [
+                                *(*downward_connectivity_shape0.add(d)).add(i),
+                                entity_counts[i],
+                            ];
+                            rlst_array_from_slice2!(
+                                from_raw_parts(
+                                    *(*downward_connectivity.add(d)).add(i),
+                                    shape[0] * shape[1]
+                                ),
+                                shape
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+
+            let upward_connectivity = (0..tdim)
+                .map(|d| {
+                    (0..tdim - d)
+                        .map(|i| {
+                            (0..entity_counts[d])
+                                .map(|j| {
+                                    from_raw_parts(
+                                        *(*(*upward_connectivity.add(d)).add(i)).add(j),
+                                        *(*(*upward_connectivity_lens.add(d)).add(i)).add(j),
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+            let cells = rlst_array_from_slice2!(
+                from_raw_parts(cells, points_per_cell * ncells),
+                [points_per_cell, ncells]
+            );
+
+            match dtype {
+                DType::F32 => {
+                    let points = rlst_array_from_slice2!(
+                        from_raw_parts(points as *const f32, gdim * npoints),
+                        [gdim, npoints]
+                    );
+                    let family = LagrangeElementFamily::new(geometry_degree, Continuity::Standard);
+                    let elements = entity_types
+                        .iter()
+                        .skip(1)
+                        .map(|t| family.element(*t))
+                        .collect::<Vec<_>>();
+                    *inner = Box::new(SingleElementGridBorrowed::new(
+                        tdim,
+                        ids,
+                        entity_types,
+                        entity_counts,
+                        downward_connectivity,
+                        upward_connectivity,
+                        points,
+                        cells,
+                        elements,
+                    ));
+                }
+                DType::F64 => {
+                    let points = rlst_array_from_slice2!(
+                        from_raw_parts(points as *const f64, gdim * npoints),
+                        [gdim, npoints]
+                    );
+                    let family = LagrangeElementFamily::new(geometry_degree, Continuity::Standard);
+                    let elements = entity_types
+                        .iter()
+                        .skip(1)
+                        .map(|t| family.element(*t))
+                        .collect::<Vec<_>>();
+                    *inner = Box::new(SingleElementGridBorrowed::new(
+                        tdim,
+                        ids,
+                        entity_types,
+                        entity_counts,
+                        downward_connectivity,
+                        upward_connectivity,
+                        points,
+                        cells,
+                        elements,
+                    ));
+                }
+                _ => {
+                    panic!("Unsupported dtype");
+                }
+            }
+
+            wrapper
+        }
+    }
+
     #[concretise_types(
         gen_type(name = "dtype", replace_with = ["f32", "f64"]),
         field(arg = 0, name = "wrap", wrapper = "GridT", replace_with = ["SingleElementGrid<{{dtype}}, CiarletElement<{{dtype}}>>", "SingleElementGridBorrowed<{{dtype}}, CiarletElement<{{dtype}}>>"]),
