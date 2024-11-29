@@ -390,7 +390,7 @@ pub mod grid {
                         .map(|i| {
                             let shape = [
                                 *(*downward_connectivity_shape0.add(d)).add(i),
-                                entity_counts[i],
+                                entity_counts[d],
                             ];
                             rlst_array_from_slice2!(
                                 from_raw_parts(
