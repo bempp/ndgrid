@@ -7,7 +7,7 @@ default = ["sleef"]
 
 [package]
 name = "ndgrid"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 authors = [
     "Timo Betcke <timo.betcke@gmail.com>",
