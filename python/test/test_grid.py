@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from ndgrid.grid import from_raw_data
+from ndgrid.grid import from_raw_data, Grid
 from ndgrid.shapes import regular_sphere
 from ndelement.reference_cell import ReferenceCellType
 
@@ -106,3 +106,40 @@ def test_geometry(level):
         assert points.shape[0] == entity.geometry.point_count
         for pt in points:
             assert np.isclose(pt.dot(pt), 1.0)
+
+
+def test_grid_recreate_borrowed():
+    from ndgrid._ndgridrs import lib as _lib
+
+    grid = regular_sphere(2)
+
+    assert _lib.grid_type(grid._rs_grid) == _lib.GridType_SingleElementGrid
+
+    cdata = _lib.single_element_grid_cdata(grid._rs_grid)
+
+    grid2 = Grid(
+        _lib.single_element_grid_borrowed_create(
+            cdata.tdim,
+            cdata.id_sizes,
+            cdata.id_pointers,
+            cdata.entity_types,
+            cdata.entity_counts,
+            cdata.downward_connectivity,
+            cdata.downward_connectivity_shape0,
+            cdata.upward_connectivity,
+            cdata.upward_connectivity_lens,
+            cdata.points,
+            cdata.gdim,
+            cdata.npoints,
+            cdata.dtype,
+            cdata.cells,
+            cdata.points_per_cell,
+            cdata.ncells,
+            cdata.geometry_degree,
+        )
+    )
+
+    _lib.internal_data_container_free(cdata.internal_storage)
+
+    assert grid.topology_dim == grid2.topology_dim
+    assert grid.geometry_dim == grid2.geometry_dim

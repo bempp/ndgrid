@@ -3,7 +3,7 @@
 #[cfg(feature = "serde")]
 use crate::traits::ConvertToSerializable;
 use crate::traits::Topology;
-use crate::types::Array2D;
+use crate::types::{Array2D, Array2DBorrowed};
 use itertools::izip;
 use ndelement::reference_cell;
 use ndelement::types::ReferenceCellType;
@@ -79,7 +79,8 @@ impl ConvertToSerializable for SingleTypeTopology {
     }
 }
 
-unsafe impl Sync for SingleTypeTopology {}
+// TODO: delete following line
+// unsafe impl Sync for SingleTypeTopology {}
 
 fn orient_entity(entity_type: ReferenceCellType, vertices: &mut [usize]) {
     match entity_type {
@@ -313,16 +314,28 @@ impl SingleTypeTopology {
         self.dim
     }
     /// Entity types
-    pub fn entity_types(&self) -> &Vec<ReferenceCellType> {
+    pub fn entity_types(&self) -> &[ReferenceCellType] {
         &self.entity_types
     }
-    /// Entity counts
+    /// Entity count
+    pub fn entity_counts(&self) -> &[usize] {
+        &self.entity_counts
+    }
+    /// Entity count
     pub fn entity_count(&self, entity_type: ReferenceCellType) -> usize {
         if !self.entity_types.contains(&entity_type) {
             0
         } else {
             self.entity_counts[reference_cell::dim(entity_type)]
         }
+    }
+    /// Downward connectivity
+    pub fn downward_connectivity(&self) -> &[Vec<Array2D<usize>>] {
+        &self.downward_connectivity
+    }
+    /// Upward connectivity
+    pub fn upward_connectivity(&self) -> &[Vec<Vec<Vec<usize>>>] {
+        &self.upward_connectivity
     }
     /// Cell sub-entity index
     pub fn cell_entity_index(
@@ -364,6 +377,119 @@ impl<'t> SingleTypeEntityTopology<'t> {
     }
 }
 impl Topology for SingleTypeEntityTopology<'_> {
+    type EntityIndexIter<'a>
+        = Copied<std::slice::Iter<'a, usize>>
+    where
+        Self: 'a;
+
+    type ConnectedEntityIndexIter<'a>
+        = Copied<std::slice::Iter<'a, usize>>
+    where
+        Self: 'a;
+
+    fn connected_entity_iter(&self, dim: usize) -> Copied<std::slice::Iter<'_, usize>> {
+        self.topology.upward_connectivity[self.dim][dim - self.dim - 1][self.entity_index]
+            .iter()
+            .copied()
+    }
+
+    fn sub_entity_iter(&self, dim: usize) -> Copied<std::slice::Iter<'_, usize>> {
+        let rows = self.topology.downward_connectivity[self.dim][dim].shape()[0];
+        self.topology.downward_connectivity[self.dim][dim].data()
+            [rows * self.entity_index..rows * (self.entity_index + 1)]
+            .iter()
+            .copied()
+    }
+
+    fn sub_entity(&self, dim: usize, index: usize) -> usize {
+        self.topology.downward_connectivity[self.dim][dim][[index, self.entity_index]]
+    }
+}
+
+/// Topology of a single element grid with borrowed data
+#[derive(Debug)]
+pub struct SingleTypeTopologyBorrowed<'a> {
+    dim: usize,
+    pub(crate) ids: Vec<Option<&'a [usize]>>,
+    entity_types: &'a [ReferenceCellType],
+    entity_counts: &'a [usize],
+    pub(crate) downward_connectivity: Vec<Vec<Array2DBorrowed<'a, usize>>>,
+    pub(crate) upward_connectivity: Vec<Vec<Vec<&'a [usize]>>>,
+}
+
+impl<'a> SingleTypeTopologyBorrowed<'a> {
+    /// Create new
+    pub fn new(
+        dim: usize,
+        ids: Vec<Option<&'a [usize]>>,
+        entity_types: &'a [ReferenceCellType],
+        entity_counts: &'a [usize],
+        downward_connectivity: Vec<Vec<Array2DBorrowed<'a, usize>>>,
+        upward_connectivity: Vec<Vec<Vec<&'a [usize]>>>,
+    ) -> Self {
+        Self {
+            dim,
+            ids,
+            entity_types,
+            entity_counts,
+            downward_connectivity,
+            upward_connectivity,
+        }
+    }
+    /// Topological dimension
+    pub fn dim(&self) -> usize {
+        self.dim
+    }
+    /// Entity types
+    pub fn entity_types(&self) -> &[ReferenceCellType] {
+        self.entity_types
+    }
+    /// Entity counts
+    pub fn entity_count(&self, entity_type: ReferenceCellType) -> usize {
+        if !self.entity_types.contains(&entity_type) {
+            0
+        } else {
+            self.entity_counts[reference_cell::dim(entity_type)]
+        }
+    }
+    /// Cell sub-entity index
+    pub fn cell_entity_index(
+        &self,
+        cell_index: usize,
+        entity_dim: usize,
+        entity_index: usize,
+    ) -> usize {
+        self.downward_connectivity[self.dim][entity_dim][[entity_index, cell_index]]
+    }
+    /// Entity id
+    pub fn entity_id(&self, entity_dim: usize, entity_index: usize) -> Option<usize> {
+        self.ids[entity_dim].as_ref().map(|a| a[entity_index])
+    }
+}
+
+/// Topology of a cell
+#[derive(Debug)]
+pub struct SingleTypeEntityTopologyBorrowed<'a> {
+    topology: &'a SingleTypeTopologyBorrowed<'a>,
+    entity_index: usize,
+    dim: usize,
+}
+
+impl<'t> SingleTypeEntityTopologyBorrowed<'t> {
+    /// Create new
+    pub fn new(
+        topology: &'t SingleTypeTopologyBorrowed<'t>,
+        entity_type: ReferenceCellType,
+        entity_index: usize,
+    ) -> Self {
+        Self {
+            topology,
+            entity_index,
+            dim: reference_cell::dim(entity_type),
+        }
+    }
+}
+impl Topology for SingleTypeEntityTopologyBorrowed<'_> {
     type EntityIndexIter<'a>
         = Copied<std::slice::Iter<'a, usize>>
     where

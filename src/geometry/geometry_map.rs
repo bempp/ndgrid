@@ -1,7 +1,7 @@
 //! Geometry map
 use crate::{
     traits::GeometryMap as GeometryMapTrait,
-    types::{Array2D, ArrayND, RealScalar},
+    types::{ArrayND, RealScalar},
 };
 use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType};
 use rlst::UnsafeRandomAccessByRef;
@@ -9,9 +9,14 @@ use rlst::{rlst_dynamic_array4, RandomAccessByRef, RlstScalar, Shape};
 
 /// Single element geometry
 #[derive(Debug)]
-pub struct GeometryMap<'a, T: RealScalar> {
-    geometry_points: &'a Array2D<T>,
-    entities: &'a Array2D<usize>,
+pub struct GeometryMap<
+    'a,
+    T: RealScalar,
+    B2D: RandomAccessByRef<2, Item = T> + Shape<2>,
+    C2D: RandomAccessByRef<2, Item = usize> + Shape<2>,
+> {
+    geometry_points: &'a B2D,
+    entities: &'a C2D,
     tdim: usize,
     gdim: usize,
     table: ArrayND<4, T>,
@@ -48,13 +53,19 @@ fn cross<T: RlstScalar>(mat: &[T], result: &mut [T]) {
     }
 }
 
-impl<'a, T: RealScalar> GeometryMap<'a, T> {
+impl<
+        'a,
+        T: RealScalar,
+        B2D: RandomAccessByRef<2, Item = T> + Shape<2>,
+        C2D: RandomAccessByRef<2, Item = usize> + Shape<2>,
+    > GeometryMap<'a, T, B2D, C2D>
+{
     /// Create new
     pub fn new<A2D: RandomAccessByRef<2, Item = T> + Shape<2>>(
         element: &impl FiniteElement<CellType = ReferenceCellType, T = T>,
         points: &A2D,
-        geometry_points: &'a Array2D<T>,
-        entities: &'a Array2D<usize>,
+        geometry_points: &'a B2D,
+        entities: &'a C2D,
     ) -> Self {
         let tdim = reference_cell::dim(element.cell_type());
         debug_assert!(points.shape()[0] == tdim);
@@ -74,7 +85,12 @@ impl<'a, T: RealScalar> GeometryMap<'a, T> {
     }
 }
 
-impl<T: RealScalar> GeometryMapTrait for GeometryMap<'_, T> {
+impl<
+        T: RealScalar,
+        B2D: RandomAccessByRef<2, Item = T> + Shape<2>,
+        C2D: RandomAccessByRef<2, Item = usize> + Shape<2>,
+    > GeometryMapTrait for GeometryMap<'_, T, B2D, C2D>
+{
     type T = T;
 
     fn entity_topology_dimension(&self) -> usize {
