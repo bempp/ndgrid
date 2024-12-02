@@ -4,6 +4,7 @@ name: 📦
 
 on:
   push:
+    branches: ['*']
     tags: ['*']
   pull_request:
   workflow_dispatch:
@@ -65,6 +66,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
+      - name: Upgrade pkginfo
+        run: python3 -m pip install --upgrade pkginfo
+
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
