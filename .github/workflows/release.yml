@@ -41,8 +41,9 @@ jobs:
 
       - name: Install maturin, CFFI
         run: |
-          ${{ matrix.platform.python }} -m pip install "maturin>=1.7.2"
-          ${{ matrix.platform.python }} -m pip install cffi
+          cargo install maturin
+#          ${{ matrix.platform.python }} -m pip install "maturin>=1.7.2"
+ #         ${{ matrix.platform.python }} -m pip install cffi
 
       - name: Build wheel
         run: rustup run nightly maturin build --release --out dist -i ${{ matrix.platform.python }} --target ${{ matrix.platform.target }}
