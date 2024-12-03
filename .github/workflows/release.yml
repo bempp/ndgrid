@@ -5,6 +5,7 @@ name: 📦
 on:
   push:
     tags: ['*']
+    branches: ['mscroggs/0.1.5-pypi']
   pull_request:
   workflow_dispatch:
 
@@ -44,7 +45,7 @@ jobs:
           ${{ matrix.platform.python }} -m pip install cffi
 
       - name: Build wheel
-        run: ${{ matrix.platform.python }} -m maturin build --release --out dist -i ${{ matrix.platform.python }} --target ${{ matrix.platform.target }}
+        run: rustup run nightly maturin build --release --out dist -i ${{ matrix.platform.python }} --target ${{ matrix.platform.target }}
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -100,7 +101,7 @@ jobs:
       id-token: write
     name: Push to PyPI
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    # if: startsWith(github.ref, 'refs/tags/')
     needs: [linux, macos, sdist]
     steps:
       - uses: actions/download-artifact@v4
