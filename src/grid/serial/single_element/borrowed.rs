@@ -206,7 +206,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
                 let cell = self.topology.upward_connectivity[dim][self.topology_dim() - dim - 1]
                     [local_index][0];
                 let index = self.topology.downward_connectivity[self.topology_dim()][dim]
-                    .view()
+                    .r()
                     .slice(1, cell)
                     .data()
                     .iter()
