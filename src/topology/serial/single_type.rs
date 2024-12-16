@@ -805,7 +805,7 @@ mod test {
                                 }
                                 for (k, uc_jik) in uc_ji.iter().enumerate() {
                                     for value in uc_jik {
-                                        assert!(dc_ij.view().slice(1, *value).data().contains(&k));
+                                        assert!(dc_ij.r().slice(1, *value).data().contains(&k));
                                     }
                                 }
                             }
