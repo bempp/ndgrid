@@ -1,5 +1,4 @@
 //! Types
-#[cfg(feature = "mpi")]
 use mpi::traits::Equivalence;
 use num::Float;
 use rlst::{Array, BaseArray, LinAlg, RlstScalar, SliceContainer, VectorContainer};
@@ -54,7 +53,6 @@ pub enum Ownership {
     Ghost(usize, usize),
 }
 
-#[cfg(feature = "mpi")]
 unsafe impl Equivalence for Ownership {
     type Out = <u8 as Equivalence>::Out;
     fn equivalent_datatype() -> <u8 as Equivalence>::Out {

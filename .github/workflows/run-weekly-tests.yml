@@ -12,7 +12,6 @@ jobs:
       matrix:
         rust-version: ["stable", "beta", "nightly"]
         mpi: [ 'mpich', 'openmpi']
-        f_mpi: ["", "mpi,"]
         f_strict: ["", "strict,"]
         f_serde: ["", "serde,"]
     steps:
@@ -32,18 +31,16 @@ jobs:
           sudo apt-get install -y libopenblas-dev liblapack-dev
 
       - name: Build rust library
-        run: cargo build --features "${{matrix.f_mpi}}${{matrix.f_strict}}${{matrix.f_serde}}"
+        run: cargo build --features "${{matrix.f_strict}}${{matrix.f_serde}}"
       - name: Build rust library in release mode
-        run: cargo build --release --features "${{matrix.f_mpi}}${{matrix.f_strict}}${{matrix.f_serde}}"
+        run: cargo build --release --features "${{matrix.f_strict}}${{matrix.f_serde}}"
 
       - name: Run unit tests
-        run: cargo test --features "${{matrix.f_mpi}}${{matrix.f_strict}}${{matrix.f_serde}}"
+        run: cargo test --features "${{matrix.f_strict}}${{matrix.f_serde}}"
       - name: Run unit tests in release mode
-        run: cargo test --release --features "${{matrix.f_mpi}}${{matrix.f_strict}}${{matrix.f_serde}}"
+        run: cargo test --release --features "${{matrix.f_strict}}${{matrix.f_serde}}"
       - name: Run tests
-        run: cargo test --examples --release --features "${{matrix.f_mpi}}${{matrix.f_strict}}${{matrix.f_serde}}"
-      # - name: Test benchmarks build
-      #   run: cargo bench --no-run --features "${{matrix.f_mpi}}${{matrix.f_strict}}${{matrix.f_serde}}"
+        run: cargo test --examples --release --features "${{matrix.f_strict}}${{matrix.f_serde}}"
       - name: Run examples
         run: |
           python3 find_examples.py
@@ -51,7 +48,7 @@ jobs:
           ./examples.sh
 
       - name: Build docs
-        run: cargo doc --features "${{matrix.f_mpi}}${{matrix.f_strict}}${{matrix.f_serde}}" --no-deps
+        run: cargo doc --features "${{matrix.f_strict}}${{matrix.f_serde}}" --no-deps
 
   run-tests-python:
     name: Run Python tests

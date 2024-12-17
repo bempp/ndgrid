@@ -1,8 +1,5 @@
 //! RON I/O
-use crate::traits::{ConvertToSerializable, Grid, RONExport, RONImport};
-#[cfg(feature = "mpi")]
-use crate::traits::{ParallelGrid, RONExportParallel};
-#[cfg(feature = "mpi")]
+use crate::traits::{ConvertToSerializable, Grid, RONExport, RONImport, ParallelGrid, RONExportParallel};
 use mpi::traits::Communicator;
 
 impl<G: Grid + ConvertToSerializable> RONExport for G {
@@ -20,7 +17,6 @@ where
     }
 }
 
-#[cfg(feature = "mpi")]
 impl<'a, C: Communicator + 'a, G: ParallelGrid<C>> RONExportParallel<'a, C> for G
 where
     Self::LocalGrid<'a>: RONExport,
