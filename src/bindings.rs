@@ -626,7 +626,7 @@ pub mod entity {
         TopologyT,
     };
     use crate::{
-        grid::serial::{SingleElementGridEntity, SingleElementGridEntityBorrowed},
+        grid::local_grid::{SingleElementGridEntity, SingleElementGridEntityBorrowed},
         traits::Entity,
         types::{Ownership, RealScalar},
     };
@@ -741,7 +741,7 @@ pub mod entity {
 pub mod topology {
     use super::TopologyT;
     use crate::{
-        topology::serial::{SingleTypeEntityTopology, SingleTypeEntityTopologyBorrowed},
+        topology::single_type::{SingleTypeEntityTopology, SingleTypeEntityTopologyBorrowed},
         traits::Topology,
     };
     use c_api_tools::concretise_types;

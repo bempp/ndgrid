@@ -1,5 +1,5 @@
 use ndelement::types::ReferenceCellType;
-use ndgrid::grid::serial::SingleElementGridBuilder;
+use ndgrid::grid::local_grid::SingleElementGridBuilder;
 use ndgrid::traits::{Builder, Entity, Geometry, Grid, Point, Topology};
 
 /// Creating a single element grid

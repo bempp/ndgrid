@@ -3,7 +3,7 @@
 use super::SingleElementGrid;
 use crate::{
     geometry::SingleElementGeometry,
-    topology::serial::SingleTypeTopology,
+    topology::single_type::SingleTypeTopology,
     traits::{Builder, GeometryBuilder, GridBuilder, TopologyBuilder},
     types::RealScalar,
 };

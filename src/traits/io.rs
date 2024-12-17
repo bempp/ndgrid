@@ -4,4 +4,4 @@ mod ron;
 
 pub use gmsh::GmshExport;
 #[cfg(feature = "serde")]
-pub use ron::{ConvertToSerializable, RONExport, RONImport, RONExportParallel, RONImportParallel};
+pub use ron::{ConvertToSerializable, RONExport, RONExportParallel, RONImport, RONImportParallel};

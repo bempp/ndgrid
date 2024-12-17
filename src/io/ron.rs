@@ -1,5 +1,7 @@
 //! RON I/O
-use crate::traits::{ConvertToSerializable, Grid, RONExport, RONImport, ParallelGrid, RONExportParallel};
+use crate::traits::{
+    ConvertToSerializable, Grid, ParallelGrid, RONExport, RONExportParallel, RONImport,
+};
 use mpi::traits::Communicator;
 
 impl<G: Grid + ConvertToSerializable> RONExport for G {

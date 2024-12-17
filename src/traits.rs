@@ -6,18 +6,16 @@ mod geometry;
 mod geometry_map;
 mod grid;
 mod io;
-mod parallel;
 mod topology;
 
-pub use builder::{Builder, GeometryBuilder, GridBuilder, TopologyBuilder};
+pub use builder::{Builder, GeometryBuilder, GridBuilder, ParallelBuilder, TopologyBuilder};
 pub use entity::Entity;
 pub use geometry::{Geometry, Point};
 pub use geometry_map::GeometryMap;
-pub use grid::Grid;
+pub use grid::{Grid, ParallelGrid};
 #[cfg(feature = "serde")]
 pub(crate) use io::ConvertToSerializable;
 pub use io::GmshExport;
 #[cfg(feature = "serde")]
-pub use io::{RONExport, RONImport, RONExportParallel, RONImportParallel};
-pub use parallel::{ParallelBuilder, ParallelGrid};
+pub use io::{RONExport, RONExportParallel, RONImport, RONImportParallel};
 pub use topology::Topology;

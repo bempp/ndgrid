@@ -1,2 +1,2 @@
 //! Grid topology
-pub mod serial;
+pub mod single_type;
