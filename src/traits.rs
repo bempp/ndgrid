@@ -6,7 +6,6 @@ mod geometry;
 mod geometry_map;
 mod grid;
 mod io;
-#[cfg(feature = "mpi")]
 mod parallel;
 mod topology;
 
@@ -20,8 +19,7 @@ pub(crate) use io::ConvertToSerializable;
 pub use io::GmshExport;
 #[cfg(feature = "serde")]
 pub use io::{RONExport, RONImport};
-#[cfg(all(feature = "serde", feature = "mpi"))]
+#[cfg(feature = "serde")]
 pub use io::{RONExportParallel, RONImportParallel};
-#[cfg(feature = "mpi")]
 pub use parallel::{ParallelBuilder, ParallelGrid};
 pub use topology::Topology;

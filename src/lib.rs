@@ -11,6 +11,5 @@ pub mod topology;
 pub mod traits;
 pub mod types;
 
-#[cfg(feature = "mpi")]
 pub use grid::ParallelGrid;
 pub use grid::{SingleElementGrid, SingleElementGridBorrowed, SingleElementGridBuilder};
