@@ -25,6 +25,7 @@ pub struct SingleTypeTopology {
 
 #[cfg(feature = "serde")]
 #[derive(serde::Serialize, Debug, serde::Deserialize)]
+/// Serde serializable topology
 pub struct SerializableTopology {
     dim: usize,
     ids: Vec<Option<Vec<usize>>>,

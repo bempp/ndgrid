@@ -1,7 +1,7 @@
 //! Regular sphere grid
 
 use crate::{
-    grid::serial::{SingleElementGrid, SingleElementGridBuilder},
+    grid::local_grid::{SingleElementGrid, SingleElementGridBuilder},
     traits::Builder,
     types::RealScalar,
 };

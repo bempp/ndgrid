@@ -1,12 +1,12 @@
 //! Single element grid
 #[cfg(feature = "serde")]
 use crate::{
-    geometry::single_element::SerializableGeometry,
-    topology::serial::single_type::SerializableTopology, traits::ConvertToSerializable,
+    geometry::single_element::SerializableGeometry, topology::single_type::SerializableTopology,
+    traits::ConvertToSerializable,
 };
 use crate::{
     geometry::{GeometryMap, SingleElementEntityGeometry, SingleElementGeometry},
-    topology::serial::{SingleTypeEntityTopology, SingleTypeTopology},
+    topology::single_type::{SingleTypeEntityTopology, SingleTypeTopology},
     traits::{Entity, Grid},
     types::{Array2D, Ownership, RealScalar},
 };

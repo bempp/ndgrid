@@ -1,5 +1,9 @@
 //! Grid builder
-use crate::{traits::Grid, types::RealScalar};
+use crate::{
+    traits::{Grid, ParallelGrid},
+    types::RealScalar,
+};
+use mpi::traits::Communicator;
 use std::fmt::Debug;
 use std::hash::Hash;
 
@@ -114,4 +118,23 @@ pub trait GridBuilder: Builder + GeometryBuilder + TopologyBuilder {
         topology: <Self as TopologyBuilder>::GridTopology,
         geometry: <Self as GeometryBuilder>::GridGeometry,
     ) -> <Self as Builder>::Grid;
+}
+
+pub trait ParallelBuilder: Builder {
+    //! MPI parallel grid builder
+
+    /// Parallel grid type
+    type ParallelGrid<'a, C: Communicator + 'a>: Grid + ParallelGrid<C>
+    where
+        Self: 'a;
+
+    /// Create a parallel grid
+    fn create_parallel_grid<'a, C: Communicator>(&self, comm: &'a C) -> Self::ParallelGrid<'a, C>;
+
+    /// Receive a parallel grid
+    fn receive_parallel_grid<'a, C: Communicator>(
+        &self,
+        comm: &'a C,
+        root_rank: i32,
+    ) -> Self::ParallelGrid<'a, C>;
 }

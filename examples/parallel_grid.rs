@@ -1,16 +1,12 @@
-//? run --features "mpi"
+//? mpirun -n {{NPROCESSES}} --features "serde"
 
-#[cfg(feature = "mpi")]
 use mpi::{environment::Universe, topology::Communicator};
-#[cfg(feature = "mpi")]
 use ndelement::types::ReferenceCellType;
-#[cfg(feature = "mpi")]
 use ndgrid::{
-    grid::serial::SingleElementGridBuilder,
+    grid::local_grid::SingleElementGridBuilder,
     traits::{Builder, Grid, ParallelBuilder},
 };
 
-#[cfg(feature = "mpi")]
 fn main() {
     let n = 8;
 
@@ -51,6 +47,3 @@ fn main() {
         grid.entity_count(ReferenceCellType::Quadrilateral)
     );
 }
-
-#[cfg(not(feature = "mpi"))]
-fn main() {}

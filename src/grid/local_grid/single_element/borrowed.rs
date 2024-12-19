@@ -1,7 +1,7 @@
 //! Single element grid
 use crate::{
     geometry::{GeometryMap, SingleElementEntityGeometryBorrowed, SingleElementGeometryBorrowed},
-    topology::serial::{SingleTypeEntityTopologyBorrowed, SingleTypeTopologyBorrowed},
+    topology::single_type::{SingleTypeEntityTopologyBorrowed, SingleTypeTopologyBorrowed},
     traits::{Entity, Grid},
     types::{Array2DBorrowed, Ownership, RealScalar},
 };

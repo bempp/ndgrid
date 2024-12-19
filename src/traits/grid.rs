@@ -1,6 +1,7 @@
 //! Traits for a mesh entity
 use super::{Entity, GeometryMap};
 use crate::types::RealScalar;
+use mpi::traits::Communicator;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter::Iterator;
@@ -57,4 +58,19 @@ pub trait Grid {
         entity_type: Self::EntityDescriptor,
         points: &[Self::T],
     ) -> Self::GeometryMap<'_>;
+}
+
+pub trait ParallelGrid<C: Communicator>: Grid {
+    //! MPI parallel grid
+
+    /// Local grid type
+    type LocalGrid<'a>: Sync
+        + Grid<T = <Self as Grid>::T, EntityDescriptor = <Self as Grid>::EntityDescriptor>
+    where
+        Self: 'a;
+
+    /// MPI communicator
+    fn comm(&self) -> &C;
+    /// Local grid on the current process
+    fn local_grid(&self) -> &Self::LocalGrid<'_>;
 }
