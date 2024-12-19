@@ -1,6 +1,6 @@
 //! Serial grids
 #[cfg(feature = "serde")]
-use crate::traits::{ConvertToSerializable, RONImportParallel};
+use crate::traits::ConvertToSerializable;
 use crate::{
     traits::{Entity, Grid},
     types::Ownership,
@@ -101,6 +101,7 @@ pub struct LocalGrid<G: Grid + Sync> {
 #[cfg(feature = "serde")]
 #[derive(serde::Serialize, Debug, serde::Deserialize)]
 #[serde(bound = "for<'de2> S: serde::Deserialize<'de2>")]
+/// A serde serializable grid
 pub struct SerializableLocalGrid<S: serde::Serialize>
 where
     for<'de2> S: serde::Deserialize<'de2>,
