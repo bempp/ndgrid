@@ -1,4 +1,4 @@
-//? mpirun -n {{NPROCESSES}}
+//? mpirun -n {{NPROCESSES}} --features "serde"
 
 #[cfg(feature = "serde")]
 use mpi::{collective::CommunicatorCollectives, environment::Universe, traits::Communicator};
@@ -6,7 +6,7 @@ use mpi::{collective::CommunicatorCollectives, environment::Universe, traits::Co
 use ndelement::{ciarlet::CiarletElement, types::ReferenceCellType};
 #[cfg(feature = "serde")]
 use ndgrid::{
-    grid::parallel::ParallelGrid,
+    grid::ParallelGrid,
     traits::{Builder, Grid, ParallelBuilder, RONExportParallel, RONImportParallel},
     SingleElementGrid, SingleElementGridBuilder,
 };
