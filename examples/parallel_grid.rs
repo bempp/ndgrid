@@ -1,4 +1,4 @@
-//? run --features "mpi"
+//? mpirun -n {{NPROCESSES}} --features "serde"
 
 use mpi::{environment::Universe, topology::Communicator};
 use ndelement::types::ReferenceCellType;

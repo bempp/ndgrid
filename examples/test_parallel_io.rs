@@ -1,4 +1,4 @@
-//? mpirun -n {{NPROCESSES}} --features "mpi,serde"
+//? mpirun -n {{NPROCESSES}}
 
 #[cfg(feature = "serde")]
 use mpi::{collective::CommunicatorCollectives, environment::Universe, traits::Communicator};
