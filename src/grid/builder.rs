@@ -33,17 +33,35 @@ where
         &self,
         comm: &'a C,
     ) -> ParallelGrid<'a, C, B::Grid> {
+        // Partition the cells via a KMeans algorithm. The midpoint of each cell is used and distributed
+        // across processes via coupe. The returned array assigns each cell a process.
         let cell_owners = self.partition_cells(comm.size() as usize);
+        // Each vertex is assigned the minimum process that has a cell that contains it.
+        // Note that the array is of the size of the points in the grid and contains garbage information
+        // for points that are not vertices.
         let vertex_owners = self.assign_vertex_owners(&cell_owners);
+
+        // This distributes cells, vertices and points to processes.
+        // Each process gets now only the cell that it owns via `cell_owners` but also its neighbours.
+        // Then all the corresponding vertices and points are also added to the corresponding cell.
+        // The layout of the Vec<Vec<usize>> structures is that the outer dimension is the process and
+        // the inner dimension is the index, i.e. points_per_proc[0][j] is the jth point on process 0.
         let (vertices_per_proc, points_per_proc, cells_per_proc) =
             self.get_vertices_points_and_cells(&cell_owners);
 
+        // Distribute the points and corresponding indices to all processes.
         let (point_indices, coordinates) = self.distribute_points(comm, &points_per_proc);
+
+        // Returns the vertex indices on the current process and the corresponding owning processes.
+        // Vertices are reordered so that owned vertices are first.
         let (vertex_indices, vertex_owners) =
             self.distribute_vertices(comm, &vertices_per_proc, &vertex_owners);
+
+        // Distribute the cell information. Cells are reordered so that owned cells are first.
         let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
             self.distribute_cells(comm, &cells_per_proc, &cell_owners);
 
+        // This is executed on all ranks and creates the local grid.
         self.create_parallel_grid_internal(
             comm,
             point_indices,
@@ -121,6 +139,11 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
 
         let serial_grid = self.create_grid_from_topology_geometry(topology, geometry);
 
+        // Create global indices and proper ownership information with ghost process and local index
+        // on ghost process.
+        // After execution `vertex_global_indices` and `cell_global_indices` have the global indices
+        // of the `vertex_indices` and `cell_indices` arrays.
+        // The global indices are not necessarily identical to the original grid indices.
         let (vertex_global_indices, vertex_owners) = self
             .assign_global_indices_and_communicate_owners(comm, &vertex_owners, &vertex_indices);
         let (cell_global_indices, cell_owners) =
@@ -304,6 +327,8 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         let mut to_send = vec![vec![]; comm.size() as usize];
         let mut to_receive = vec![vec![]; comm.size() as usize];
         let mut ids_to_indices = HashMap::new();
+        // Global indices start at 0 for the first process and then are contiguously increased across processes.
+        // This is very inefficient since it effectively serializes the setup.
         let mut global_index = if rank == 0 {
             0
         } else {
@@ -318,7 +343,10 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
                 global_indices[j] = global_index;
                 global_index += 1
             } else {
+                // These are the indices that are sent to the other process.
                 to_send[*o].push(*i);
+                // These are the corresponding local indices of the indices
+                // that are sent out.
                 to_receive[*o].push(j);
             }
         }
@@ -332,6 +360,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             for p in 0..comm.size() {
                 if p != comm.rank() {
                     let process = comm.process_at_rank(p);
+                    // Send my indices to the actual owning process.
                     let _ = WaitGuard::from(process.immediate_send(scope, &to_send[p as usize]));
                 }
             }
@@ -340,6 +369,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         for p in 0..comm.size() {
             if p != comm.rank() {
                 let process = comm.process_at_rank(p);
+                // Receive the indices that are owned by me but are sent to me from other processes.
                 let (r, _status) = process.receive_vec::<usize>();
                 received.push(r);
             } else {
@@ -347,16 +377,20 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             }
         }
 
+        // I am the owning process of the indices that are sent to me. I need send back to the other
+        // process which local indices the indices are associated with that they sent to me.
         let to_send_back = received
             .iter()
             .map(|r| r.iter().map(|i| ids_to_indices[i]).collect::<Vec<_>>())
             .collect::<Vec<_>>();
 
+        // I am also sending back the global indices of my owned indices.
         let global_to_send_back = to_send_back
             .iter()
             .map(|r| r.iter().map(|i| global_indices[*i]).collect::<Vec<_>>())
             .collect::<Vec<_>>();
 
+        // Now do the actual send operations.
         mpi::request::scope(|scope| {
             for p in 0..comm.size() {
                 if p != comm.rank() {
@@ -370,6 +404,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             }
         });
 
+        // And do the actual receive operations.
         for p in 0..comm.size() {
             if p != comm.rank() {
                 let process = comm.process_at_rank(p);
@@ -382,6 +417,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             }
         }
 
+        // Return the global indices and the associated ownership.
         (global_indices, ownership)
     }
 
@@ -470,11 +506,13 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
     ) -> (Vec<usize>, Vec<usize>) {
         let rank = comm.rank() as usize;
 
+        // Assign for each vertex on a proc the corresponding processess that owns the vertex.
         let vertex_owners_per_proc = vertices_per_proc
             .iter()
             .map(|vs| vs.iter().map(|v| vertex_owners[*v]).collect::<Vec<_>>())
             .collect::<Vec<_>>();
 
+        // Send everything around.
         mpi::request::scope(|scope| {
             for i in 0..comm.size() {
                 if i != comm.rank() {
@@ -519,6 +557,11 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         let rank = comm.rank() as usize;
         let mut coords_rank = vec![];
         let mut coords = vec![];
+        // Get the coordinates of all points for all processes.
+        // coords is a Vec<Vec<T>> where outer vec is the process
+        // and the inner vec is the coordinates of the points.
+        // For points on `rank` it just pushes an empty vec and stores
+        // the coordinates in `coords_rank`.
         for (p, points) in points_per_proc.iter().enumerate() {
             let mut coords_i = vec![];
             for i in points {
@@ -531,6 +574,8 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
                 coords.push(coords_i);
             }
         }
+        // Send the points to the other processes, one after another.
+        // This could be much better handled via a broadcast operation.
         mpi::request::scope(|scope| {
             for i in 0..comm.size() {
                 if i != comm.rank() {
@@ -543,6 +588,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             }
         });
 
+        // Returns the indices of the local coordinates and the corresponding points.
         (points_per_proc[rank].clone(), coords_rank)
     }
     /// Receive points from root process
@@ -677,6 +723,8 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
 
     /// Partition the cells
     fn partition_cells(&self, nprocesses: usize) -> Vec<usize> {
+        // Create an initial partitioning that roughly assigns the same
+        // number of cells to each process.
         let mut partition = vec![];
         for i in 0..nprocesses {
             while partition.len() < self.cell_count() * (i + 1) / nprocesses {
@@ -684,6 +732,8 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             }
         }
 
+        // Compute the midpoints of each cell. If the geometric dimension is smaller than 3
+        // then the remaining dimensions are just set to 0.
         let midpoints = (0..self.cell_count())
             .map(|i| {
                 let v = self.cell_points(i);
@@ -719,8 +769,11 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             })
             .collect::<Vec<_>>();
 
+        // Assign equal weights to each cell
         let weights = vec![1.0; self.point_count()];
 
+        // Run the Coupe KMeans algorithm to create the partitioning. Maybe replace
+        // by Metis at some point.
         KMeans {
             delta_threshold: 0.0,
             ..Default::default()
@@ -728,19 +781,24 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         .partition(&mut partition, (&midpoints, &weights))
         .unwrap();
 
+        // Return the new partitioning.
         partition
     }
 
     /// Assign vertex owners
     fn assign_vertex_owners(&self, cell_owners: &[usize]) -> Vec<usize> {
+        // Initialise empty array with number of processes as value and length same as number of points.
         let mut vertex_owners = vec![cell_owners.iter().max().unwrap() + 1; self.point_count()];
 
+        // Each vertex is owned by the minimum process that owns a cell that contains the vertex.
         for (i, owner) in cell_owners.iter().enumerate() {
             for v in self.cell_vertices(i) {
                 vertex_owners[*v] = usize::min(vertex_owners[*v], *owner);
             }
         }
 
+        // Return the vertex owners. Note that the array contains garbage information
+        // for the points of the grids that are not vertices.
         vertex_owners
     }
 
@@ -750,8 +808,10 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         &self,
         cell_owners: &[usize],
     ) -> (Vec<Vec<usize>>, Vec<Vec<usize>>, Vec<Vec<usize>>) {
+        // Each point in the grid is associated with a list of cells that contain it.
         let mut vertex_to_cells = (0..self.point_count()).map(|_| vec![]).collect::<Vec<_>>();
 
+        // For each cell, add the cell to the list of cells that contain each of its vertices.
         for i in 0..self.cell_count() {
             for v in self.cell_vertices(i) {
                 if !vertex_to_cells[*v].contains(&i) {
@@ -760,11 +820,18 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             }
         }
 
+        // Initialise empty arrays for vertices, points and cells for each process.
         let nprocesses = *cell_owners.iter().max().unwrap() + 1;
         let mut vertices = (0..nprocesses).map(|_| vec![]).collect::<Vec<_>>();
         let mut points = (0..nprocesses).map(|_| vec![]).collect::<Vec<_>>();
         let mut cells = (0..nprocesses).map(|_| vec![]).collect::<Vec<_>>();
 
+        // This assigns cell to processes. It iterates through a cell and associates
+        // not only the cell itself to the process that owns it but also adds all the
+        // neighboring cells to the same process. This means that processes own not
+        // only the original cells from `cell_owners` but also all the neighbouring cells.
+        // Also this means that a cell can live on multiple processes.
+        // TODO! Use sets instead of vectors for the cells.
         for (i, owner) in cell_owners.iter().enumerate() {
             for v in self.cell_vertices(i) {
                 for cell in &vertex_to_cells[*v] {
@@ -775,6 +842,9 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             }
         }
 
+        // Now go through and add the points and vertices to the same processes that also the cells are
+        // assigned to.
+        // TODO! This is again superexpensive. Replace the vectors with sets.
         for (vs, ps, cs) in izip!(vertices.iter_mut(), points.iter_mut(), &cells) {
             for c in cs {
                 for v in self.cell_vertices(*c) {
