@@ -435,14 +435,19 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             global_index
         };
         for (index, entity) in grid.entity_iter(dim).enumerate() {
+            // Get vertices of entity.
             let local_v = entity.topology().sub_entity_iter(0).collect::<Vec<_>>();
+            // Assign the global dofs to the entity vertices.
             let mut global_v = local_v
                 .iter()
                 .map(|i| vertex_global_indices[*i])
                 .collect::<Vec<_>>();
             global_v.sort();
+            // Use the sorted global vertices as key that maps to the local index of the entity.
             vertices_to_local_index.insert(global_v.clone(), index);
             let mut in_charge = comm.size() as usize;
+            // The ownership of the entity is assigned to minimum process that owns one of the
+            // vertices of the entity.
             for v in &local_v {
                 in_charge = usize::min(
                     in_charge,
@@ -455,16 +460,22 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
                     },
                 );
             }
+            // If the entity is local simply assign the global index.
             if in_charge == rank {
                 entity_owners[index] = rank;
                 entity_indices[index] = global_index;
                 global_index += 1;
             } else {
+                // Otherwise, we need to ask the process that owns the entity for its global index.
                 to_ask_for[in_charge].extend_from_slice(&global_v);
                 to_ask_for_sizes[in_charge].push(global_v.len());
                 to_ask_for_indices[in_charge].push(index);
             }
         }
+        // Iterate through all the cells. This updates entity ownership to being owned by a cell
+        // it is adjacent to if the cell has a lower process number than the current owner.
+        // I don't think this is necessary. A vertex is already owned by the same process as the smallest
+        // process cell it is adjacent to, and the smallest ownership transfers to the entity because of the above.
         for (cell, ownership) in izip!(grid.entity_iter(grid.topology_dim()), cell_ownership) {
             for entity in cell.topology().sub_entity_iter(dim) {
                 let mut global_v = grid
@@ -1298,6 +1309,19 @@ fn synchronize_indices(
     }
 
     (global_indices, ownership)
+}
+
+// Synchronize the entity ids across processes.
+// - entity_length: The number of vertices in each entity.
+// - entities: An array of size `number_of_entities * entity_length` containing all the global vertex ids for all entities.
+// - owners: An array of size `number_of_entities` containing the owning process of each entity.
+fn synchronize_entities(
+    comm: &impl Communicator,
+    entity_length: usize,
+    entities: Vec<usize>,
+    owners: Vec<usize>,
+) -> (Vec<usize>, Vec<Ownership>) {
+    todo!()
 }
 
 // Performs an all-to-all communication.
