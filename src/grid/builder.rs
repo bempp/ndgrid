@@ -8,6 +8,7 @@ use crate::{
     },
     types::Ownership,
 };
+use core::sync;
 use itertools::{izip, Chunk, Itertools};
 use mpi::{
     collective::SystemOperation,
@@ -379,22 +380,68 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         // of the `vertex_indices` and `cell_indices` arrays.
         // The global indices are not necessarily identical to the original grid indices.
         let (vertex_global_indices, vertex_owners) =
-            synchronize_indices(comm, &vertex_indices, &vertex_owners);
+            synchronize_entities(comm, 1, &vertex_indices, &vertex_owners);
         let (cell_global_indices, cell_owners) =
-            synchronize_indices(comm, &cell_indices, &cell_owners);
+            synchronize_entities(comm, 1, &cell_indices, &cell_owners);
+
+        // For later we need a map from vertex global indices to vertex owners.
+        let mut vertex_global_indices_to_owners = HashMap::<usize, usize>::new();
+        for (global_index, owner) in izip!(&vertex_global_indices, &vertex_owners) {
+            let owner_rank = match *owner {
+                Ownership::Owned => rank,
+                Ownership::Ghost(p, _) => p,
+                _ => panic!("Unsupported ownership: {:?}", owner),
+            };
+            vertex_global_indices_to_owners.insert(*global_index, owner_rank);
+        }
 
         let mut owners = vec![vertex_owners];
-        let mut global_indices = vec![vertex_global_indices];
+        let mut global_indices = vec![vertex_global_indices.clone()];
         for dim in 1..self.tdim() {
-            let (entity_global_indices, entity_owners) = self
-                .assign_sub_entity_global_indices_and_owners(
-                    comm,
-                    &serial_grid,
-                    &owners[0],
-                    &global_indices[0],
-                    &cell_owners,
-                    dim,
-                );
+            // We now iterate through the entities of varying dimensions and assign global indices and ownership.
+            // First we need to get out the vertices assigned with each entity and figure out the ownership of the entity.
+            // Ownership is determined by the minimum process that owns one of the vertices of the entity.
+
+            // We get out the chunk length by probing the first entity. This only works because the grid has a single
+            // element type.
+            let chunk_length = serial_grid
+                .entity(dim, 0)
+                .unwrap()
+                .topology()
+                .sub_entity_iter(0)
+                .count();
+
+            // We have the chunk length. So iterate through to get all the vertices.
+            let number_of_entities = serial_grid.entity_iter(dim).count();
+            let mut entities = Vec::with_capacity(number_of_entities * chunk_length);
+            let mut entity_ranks = Vec::with_capacity(number_of_entities * chunk_length);
+            for entity in serial_grid.entity_iter(dim) {
+                // We iterate through the vertices of the entity and get the global indices of the vertices.
+                // This works because the topology returns positions into the vertex array.
+                // Hence, we can use those indices to map to the global indices.
+                // We also sort everything since later we use the sorted global indices as keys in a hash map
+                // within the `synchronize_entities` function.
+                let vertices = entity
+                    .topology()
+                    .sub_entity_iter(0)
+                    .map(|v| vertex_global_indices[v])
+                    .sorted()
+                    .collect_vec();
+                let owner = *vertices
+                    .iter()
+                    .map(|v| vertex_global_indices_to_owners.get(v).unwrap())
+                    .min()
+                    .unwrap();
+                entities.extend(entity.topology().sub_entity_iter(0));
+                entity_ranks.push(owner);
+            }
+
+            // We now have the entities and their owners. We can synchronize the entities to get the global
+            // indices and ownership information.
+
+            let (entity_global_indices, entity_owners) =
+                synchronize_entities(comm, chunk_length, &entities, &entity_ranks);
+
             owners.push(entity_owners);
             global_indices.push(entity_global_indices);
         }
@@ -1192,44 +1239,46 @@ fn scatterv<T: Equivalence + Copy>(comm: &impl Communicator, root: usize) -> Vec
 }
 
 // This routine synchronizes indices across processes.
+// - Chunk length: An entity can have more than one index. This is the number of indices per entity.
 // - indices: The set of all indices.
 // - owners: The owning rank of each index.
 // The output is a tuple consisting of the associated global indices and the ownership information.
-fn synchronize_indices(
+fn synchronize_entities(
     comm: &impl Communicator,
-    indices: &[usize],
+    chunk_length: usize,
+    entities: &[usize],
     owners: &[usize],
 ) -> (Vec<usize>, Vec<Ownership>) {
     let rank = comm.rank() as usize;
     let size = comm.size() as usize;
 
     // First count the local indices.
-    let number_of_local_indices = izip!(indices, owners).filter(|(_, &o)| o == rank).count();
+    let number_of_local_entities = owners.iter().filter(|&&o| o == rank).count();
     let mut current_global_index: usize = 0;
 
     // We now do an exclusive scan to get the right start point for the number of global indices.
 
     comm.exclusive_scan_into(
-        &number_of_local_indices,
+        &number_of_local_entities,
         &mut current_global_index,
         SystemOperation::sum(),
     );
 
     // Each process now has the start offset for its global indices. We now iterate through
-    // the indices. We assign a global index if the index is owned by the current process.
-    // If not we save the index, its owning process and the local index into the `indices` array.
-    let mut global_indices = vec![0; indices.len()];
+    // the entities. We assign a global index if the index is owned by the current process.
+    // If not we save the entity, its owning process and the local index into the `entities` array.
+    let mut global_indices = vec![0; entities.len()];
 
-    let mut ghosts = Vec::<usize>::default();
+    let mut ghosts = Vec::<Vec<usize>>::default();
     let mut local_indices_of_ghosts = Vec::<usize>::default();
     let mut owners_of_ghosts = Vec::<usize>::default();
 
-    for (pos, (index, owner)) in izip!(indices, owners).enumerate() {
+    for (pos, (chunk, owner)) in izip!(&entities.iter().chunks(chunk_length), owners).enumerate() {
         if *owner == rank {
             global_indices[pos] = current_global_index;
             current_global_index += 1;
         } else {
-            ghosts.push(*index);
+            ghosts.push(chunk.copied().collect_vec());
             local_indices_of_ghosts.push(pos);
             owners_of_ghosts.push(*owner);
         }
@@ -1239,7 +1288,10 @@ fn synchronize_indices(
     let sort_indices = (0..ghosts.len())
         .sorted_by_key(|&i| owners_of_ghosts[i])
         .collect_vec();
-    let ghosts = sort_indices.iter().map(|&i| ghosts[i]).collect::<Vec<_>>();
+    let ghosts = sort_indices
+        .iter()
+        .map(|&i| ghosts[i].clone())
+        .collect::<Vec<_>>();
     let local_indices_of_ghosts = sort_indices
         .iter()
         .map(|&i| local_indices_of_ghosts[i])
@@ -1254,27 +1306,42 @@ fn synchronize_indices(
 
     let mut counts = vec![0 as usize; size];
     for o in owners_of_ghosts.iter() {
-        counts[*o] += 1;
+        counts[*o] += chunk_length;
     }
 
     // Now send the counts around via an all-to-all communication.
 
-    let (recv_counts, recv_data) = all_to_all_varcount(comm, &counts, &ghosts);
+    let (recv_counts, recv_data) = all_to_all_varcount(
+        comm,
+        &counts,
+        &ghosts.iter().flatten().copied().collect_vec(),
+    );
+
+    // Turn `recv_data` back into a chunked vector
+    let recv_data = recv_data
+        .iter()
+        .chunks(chunk_length)
+        .into_iter()
+        .map(|c| c.copied().collect_vec())
+        .collect_vec();
 
     // We now have the ghosts on the owning processes. We iterate through and assign the corresponding local indices
     // and send those back to the original processes.
     // The difficulty is to assign the local index to each received ghost index. We need a map from indices to local
     // indices. That is best done with a HashMap.
     let send_back_local_indices = {
-        let mut map = HashMap::<usize, usize>::new();
-        for (pos, &index) in indices.iter().enumerate() {
-            map.insert(index, pos);
+        let mut map = HashMap::<Vec<usize>, usize>::new();
+        for (pos, chunk) in entities.iter().chunks(chunk_length).into_iter().enumerate() {
+            map.insert(chunk.copied().collect_vec(), pos);
         }
 
         recv_data.iter().map(|i| *map.get(i).unwrap()).collect_vec()
     };
 
-    // Now we can actually send the indices back. The nice thing is that the recv_counts turn into send_counts.
+    // Now we can actually send the indices back. We can almost use recv_counts as the new send_counts.
+    // The issue is that the recv_counts are multiplied by the chunk length. We have to reverse this.
+
+    let recv_counts = recv_counts.iter().map(|i| *i / chunk_length).collect_vec();
 
     let (_, remote_local_indices_of_ghosts) =
         all_to_all_varcount(comm, &recv_counts, &send_back_local_indices);
@@ -1283,9 +1350,9 @@ fn synchronize_indices(
     // global indices of its ghosts.
 
     let send_back_global_indices = {
-        let mut map = HashMap::<usize, usize>::new();
-        for (pos, &index) in indices.iter().enumerate() {
-            map.insert(index, global_indices[pos]);
+        let mut map = HashMap::<Vec<usize>, usize>::new();
+        for (pos, chunk) in entities.iter().chunks(chunk_length).into_iter().enumerate() {
+            map.insert(chunk.copied().collect_vec(), global_indices[pos]);
         }
 
         recv_data.iter().map(|i| *map.get(i).unwrap()).collect_vec()
@@ -1301,7 +1368,7 @@ fn synchronize_indices(
 
     // Finally, we setup the ownership information
 
-    let mut ownership = vec![Ownership::Owned; indices.len()];
+    let mut ownership = vec![Ownership::Owned; entities.len()];
 
     for (pos, ghost_local_index) in local_indices_of_ghosts.iter().enumerate() {
         ownership[*ghost_local_index] =
@@ -1309,19 +1376,6 @@ fn synchronize_indices(
     }
 
     (global_indices, ownership)
-}
-
-// Synchronize the entity ids across processes.
-// - entity_length: The number of vertices in each entity.
-// - entities: An array of size `number_of_entities * entity_length` containing all the global vertex ids for all entities.
-// - owners: An array of size `number_of_entities` containing the owning process of each entity.
-fn synchronize_entities(
-    comm: &impl Communicator,
-    entity_length: usize,
-    entities: Vec<usize>,
-    owners: Vec<usize>,
-) -> (Vec<usize>, Vec<Ownership>) {
-    todo!()
 }
 
 // Performs an all-to-all communication.
