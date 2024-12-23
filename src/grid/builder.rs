@@ -10,6 +10,7 @@ use crate::{
 };
 use itertools::{izip, Chunk, Itertools};
 use mpi::{
+    collective::SystemOperation,
     point_to_point::{Destination, Source},
     request::WaitGuard,
     traits::{Buffer, Communicator, CommunicatorCollectives, Equivalence, Root},
@@ -355,7 +356,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         };
 
         // Everything is properly sorted now. Can generate the local grids.
-
+        // Need to check those routines. Implementation is not efficient right now.
         let geometry = self.create_geometry(
             &point_indices,
             &coordinates,
@@ -377,10 +378,10 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         // After execution `vertex_global_indices` and `cell_global_indices` have the global indices
         // of the `vertex_indices` and `cell_indices` arrays.
         // The global indices are not necessarily identical to the original grid indices.
-        let (vertex_global_indices, vertex_owners) = self
-            .assign_global_indices_and_communicate_owners(comm, &vertex_owners, &vertex_indices);
+        let (vertex_global_indices, vertex_owners) =
+            synchronize_indices(comm, &vertex_indices, &vertex_owners);
         let (cell_global_indices, cell_owners) =
-            self.assign_global_indices_and_communicate_owners(comm, &cell_owners, &cell_indices);
+            synchronize_indices(comm, &cell_indices, &cell_owners);
 
         let mut owners = vec![vertex_owners];
         let mut global_indices = vec![vertex_global_indices];
@@ -1177,4 +1178,177 @@ fn scatterv<T: Equivalence + Copy>(comm: &impl Communicator, root: usize) -> Vec
     // Don't forget to manually set the length of the vector to the correct value.
     unsafe { recvbuf.set_len(recv_count as usize) };
     recvbuf
+}
+
+// This routine synchronizes indices across processes.
+// - indices: The set of all indices.
+// - owners: The owning rank of each index.
+// The output is a tuple consisting of the associated global indices and the ownership information.
+fn synchronize_indices(
+    comm: &impl Communicator,
+    indices: &[usize],
+    owners: &[usize],
+) -> (Vec<usize>, Vec<Ownership>) {
+    let rank = comm.rank() as usize;
+    let size = comm.size() as usize;
+
+    // First count the local indices.
+    let number_of_local_indices = izip!(indices, owners).filter(|(_, &o)| o == rank).count();
+    let mut current_global_index: usize = 0;
+
+    // We now do an exclusive scan to get the right start point for the number of global indices.
+
+    comm.exclusive_scan_into(
+        &number_of_local_indices,
+        &mut current_global_index,
+        SystemOperation::sum(),
+    );
+
+    // Each process now has the start offset for its global indices. We now iterate through
+    // the indices. We assign a global index if the index is owned by the current process.
+    // If not we save the index, its owning process and the local index into the `indices` array.
+    let mut global_indices = vec![0; indices.len()];
+
+    let mut ghosts = Vec::<usize>::default();
+    let mut local_indices_of_ghosts = Vec::<usize>::default();
+    let mut owners_of_ghosts = Vec::<usize>::default();
+
+    for (pos, (index, owner)) in izip!(indices, owners).enumerate() {
+        if *owner == rank {
+            global_indices[pos] = current_global_index;
+            current_global_index += 1;
+        } else {
+            ghosts.push(*index);
+            local_indices_of_ghosts.push(pos);
+            owners_of_ghosts.push(*owner);
+        }
+    }
+
+    // We want to resort the ghost by process. This makes the communication a lot easier.
+    let sort_indices = (0..ghosts.len())
+        .sorted_by_key(|&i| owners_of_ghosts[i])
+        .collect_vec();
+    let ghosts = sort_indices.iter().map(|&i| ghosts[i]).collect::<Vec<_>>();
+    let local_indices_of_ghosts = sort_indices
+        .iter()
+        .map(|&i| local_indices_of_ghosts[i])
+        .collect::<Vec<_>>();
+    let owners_of_ghosts = sort_indices
+        .iter()
+        .map(|&i| owners_of_ghosts[i])
+        .collect::<Vec<_>>();
+
+    // Now we have to send the ghost indices to the owning process. For this
+    // each process first needs to know how many global indices it gets.
+
+    let mut counts = vec![0 as usize; size];
+    for o in owners_of_ghosts.iter() {
+        counts[*o] += 1;
+    }
+
+    // Now send the counts around via an all-to-all communication.
+
+    let (recv_counts, recv_data) = all_to_all_varcount(comm, &counts, &ghosts);
+
+    // We now have the ghosts on the owning processes. We iterate through and assign the corresponding local indices
+    // and send those back to the original processes.
+    // The difficulty is to assign the local index to each received ghost index. We need a map from indices to local
+    // indices. That is best done with a HashMap.
+    let send_back_local_indices = {
+        let mut map = HashMap::<usize, usize>::new();
+        for (pos, &index) in indices.iter().enumerate() {
+            map.insert(index, pos);
+        }
+
+        recv_data.iter().map(|i| *map.get(i).unwrap()).collect_vec()
+    };
+
+    // Now we can actually send the indices back. The nice thing is that the recv_counts turn into send_counts.
+
+    let (_, remote_local_indices_of_ghosts) =
+        all_to_all_varcount(comm, &recv_counts, &send_back_local_indices);
+
+    // We now have to do exactly the same thing with the global indices so that the original process knows the
+    // global indices of its ghosts.
+
+    let send_back_global_indices = {
+        let mut map = HashMap::<usize, usize>::new();
+        for (pos, &index) in indices.iter().enumerate() {
+            map.insert(index, global_indices[pos]);
+        }
+
+        recv_data.iter().map(|i| *map.get(i).unwrap()).collect_vec()
+    };
+
+    let (_, remote_global_indices_of_ghosts) =
+        all_to_all_varcount(comm, &recv_counts, &send_back_global_indices);
+
+    // We can now iterate through the ghosts and assign the correct global indices.
+    for (pos, ghost_local_index) in local_indices_of_ghosts.iter().enumerate() {
+        global_indices[*ghost_local_index] = remote_global_indices_of_ghosts[pos];
+    }
+
+    // Finally, we setup the ownership information
+
+    let mut ownership = vec![Ownership::Owned; indices.len()];
+
+    for (pos, ghost_local_index) in local_indices_of_ghosts.iter().enumerate() {
+        ownership[*ghost_local_index] =
+            Ownership::Ghost(owners_of_ghosts[pos], remote_local_indices_of_ghosts[pos]);
+    }
+
+    (global_indices, ownership)
+}
+
+// Performs an all-to-all communication.
+// Returns the receive counts from each processor
+// and the received data.
+fn all_to_all_varcount<T: Equivalence>(
+    comm: &impl Communicator,
+    counts: &[usize],
+    data: &[T],
+) -> (Vec<usize>, Vec<T>) {
+    // We need the counts as i32 types.
+
+    let counts = counts.iter().map(|&x| x as i32).collect_vec();
+
+    // First send around the counts via an all-to-all
+    let mut recv_counts = vec![0 as i32; comm.size() as usize];
+    comm.all_to_all_into(&counts, &mut recv_counts);
+
+    // Now we can prepare the actual data. We have to allocate the data and compute the send partition and the receive partition.
+
+    let mut receive_data = Vec::<T>::with_capacity(recv_counts.iter().sum::<i32>() as usize);
+    let receive_buf: &mut [T] = unsafe { std::mem::transmute(receive_data.spare_capacity_mut()) };
+
+    let send_displacements = counts
+        .iter()
+        .scan(0, |acc, &x| {
+            let old = *acc;
+            *acc += x;
+            Some(old)
+        })
+        .collect_vec();
+
+    let receive_displacements = recv_counts
+        .iter()
+        .scan(0, |acc, &x| {
+            let old = *acc;
+            *acc += x;
+            Some(old)
+        })
+        .collect_vec();
+
+    let send_partition = mpi::datatype::Partition::new(data, counts, send_displacements);
+    let mut receive_partition =
+        mpi::datatype::PartitionMut::new(receive_buf, &recv_counts[..], receive_displacements);
+
+    comm.all_to_all_varcount_into(&send_partition, &mut receive_partition);
+
+    unsafe { receive_data.set_len(recv_counts.iter().sum::<i32>() as usize) };
+
+    (
+        recv_counts.iter().map(|i| *i as usize).collect_vec(),
+        receive_data,
+    )
 }

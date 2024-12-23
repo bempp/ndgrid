@@ -177,6 +177,7 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
         let mut points = rlst_dynamic_array2!(T, [self.gdim(), npts]);
         points.data_mut().copy_from_slice(coordinates);
 
+        // TODO! Extremely inefficient!!. This should be done via hash maps.
         let cell_points = cell_points
             .iter()
             .map(|p| point_ids.iter().position(|i| *i == *p).unwrap())
