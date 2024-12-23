@@ -33,9 +33,9 @@ fn main() {
     let comm = universe.world();
     let rank = comm.rank();
     let grid = if rank == 0 {
-        b.create_parallel_grid(&comm)
+        b.create_parallel_grid_root(&comm)
     } else {
-        b.receive_parallel_grid(&comm, 0)
+        b.create_parallel_grid(&comm, 0)
     };
 
     println!(

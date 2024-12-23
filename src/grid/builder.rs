@@ -8,14 +8,35 @@ use crate::{
     },
     types::Ownership,
 };
-use coupe::{KMeans, Partition, Point3D};
-use itertools::izip;
+use itertools::{izip, Chunk, Itertools};
 use mpi::{
     point_to_point::{Destination, Source},
     request::WaitGuard,
-    traits::{Buffer, Communicator, Equivalence},
+    traits::{Buffer, Communicator, CommunicatorCollectives, Equivalence, Root},
 };
-use std::collections::HashMap;
+use std::{
+    cell,
+    collections::{HashMap, HashSet},
+};
+
+// A simple struct to hold chunked data. The data is a long
+// array and `idx_bounds` is a vector sunch that `chunks[idx_bounds[i]..idx_bounds[i+1]]`
+// is one chunk. The last element of `idx_bounds` is the length of the data array.
+struct ChunkedData<T: Equivalence + Copy> {
+    data: Vec<T>,
+    idx_bounds: Vec<usize>,
+}
+
+impl<T: Equivalence + Copy> ChunkedData<T> {
+    // Return a vector with the number of elements per chunk.
+    fn counts(&self) -> Vec<usize> {
+        self.idx_bounds
+            .iter()
+            .tuple_windows()
+            .map(|(a, b)| b - a)
+            .collect()
+    }
+}
 
 impl<B: Builder + GeometryBuilder + TopologyBuilder + GridBuilder> ParallelBuilder for B
 where
@@ -29,7 +50,7 @@ where
         = ParallelGrid<'a, C, B::Grid>
     where
         Self: 'a;
-    fn create_parallel_grid<'a, C: Communicator>(
+    fn create_parallel_grid_root<'a, C: Communicator>(
         &self,
         comm: &'a C,
     ) -> ParallelGrid<'a, C, B::Grid> {
@@ -39,27 +60,143 @@ where
         // Each vertex is assigned the minimum process that has a cell that contains it.
         // Note that the array is of the size of the points in the grid and contains garbage information
         // for points that are not vertices.
-        let vertex_owners = self.assign_vertex_owners(&cell_owners);
+        let vertex_owners = self.assign_vertex_owners(comm.size() as usize, &cell_owners);
 
         // This distributes cells, vertices and points to processes.
         // Each process gets now only the cell that it owns via `cell_owners` but also its neighbours.
         // Then all the corresponding vertices and points are also added to the corresponding cell.
-        // The layout of the Vec<Vec<usize>> structures is that the outer dimension is the process and
-        // the inner dimension is the index, i.e. points_per_proc[0][j] is the jth point on process 0.
+        // Each return value is a tuple consisting of a counts array that specifies how many indices are
+        // assigned to each process and the actual indices.
         let (vertices_per_proc, points_per_proc, cells_per_proc) =
-            self.get_vertices_points_and_cells(&cell_owners);
+            self.get_vertices_points_and_cells(comm.size() as usize, &cell_owners);
 
-        // Distribute the points and corresponding indices to all processes.
-        let (point_indices, coordinates) = self.distribute_points(comm, &points_per_proc);
+        // Compute the chunks array for the coordinates associated with the points.
+        // The idx array for the coords is simply `self.gdim()` times the idx array for the points.
+        let coords_per_proc = ChunkedData {
+            data: {
+                let mut tmp =
+                    Vec::with_capacity(self.gdim() * points_per_proc.idx_bounds.last().unwrap());
+                points_per_proc
+                    .data
+                    .iter()
+                    .for_each(|point| tmp.extend(self.point(*point).iter()));
+                tmp
+            },
+            idx_bounds: points_per_proc
+                .idx_bounds
+                .iter()
+                .map(|x| self.gdim() * x)
+                .collect(),
+        };
 
-        // Returns the vertex indices on the current process and the corresponding owning processes.
-        // Vertices are reordered so that owned vertices are first.
-        let (vertex_indices, vertex_owners) =
-            self.distribute_vertices(comm, &vertices_per_proc, &vertex_owners);
+        // This compputes for each process the vertex owners.
+        let vertex_owners_per_proc = ChunkedData::<usize> {
+            data: {
+                let mut tmp = Vec::with_capacity(*vertices_per_proc.idx_bounds.last().unwrap());
+                vertices_per_proc
+                    .data
+                    .iter()
+                    .for_each(|v| tmp.push(vertex_owners[*v]));
+                tmp
+            },
+            idx_bounds: vertices_per_proc.idx_bounds.clone(),
+        };
 
-        // Distribute the cell information. Cells are reordered so that owned cells are first.
-        let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
-            self.distribute_cells(comm, &cells_per_proc, &cell_owners);
+        // We now compute the cell information for each process.
+
+        // First we need the cell type.
+        let cell_types_per_proc = ChunkedData {
+            data: {
+                let mut tmp = Vec::with_capacity(*cells_per_proc.idx_bounds.last().unwrap());
+                cells_per_proc
+                    .data
+                    .iter()
+                    .for_each(|c| tmp.push(self.cell_type(*c)));
+                tmp
+            },
+            idx_bounds: cells_per_proc.idx_bounds.clone(),
+        };
+        // Now we need the cell degrees.
+        let cell_degrees_per_proc = ChunkedData {
+            data: {
+                let mut tmp = Vec::with_capacity(*cells_per_proc.idx_bounds.last().unwrap());
+                cells_per_proc
+                    .data
+                    .iter()
+                    .for_each(|c| tmp.push(self.cell_degree(*c)));
+                tmp
+            },
+            idx_bounds: cells_per_proc.idx_bounds.clone(),
+        };
+        // Now need the cell owners.
+        let cell_owners_per_proc = ChunkedData {
+            data: {
+                let mut tmp = Vec::with_capacity(*cells_per_proc.idx_bounds.last().unwrap());
+                cells_per_proc
+                    .data
+                    .iter()
+                    .for_each(|c| tmp.push(cell_owners[*c]));
+                tmp
+            },
+            idx_bounds: cells_per_proc.idx_bounds.clone(),
+        };
+        // Finally the cell points. These are more messy since each cell might have different numbers of points. Hence,
+        // we need to compute a new counts array.
+
+        let cell_points_per_proc = {
+            // First compute the total number of points needed so that we can pre-allocated the array.
+            let total_points = cells_per_proc
+                .data
+                .iter()
+                .map(|c| self.npts(self.cell_type(*c), self.cell_degree(*c)))
+                .sum();
+            let mut data = Vec::with_capacity(total_points);
+            let mut counts = vec![0; comm.size() as usize];
+            for (proc, (&chunk_ind_start, &chunk_ind_end)) in
+                cells_per_proc.idx_bounds.iter().tuple_windows().enumerate()
+            {
+                for c in cells_per_proc.data[chunk_ind_start..chunk_ind_end].iter() {
+                    let npts = self.npts(self.cell_type(*c), self.cell_degree(*c));
+                    counts[proc] += npts;
+                    data.extend(self.cell_points(*c).iter());
+                }
+            }
+            // Now turn the counts into an `idx_bounds` array.
+            let mut idx_bounds = counts
+                .iter()
+                .scan(0, |state, &x| {
+                    let old = *state;
+                    *state += x;
+                    Some(old)
+                })
+                .collect_vec();
+            idx_bounds.push(idx_bounds.last().unwrap() + counts.last().unwrap());
+
+            // Finally return the chunks
+            ChunkedData { data, idx_bounds }
+        };
+
+        // Now we send everything across the processes. Every _per_proc variable is scattered across
+        // the processes. After the scatter operation we have on each process the following data.
+        // - `point_indices` contains the indices of the points that are owned by the current process.
+        // - `coordinates` contains the coordinates of the points that are owned by the current process.
+        // - `vertex_indices` contains the indices of the vertices that are owned by the current process.
+        // - `vertex_owners` contains the owners of the vertices that are owned by the current process.
+        // - `cell_indices` contains the indices of the cells that are owned by the current process.
+        // - `cell_points` contains the indices of the points of the cells that are owned by the current process.
+        // - `cell_types` contains the types of the cells that are owned by the current process.
+        // - `cell_degrees` contains the degrees of the cells that are owned by the current process.
+        // - `cell_owners` contains the owners of the cells that are owned by the current process.
+
+        let point_indices = scatterv_root(comm, &points_per_proc);
+        let coordinates = scatterv_root(comm, &coords_per_proc);
+        let vertex_indices = scatterv_root(comm, &vertices_per_proc);
+        let vertex_owners = scatterv_root(comm, &vertex_owners_per_proc);
+        let cell_indices = scatterv_root(comm, &cells_per_proc);
+        let cell_points = scatterv_root(comm, &cell_points_per_proc);
+        let cell_types = scatterv_root(comm, &cell_types_per_proc);
+        let cell_degrees = scatterv_root(comm, &cell_degrees_per_proc);
+        let cell_owners = scatterv_root(comm, &cell_owners_per_proc);
 
         // This is executed on all ranks and creates the local grid.
         self.create_parallel_grid_internal(
@@ -75,15 +212,23 @@ where
             cell_owners,
         )
     }
-    fn receive_parallel_grid<'a, C: Communicator>(
+    fn create_parallel_grid<'a, C: Communicator>(
         &self,
         comm: &'a C,
         root_rank: i32,
     ) -> ParallelGrid<'a, C, B::Grid> {
-        let (point_indices, coordinates) = self.receive_points(comm, root_rank);
-        let (vertex_indices, vertex_owners) = self.receive_vertices(comm, root_rank);
-        let (cell_indices, cell_points, cell_types, cell_degrees, cell_owners) =
-            self.receive_cells(comm, 0);
+        // First we receive all the data.
+        let point_indices = scatterv(comm, 0);
+        let coordinates = scatterv(comm, 0);
+        let vertex_indices = scatterv(comm, 0);
+        let vertex_owners = scatterv(comm, 0);
+        let cell_indices = scatterv(comm, 0);
+        let cell_points = scatterv(comm, 0);
+        let cell_types = scatterv(comm, 0);
+        let cell_degrees = scatterv(comm, 0);
+        let cell_owners = scatterv(comm, 0);
+
+        // Now we reassemble the grid.
 
         self.create_parallel_grid_internal(
             comm,
@@ -123,6 +268,94 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
     where
         Self::Grid: Sync,
     {
+        let rank = comm.rank() as usize;
+        // First we want to reorder everything so that owned data comes first in the arrays.
+
+        // Reorder the vertices.
+        let (vertex_indices, vertex_owners) = {
+            let mut new_indices = Vec::<usize>::with_capacity(vertex_indices.len());
+            let mut new_owners = Vec::<usize>::with_capacity(vertex_owners.len());
+
+            for (&v, &o) in izip!(&vertex_indices, &vertex_owners).filter(|(_, &o)| o == rank) {
+                new_indices.push(v);
+                new_owners.push(o);
+            }
+
+            for (&v, &o) in izip!(&vertex_indices, &vertex_owners).filter(|(_, &o)| o != rank) {
+                new_indices.push(v);
+                new_owners.push(o);
+            }
+
+            (new_indices, new_owners)
+        };
+
+        // Reorder the cell information. However, things are a bit messy with the cell points as each cell
+        // may have a different number of points attached. Hence, we need to compute a new counts array for the cell points.
+
+        let cell_point_owners = {
+            let mut new_owners = Vec::<usize>::with_capacity(cell_points.len());
+            // We now iterate through the cells and their owners and assign owners accordingly for the points.
+            for (c, o) in izip!(&cell_indices, &cell_owners) {
+                let npts = self.npts(cell_types[*c], cell_degrees[*c]);
+                for _ in 0..npts {
+                    new_owners.push(*o);
+                }
+            }
+            new_owners
+        };
+
+        // First we reorder the cells, degrees, types and owners.
+
+        let (cell_indices, cell_types, cell_degrees, cell_owners) = {
+            let mut new_indices = Vec::<usize>::with_capacity(cell_indices.len());
+            let mut new_types = Vec::<Self::EntityDescriptor>::with_capacity(cell_types.len());
+            let mut new_degrees = Vec::<usize>::with_capacity(cell_degrees.len());
+            let mut new_owners = Vec::<usize>::with_capacity(cell_owners.len());
+
+            for (cell_index, cell_type, cell_degree, cell_owner) in
+                izip!(&cell_indices, &cell_types, &cell_degrees, &cell_owners,)
+                    .filter(|(_, _, _, &o)| o == rank)
+            {
+                new_indices.push(*cell_index);
+                new_types.push(*cell_type);
+                new_degrees.push(*cell_degree);
+                new_owners.push(*cell_owner);
+            }
+
+            for (cell_index, cell_type, cell_degree, cell_owner) in
+                izip!(&cell_indices, &cell_types, &cell_degrees, &cell_owners,)
+                    .filter(|(_, _, _, &o)| o != rank)
+            {
+                new_indices.push(*cell_index);
+                new_types.push(*cell_type);
+                new_degrees.push(*cell_degree);
+                new_owners.push(*cell_owner);
+            }
+
+            (new_indices, new_types, new_degrees, new_owners)
+        };
+
+        // Finally, we reorder the cell points.
+        let cell_points = {
+            let mut new_points = Vec::<usize>::with_capacity(cell_points.len());
+            for &p in izip!(&cell_points, &cell_point_owners)
+                .filter(|(_, &o)| o == rank)
+                .map(|(p, _)| p)
+            {
+                new_points.push(p);
+            }
+
+            for &p in izip!(&cell_points, &cell_point_owners)
+                .filter(|(_, &o)| o != rank)
+                .map(|(p, _)| p)
+            {
+                new_points.push(p);
+            }
+            new_points
+        };
+
+        // Everything is properly sorted now. Can generate the local grids.
+
         let geometry = self.create_geometry(
             &point_indices,
             &coordinates,
@@ -421,29 +654,29 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         (global_indices, ownership)
     }
 
-    /// Reorder vertices so that owned vertices are first
-    fn reorder_vertices(
+    /// Reorder data so that data on the current rank comes first.
+    fn reorder<T: Equivalence + Copy>(
         &self,
         rank: usize,
-        vertex_indices: &[usize],
-        vertex_owners: &[usize],
-    ) -> (Vec<usize>, Vec<usize>) {
-        let mut indices = vec![];
-        let mut owners = vec![];
-        let mut indices2 = vec![];
-        let mut owners2 = vec![];
-        for (i, o) in izip!(vertex_indices, vertex_owners) {
-            if *o == rank {
-                indices.push(*i);
-                owners.push(*o);
-            } else {
-                indices2.push(*i);
-                owners2.push(*o);
-            }
+        data: &[T],
+        owners: &[usize],
+    ) -> (Vec<T>, Vec<usize>) {
+        assert_eq!(data.len(), owners.len());
+        let mut new_data = Vec::<T>::with_capacity(data.len());
+        let mut new_owners = Vec::<usize>::with_capacity(owners.len());
+
+        // First push all local elements.
+        for (d, o) in izip!(data, owners).filter(|(_, &o)| o == rank) {
+            new_data.push(*d);
+            new_owners.push(*o);
         }
-        indices.extend_from_slice(&indices2);
-        owners.extend_from_slice(&owners2);
-        (indices, owners)
+        // Now push all the other elements.
+        for (d, o) in izip!(data, owners).filter(|(_, &o)| o != rank) {
+            new_data.push(*d);
+            new_owners.push(*o);
+        }
+
+        (new_data, new_owners)
     }
     /// Reorder cells so that owned cells are first
     #[allow(clippy::type_complexity)]
@@ -549,7 +782,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
     fn distribute_points<C: Communicator>(
         &self,
         comm: &C,
-        points_per_proc: &[Vec<usize>],
+        points_per_proc: (Vec<usize>, Vec<usize>),
     ) -> (Vec<usize>, Vec<Self::T>)
     where
         Vec<Self::T>: Buffer,
@@ -611,7 +844,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
     fn distribute_cells<C: Communicator>(
         &self,
         comm: &C,
-        cells_per_proc: &[Vec<usize>],
+        cells_per_proc: &(Vec<usize>, Vec<usize>),
         cell_owners: &[usize],
     ) -> (
         Vec<usize>,
@@ -624,68 +857,54 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         Vec<Self::EntityDescriptor>: Buffer,
     {
         let rank = comm.rank() as usize;
-        let mut cell_points_rank = vec![];
-        let mut cell_types_rank = vec![];
-        let mut cell_degrees_rank = vec![];
-        let mut cell_owners_rank = vec![];
 
-        let mut cell_points = vec![];
-        let mut cell_types = vec![];
-        let mut cell_degrees = vec![];
-        let mut cell_owners_per_proc = vec![];
-        for (p, cells) in cells_per_proc.iter().enumerate() {
-            let mut cell_points_i = vec![];
-            let mut cell_types_i = vec![];
-            let mut cell_degrees_i = vec![];
-            let mut cell_owners_i = vec![];
-            for cell in cells {
-                let pts = self.cell_points(*cell);
-                cell_points_i.extend_from_slice(pts);
-                cell_types_i.push(self.cell_type(*cell));
-                cell_degrees_i.push(self.cell_degree(*cell));
-                cell_owners_i.push(cell_owners[*cell]);
-            }
-            if p == rank {
-                cell_points_rank = cell_points_i;
-                cell_types_rank = cell_types_i;
-                cell_degrees_rank = cell_degrees_i;
-                cell_owners_rank = cell_owners_i;
-                cell_points.push(vec![]);
-                cell_types.push(vec![]);
-                cell_degrees.push(vec![]);
-                cell_owners_per_proc.push(vec![]);
-            } else {
-                cell_points.push(cell_points_i);
-                cell_types.push(cell_types_i);
-                cell_degrees.push(cell_degrees_i);
-                cell_owners_per_proc.push(cell_owners_i);
-            }
-        }
-        mpi::request::scope(|scope| {
-            for i in 0..comm.size() {
-                if i != comm.rank() {
-                    let process = comm.process_at_rank(i);
-                    let _ =
-                        WaitGuard::from(process.immediate_send(scope, &cells_per_proc[i as usize]));
-                    let _ =
-                        WaitGuard::from(process.immediate_send(scope, &cell_points[i as usize]));
-                    let _ = WaitGuard::from(process.immediate_send(scope, &cell_types[i as usize]));
-                    let _ =
-                        WaitGuard::from(process.immediate_send(scope, &cell_degrees[i as usize]));
-                    let _ = WaitGuard::from(
-                        process.immediate_send(scope, &cell_owners_per_proc[i as usize]),
-                    );
-                }
-            }
+        let total_cell_count = cells_per_proc.0.iter().sum();
+        // Need also extended counts that have as last element the total cell count.
+        let mut extended_counts = cells_per_proc.0;
+        extended_counts.push(total_cell_count);
+
+        let mut cell_types = Vec::with_capacity(total_cell_count);
+        let mut cell_degrees = Vec::with_capacity(total_cell_count);
+        let mut new_cell_owners = Vec::with_capacity(total_cell_count);
+
+        cells_per_proc.1.iter().for_each(|c| {
+            cell_types.push(self.cell_type(*c));
+            cell_degrees.push(self.cell_degree(*c));
+            new_cell_owners.push(cell_owners[*c]);
         });
 
+        let cell_owners = new_cell_owners;
+
+        // Cell points are a bit more complicated as there may be different numbers of points per cell.
+        // Hence, have to adapt the corresponding counts.
+
+        let mut cell_points = Vec::<usize>::default();
+        let mut cell_point_count = Vec::<usize>::default();
+
+        for (first, last) in extended_counts.iter().tuple_windows() {
+            let mut current_count = 0;
+            for cell in cells_per_proc.1[*first..*last].iter() {
+                let pts = self.cell_points(*cell);
+                cell_points.extend_from_slice(pts);
+                current_count += pts.len();
+            }
+            cell_point_count.push(current_count);
+        }
+
+        // Have to send the cell data to the other processes now.
+        let cell_types = scatterv_root(comm, &cells_per_proc.0, &cell_types);
+        let cell_degrees = scatterv_root(comm, &cells_per_proc.0, &cell_degrees);
+        let cell_owners = scatterv_root(comm, &cells_per_proc.0, &cell_owners);
+        let cell_points = scatterv_root(comm, &cell_point_count, &cell_points);
+
+        // TODO! Fix up the order below.
         self.reorder_cells(
             rank,
-            &cells_per_proc[rank],
-            &cell_points_rank,
-            &cell_types_rank,
-            &cell_degrees_rank,
-            &cell_owners_rank,
+            &cell_owners,
+            &cell_points,
+            &cell_types,
+            &cell_degrees,
+            &cell_owners,
         )
     }
     /// Receive cells from root process
@@ -723,6 +942,8 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
 
     /// Partition the cells
     fn partition_cells(&self, nprocesses: usize) -> Vec<usize> {
+        use coupe::{KMeans, Partition, Point3D};
+
         // Create an initial partitioning that roughly assigns the same
         // number of cells to each process.
         let mut partition = vec![];
@@ -786,14 +1007,14 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
     }
 
     /// Assign vertex owners
-    fn assign_vertex_owners(&self, cell_owners: &[usize]) -> Vec<usize> {
+    fn assign_vertex_owners(&self, nprocesses: usize, cell_owners: &[usize]) -> Vec<usize> {
         // Initialise empty array with number of processes as value and length same as number of points.
-        let mut vertex_owners = vec![cell_owners.iter().max().unwrap() + 1; self.point_count()];
+        let mut vertex_owners = vec![nprocesses; self.point_count()];
 
         // Each vertex is owned by the minimum process that owns a cell that contains the vertex.
         for (i, owner) in cell_owners.iter().enumerate() {
             for v in self.cell_vertices(i) {
-                vertex_owners[*v] = usize::min(vertex_owners[*v], *owner);
+                vertex_owners[*v] = std::cmp::min(vertex_owners[*v], *owner);
             }
         }
 
@@ -802,65 +1023,84 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         vertex_owners
     }
 
-    /// Compute the vertices and cells that each process needs access to
+    /// Compute the vertices and cells that each process needs access to.
+    /// The function returns three tuples, vertices, points, and cells.
+    /// The first vector of each tuple contains the number of entities on each process
+    /// and is of length `nprocesses`. The second tuple contains a flattened array
+    /// of all the entity indices aligned according to the counts in the first array.
     #[allow(clippy::type_complexity)]
     fn get_vertices_points_and_cells(
         &self,
+        nprocesses: usize,
         cell_owners: &[usize],
-    ) -> (Vec<Vec<usize>>, Vec<Vec<usize>>, Vec<Vec<usize>>) {
-        // Each point in the grid is associated with a list of cells that contain it.
-        let mut vertex_to_cells = (0..self.point_count()).map(|_| vec![]).collect::<Vec<_>>();
+    ) -> (ChunkedData<usize>, ChunkedData<usize>, ChunkedData<usize>) {
+        // The following maps each vertex index to a set of cells that contain it.
+        let mut vertex_to_cells = HashMap::<usize, HashSet<usize>>::new();
 
-        // For each cell, add the cell to the list of cells that contain each of its vertices.
+        // For each cell, go through its vertices and add the cell to the cell-list of the vertex.
         for i in 0..self.cell_count() {
             for v in self.cell_vertices(i) {
-                if !vertex_to_cells[*v].contains(&i) {
-                    vertex_to_cells[*v].push(i);
-                }
+                vertex_to_cells.entry(*v).or_default().insert(i);
             }
         }
 
-        // Initialise empty arrays for vertices, points and cells for each process.
-        let nprocesses = *cell_owners.iter().max().unwrap() + 1;
-        let mut vertices = (0..nprocesses).map(|_| vec![]).collect::<Vec<_>>();
-        let mut points = (0..nprocesses).map(|_| vec![]).collect::<Vec<_>>();
-        let mut cells = (0..nprocesses).map(|_| vec![]).collect::<Vec<_>>();
+        // This instantiates a vector with `nprocesses` empty sets.
+        let map_creator =
+            || -> Vec<HashSet<usize>> { (0..nprocesses).map(|_| HashSet::new()).collect_vec() };
+
+        // Each of these is a map from process to a set of indices.
+        let mut vertices = map_creator();
+        let mut points = map_creator();
+        let mut cells = map_creator();
 
         // This assigns cell to processes. It iterates through a cell and associates
         // not only the cell itself to the process that owns it but also adds all the
         // neighboring cells to the same process. This means that processes own not
         // only the original cells from `cell_owners` but also all the neighbouring cells.
         // Also this means that a cell can live on multiple processes.
-        // TODO! Use sets instead of vectors for the cells.
         for (i, owner) in cell_owners.iter().enumerate() {
             for v in self.cell_vertices(i) {
-                for cell in &vertex_to_cells[*v] {
-                    if !cells[*owner].contains(cell) {
-                        cells[*owner].push(*cell);
-                    }
-                }
+                // Add all cells that are connected to the vertex to the same process.
+                cells[*owner].extend(vertex_to_cells.get(v).expect("Vertex not found."));
             }
         }
 
         // Now go through and add the points and vertices to the same processes that also the cells are
         // assigned to.
-        // TODO! This is again superexpensive. Replace the vectors with sets.
-        for (vs, ps, cs) in izip!(vertices.iter_mut(), points.iter_mut(), &cells) {
-            for c in cs {
-                for v in self.cell_vertices(*c) {
-                    if !vs.contains(v) {
-                        vs.push(*v);
-                    }
+        for (proc, cells) in cells.iter().enumerate() {
+            for cell in cells {
+                for v in self.cell_vertices(*cell) {
+                    vertices[proc].insert(*v);
                 }
-                for v in self.cell_points(*c) {
-                    if !ps.contains(v) {
-                        ps.push(*v);
-                    }
+                for p in self.cell_points(*cell) {
+                    points[proc].insert(*p);
                 }
             }
         }
 
-        (vertices, points, cells)
+        // The following function flattens an array of sets and returns the counts and the flattened array
+        // as ChunkedData struct.
+        let flatten = |data: Vec<HashSet<usize>>| -> ChunkedData<usize> {
+            let mut idx_bounds = data
+                .iter()
+                .scan(0, |acc, x| {
+                    let old = *acc;
+                    *acc += x.len();
+                    Some(old)
+                })
+                .collect_vec();
+            idx_bounds.push(idx_bounds.last().unwrap() + data.last().unwrap().len());
+            let mut tmp = Vec::<usize>::with_capacity(*idx_bounds.last().unwrap());
+            for s in data {
+                tmp.extend(s.iter());
+            }
+            ChunkedData {
+                data: tmp,
+                idx_bounds,
+            }
+        };
+
+        (flatten(vertices), flatten(points), flatten(cells))
     }
 }
 
@@ -871,4 +1111,70 @@ where
     Vec<B::EntityDescriptor>: Buffer,
     B::EntityDescriptor: Equivalence,
 {
+}
+
+fn scatterv_root<T: Equivalence + Copy>(
+    comm: &impl Communicator,
+    chunks_per_proc: &ChunkedData<T>,
+) -> Vec<T> {
+    let rank = comm.rank() as usize;
+    let size = comm.size() as usize;
+
+    let send_counts = chunks_per_proc
+        .counts()
+        .iter()
+        .map(|&x| x as i32)
+        .collect_vec();
+
+    let mut recv_count: i32 = 0;
+    let mut recvbuf: Vec<T> = Vec::<T>::with_capacity(send_counts[rank] as usize);
+    // This avoids having the pre-initialise the array. We simply transmute the spare capacity
+    // into a valid reference and later manually set the length of the array to the full capacity.
+    let recvbuf_ref: &mut [T] = unsafe { std::mem::transmute(recvbuf.spare_capacity_mut()) };
+
+    // The idx-bounds are one too long as their last element is the total number of
+    // elements. We don't want this for the displacements.
+    let displacements = chunks_per_proc.idx_bounds[0..size]
+        .iter()
+        .map(|&x| x as i32)
+        .collect_vec();
+
+    // Now scatter the counts to each process.
+    comm.this_process()
+        .scatter_into_root(&send_counts, &mut recv_count);
+
+    // We now prepare the send partition of the variable length data.
+    let send_partition =
+        mpi::datatype::Partition::new(&chunks_per_proc.data, &send_counts[..], &displacements[..]);
+
+    // And now we send the partition.
+    comm.this_process()
+        .scatter_varcount_into_root(&send_partition, recvbuf_ref);
+
+    unsafe { recvbuf.set_len(send_counts[rank] as usize) };
+
+    recvbuf
+}
+
+// Receiev the scattered data from `root`.
+fn scatterv<T: Equivalence + Copy>(comm: &impl Communicator, root: usize) -> Vec<T> {
+    let mut recv_count: i32 = 0;
+
+    // First we need to receive the number of elements that we are about to get.
+    comm.process_at_rank(root as i32)
+        .scatter_into(&mut recv_count);
+
+    // We prepare an unitialized buffer to receive the data.
+    let mut recvbuf: Vec<T> = Vec::<T>::with_capacity(recv_count as usize);
+    // This avoids having the pre-initialise the array. We simply transmute the spare capacity
+    // into a valid reference and later manually set the length of the array to the full capacity.
+    let recvbuf_ref: &mut [T] = unsafe { std::mem::transmute(recvbuf.spare_capacity_mut()) };
+
+    // And finally we receive the data.
+    comm.process_at_rank(root as i32)
+        .scatter_varcount_into(recvbuf_ref);
+
+    // Don't forget to manually set the length of the vector to the correct value.
+    unsafe { recvbuf.set_len(recv_count as usize) };
+    recvbuf
 }
