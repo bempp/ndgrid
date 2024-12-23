@@ -292,8 +292,8 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         let cell_point_owners = {
             let mut new_owners = Vec::<usize>::with_capacity(cell_points.len());
             // We now iterate through the cells and their owners and assign owners accordingly for the points.
-            for (c, o) in izip!(&cell_indices, &cell_owners) {
-                let npts = self.npts(cell_types[*c], cell_degrees[*c]);
+            for (o, ct, cd) in izip!(cell_owners.iter(), cell_types.iter(), cell_degrees.iter()) {
+                let npts = self.npts(*ct, *cd);
                 for _ in 0..npts {
                     new_owners.push(*o);
                 }
