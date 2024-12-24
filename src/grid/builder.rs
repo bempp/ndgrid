@@ -782,6 +782,12 @@ fn synchronize_entities(
             map.insert(chunk.copied().collect_vec(), pos);
         }
 
+        recv_data.iter().for_each(|i| {
+            if !map.contains_key(i) {
+                println!("{:#?}", i)
+            }
+        });
+
         recv_data.iter().map(|i| *map.get(i).unwrap()).collect_vec()
     };
 
