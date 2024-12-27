@@ -427,7 +427,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
                     .map(|v| vertex_global_indices_to_owners.get(v).unwrap())
                     .min()
                     .unwrap();
-                entities.extend(entity.topology().sub_entity_iter(0));
+                entities.extend(vertices);
                 entity_ranks.push(owner);
             }
 
@@ -598,7 +598,12 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             idx_bounds.push(idx_bounds.last().unwrap() + data.last().unwrap().len());
             let mut tmp = Vec::<usize>::with_capacity(*idx_bounds.last().unwrap());
             for s in data {
-                tmp.extend(s.iter());
+                // Each set itself has a random ordering. This makes runs of the method
+                // not reproducible. The easiest fix is to sort the set before adding it to `tmp`.
+                let mut to_sort = Vec::<usize>::with_capacity(s.len());
+                to_sort.extend(s.iter());
+                to_sort.sort();
+                tmp.extend(to_sort);
             }
             ChunkedData {
                 data: tmp,
@@ -721,11 +726,12 @@ fn synchronize_entities(
     let mut owners_of_ghosts = Vec::<usize>::default();
 
     for (pos, (chunk, owner)) in izip!(&entities.iter().chunks(chunk_length), owners).enumerate() {
+        let c = chunk.copied().collect_vec();
         if *owner == rank {
             global_indices[pos] = current_global_index;
             current_global_index += 1;
         } else {
-            ghosts.push(chunk.copied().collect_vec());
+            ghosts.push(c);
             local_indices_of_ghosts.push(pos);
             owners_of_ghosts.push(*owner);
         }
@@ -779,14 +785,9 @@ fn synchronize_entities(
     let send_back_local_indices = {
         let mut map = HashMap::<Vec<usize>, usize>::new();
         for (pos, chunk) in entities.iter().chunks(chunk_length).into_iter().enumerate() {
-            map.insert(chunk.copied().collect_vec(), pos);
+            let c = chunk.copied().collect_vec();
+            map.insert(c, pos);
         }
-
-        recv_data.iter().for_each(|i| {
-            if !map.contains_key(i) {
-                println!("{:#?}", i)
-            }
-        });
 
         recv_data.iter().map(|i| *map.get(i).unwrap()).collect_vec()
     };

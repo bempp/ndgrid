@@ -10,7 +10,9 @@ use ndelement::types::ReferenceCellType;
 #[cfg(feature = "serde")]
 use rlst::RawAccessMut;
 use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
+use std::collections::HashSet;
 use std::iter::Copied;
+use std::time::Instant;
 
 /// Topology of a single element grid
 #[derive(Debug)]
@@ -137,6 +139,7 @@ impl SingleTypeTopology {
         let ref_conn = reference_cell::connectivity(cell_type);
         let etypes = reference_cell::entity_types(cell_type);
 
+        println!("In new topology");
         // Cells where faces are mixture of triangles and quads not supported
         for t in &etypes {
             for i in t {
@@ -163,12 +166,17 @@ impl SingleTypeTopology {
                 etypes.iter().take(dim).skip(1)
             ) {
                 // For each entity of the given dimension
+                let mut entity_cache = HashSet::<Vec<usize>>::new();
                 for (c_ij, et_ij) in izip!(rc_i, et_i) {
                     let mut entity = c_ij[0].iter().map(|i| cell[*i]).collect::<Vec<_>>();
                     orient_entity(*et_ij, &mut entity);
-                    if !e_i.contains(&entity) {
+                    if !entity_cache.contains(&entity) {
+                        entity_cache.insert(entity.clone());
                         e_i.push(entity);
                     }
+                    // if !e_i.contains(&entity) {
+                    //     e_i.push(entity);
+                    // }
                 }
             }
         }
@@ -180,6 +188,7 @@ impl SingleTypeTopology {
             entity_counts[d] = entities[d - 1].len();
         }
 
+        println!("In new topology 1");
         // Downward connectivity: The entities of dimension dim1 that are subentities of
         // entities  of dimension dim0 (with dim0>=dim1) (eg edges of a triangle, vertices
         // of a tetrahedron, etc)
@@ -196,6 +205,7 @@ impl SingleTypeTopology {
             })
             .collect::<Vec<_>>();
 
+        println!("In new topology2");
         // Upward connectivity: The entities of dimension dim1 that are superentities of
         // entities of dimension dim0 (with dim0<dim1) (eg triangles connected to an edge,
         // tetrahedra connected to a vertex, etc)
@@ -214,6 +224,7 @@ impl SingleTypeTopology {
             }
         }
 
+        println!("In new topology3");
         // downward_connectivity[dim][0] = vertices of each cell
         for (i, mut dc_d0i) in downward_connectivity[dim][0].col_iter_mut().enumerate() {
             for (dc_d0ij, c_j) in izip!(dc_d0i.iter_mut(), &cells[i * size..(i + 1) * size]) {
@@ -223,6 +234,8 @@ impl SingleTypeTopology {
                 }
             }
         }
+
+        println!("In new topology4");
         // downward_connectivity[i][0] = vertices of entity
         for (i, (es_i, dc_i)) in izip!(
             entities.iter(),
@@ -240,6 +253,7 @@ impl SingleTypeTopology {
             }
         }
 
+        println!("In new topology5");
         if dim > 0 {
             let mut cell_entities = ref_conn
                 .iter()
