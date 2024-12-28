@@ -99,7 +99,7 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
         }
     }
 
-    fn create_grid(self) -> SingleElementGrid<T, CiarletElement<T>> {
+    fn create_grid(&self) -> SingleElementGrid<T, CiarletElement<T>> {
         let cell_vertices =
             self.extract_vertices(&self.cells, &[self.element_data.0], &[self.element_data.1]);
 

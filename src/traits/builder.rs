@@ -26,7 +26,7 @@ pub trait Builder {
     fn add_cell(&mut self, id: usize, cell_data: Self::CellData<'_>);
 
     /// Create the grid
-    fn create_grid(self) -> Self::Grid;
+    fn create_grid(&self) -> Self::Grid;
 
     /// Number of points
     fn point_count(&self) -> usize;

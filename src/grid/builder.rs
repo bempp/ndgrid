@@ -50,6 +50,23 @@ where
         &self,
         comm: &'a C,
     ) -> ParallelGrid<'a, C, B::Grid> {
+        // If we have only a single process we can just create a serial grid.
+        if comm.size() == 0 {
+            let serial_grid = self.create_grid();
+
+            // Need to fill ownership and global indices now.
+
+            let mut owners = vec![];
+            let mut global_indices = vec![];
+
+            for dim in 0..(1 + self.tdim()) {
+                let entity_count = serial_grid.entity_iter(dim).count();
+                owners.push(vec![Ownership::Owned; entity_count]);
+                global_indices.push((0..entity_count).collect_vec());
+            }
+
+            return ParallelGrid::new(comm, serial_grid, owners, global_indices);
+        }
         // Partition the cells via a KMeans algorithm. The midpoint of each cell is used and distributed
         // across processes via coupe. The returned array assigns each cell a process.
         let cell_owners = self.partition_cells(comm.size() as usize);
