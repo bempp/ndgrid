@@ -43,9 +43,9 @@ fn example_single_element_grid<C: Communicator>(
 
     if rank == 0 {
         create_single_element_grid_data(&mut b, n);
-        b.create_parallel_grid(comm)
+        b.create_parallel_grid_root(comm)
     } else {
-        b.receive_parallel_grid(comm, 0)
+        b.create_parallel_grid(comm, 0)
     }
 }
 
