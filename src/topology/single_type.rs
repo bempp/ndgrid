@@ -180,6 +180,10 @@ impl SingleTypeTopology {
         // Old inefficient entity definition.
         //let mut entities = vec![vec![]; if dim == 0 { 0 } else { dim - 1 }];
 
+        // We setup entity counters for each dimension.
+
+        let mut entity_counter = vec![0; entities.len()];
+
         // Now iterate through all the cells
         for cell_index in 0..ncells {
             // Get all the vertices of the cell.
@@ -190,15 +194,15 @@ impl SingleTypeTopology {
             // Hence, rc_i[0] is the connectivity information about the entity with reference index 0 and
             // dimension i and et_i[0] gives the corresponding entity type.
             // etypes is a reference to the entity types of the cell type at dimension i.
-            for (e_i, rc_i, et_i) in izip!(
+            for (entity_dim, (e_i, rc_i, et_i)) in izip!(
                 entities.iter_mut(),
                 // Skip the vertices in the connectivity
                 ref_conn.iter().take(dim).skip(1),
                 // Skip the vertices in the entity types.
                 etypes.iter().take(dim).skip(1)
-            ) {
-                // A simple counter for an entity index of dimension i.
-                let mut entity_counter = 0;
+            )
+            .enumerate()
+            {
                 // We iterate through the concrete entities of dimension i and the corresponding
                 // entity types. c_ij is a reference to the connectivity information of the jth entity
                 // with dimension i. et_ij is the corresponding entity type.
@@ -212,8 +216,8 @@ impl SingleTypeTopology {
                     orient_entity(*et_ij, &mut entity);
                     // An entity only gets added if it has not been added before.
                     e_i.entry(entity).or_insert_with(|| {
-                        let old = entity_counter;
-                        entity_counter += 1;
+                        let old = entity_counter[entity_dim];
+                        entity_counter[entity_dim] += 1;
                         old
                     });
                 }
@@ -233,7 +237,6 @@ impl SingleTypeTopology {
             entity_counts[d] = entities[d - 1].len();
         }
 
-        println!("In new topology 1");
         // Downward connectivity: The entities of dimension dim1 that are subentities of
         // entities  of dimension dim0 (with dim0>=dim1) (eg edges of a triangle, vertices
         // of a tetrahedron, etc)
@@ -267,7 +270,6 @@ impl SingleTypeTopology {
             })
             .collect::<Vec<_>>();
 
-        println!("In new topology2");
         // Upward connectivity: The entities of dimension dim1 that are superentities of
         // entities of dimension dim0 (with dim0<dim1) (eg triangles connected to an edge,
         // tetrahedra connected to a vertex, etc)
@@ -289,7 +291,6 @@ impl SingleTypeTopology {
             }
         }
 
-        println!("In new topology3");
         // downward_connectivity[dim][0] = vertices of each cell
         // This is just the vertices that each cell is made of.
         for (i, mut dc_d0i) in downward_connectivity[dim][0].col_iter_mut().enumerate() {
@@ -336,7 +337,7 @@ impl SingleTypeTopology {
                     ) {
                         *dc_i_vertex = entity_vertex;
                         if !upward_connectivity[0][i][entity_vertex].contains(&entity_index) {
-                            upward_connectivity[0][i][entity_index].push(entity_index);
+                            upward_connectivity[0][i][entity_vertex].push(entity_index);
                         }
                     }
                 }
@@ -372,7 +373,6 @@ impl SingleTypeTopology {
         //     }
         // }
 
-        println!("In new topology5");
         // We now have to fill the upward and downward connectivity for the other cases. This can only happen if dim > 0.
         if dim > 0 {
             // We collect the cell entities in an array. We do not need the connectivity of the vertices as that
@@ -429,6 +429,9 @@ impl SingleTypeTopology {
                 // ce_i are the cell entitiies for dim i.
                 // The loop ignores dim 0 and dim 1 entities as everything for dim 1 entities
                 // has been processed at this point (entities with themselves have been done, and entities with vertices).
+                // The index i can only be 0 or one. We have 4 dimensions in total (0, 1, 2, 3). If we skip 0 and 1 then
+                // the possible dimensions are 2 and 3. Since i is a counter i=0 is associated with dimension 2 and i=1 is
+                // associated with dimension 3.
                 for (i, (dc_i, rc_i, ce_i)) in izip!(
                     downward_connectivity.iter_mut().skip(2),
                     ref_conn.iter().skip(2),
@@ -442,11 +445,11 @@ impl SingleTypeTopology {
                         // k loops over the dimensions of the cell entities.
                         // rc_ijk is the kth dimensional reference connectivity of the jth subentity of dimension i.
                         // dc_ik is the kth dimensional downward connectivity of the subentities of dimension i.
-                        // If i = 0 we consider 1-dimensional entities (since we have skipped vertices). Hence,
+                        // If i = 0 we consider 2-dimensional entities (since we have skipped vertices and edges). Hence,
                         // dc_i.iter_mut().take(i+2) takes the first two dimensions of the downward connectivity,
-                        // that is vertices and edges. It then skips over the vertices.
-                        // If i = 2 we consider 3-dimensional entities. dc_i.iter_mut().take(i+2) takes the first 4
-                        // dimensions, that is vertices, edges, faces, and volumes. It then skips over the vertices.
+                        // that is vertices and edges. It then skips over the vertices. So k = 0 is only option.
+                        // If i = 1 we consider 3-dimensional entities. dc_i.iter_mut().take(i+2) takes the first 3
+                        // dimensions, that is vertices, edges, faces. It then skips over the vertices. So k can be 0 and 1.
                         for (k, (dc_ik, rc_ijk, ce_k)) in izip!(
                             dc_i.iter_mut().take(i + 2).skip(1),
                             rc_ij.iter().take(i + 2).skip(1),
@@ -460,6 +463,10 @@ impl SingleTypeTopology {
                             for (l, rc_ijkl) in rc_ijk.iter().enumerate() {
                                 dc_ik[[l, *ce_ij]] = ce_k[*rc_ijkl];
                                 // Now will in reverse the corresponding upward connectivity.
+                                // If i = 0 then we consider 2-dimensional entities (faces). k=0 corresponds to edges.
+                                // The upward connectivity between the two is upward_connectivity[1][0].
+                                // The general setup is upward_connectivity[dim0][dim1 - dim0 - 1][dim0_entity_index][..] = [dim1_entity_index].
+                                // We hae dim0 = k + 1 and dim1 = i + 2. Hence, dim1 - dim0 - 1 = i - k.
                                 if !upward_connectivity[k + 1][i - k][ce_k[*rc_ijkl]]
                                     .contains(ce_ij)
                                 {
@@ -472,7 +479,6 @@ impl SingleTypeTopology {
             }
         }
 
-        println!("Finished topology loop.");
         let mut ids = vec![vertex_ids];
         for _ in 1..dim {
             ids.push(None);

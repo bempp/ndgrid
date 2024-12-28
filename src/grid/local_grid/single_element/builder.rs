@@ -100,10 +100,8 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
     }
 
     fn create_grid(self) -> SingleElementGrid<T, CiarletElement<T>> {
-        println!("Start creating grid");
         let cell_vertices =
             self.extract_vertices(&self.cells, &[self.element_data.0], &[self.element_data.1]);
-        println!("Vertices extracted.");
 
         // Add the vertex ids. But need to make sure that we don't have duplicates.
         // So first generate a set of vertex ids, then convert it to a vector.
@@ -121,8 +119,6 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
             tmp
         };
 
-        println!("Create geometry.");
-
         let geometry = self.create_geometry(
             &self.point_indices_to_ids,
             &self.points,
@@ -131,17 +127,12 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
             &[self.element_data.1],
         );
 
-        println!("Geometry created.");
-
-        println!("Create topology");
         let topology = self.create_topology(
             vertex_ids,
             (0..self.cell_count()).collect::<Vec<_>>(),
             &cell_vertices,
             &[self.element_data.0],
         );
-
-        println!("Topology created.");
 
         self.create_grid_from_topology_geometry(topology, geometry)
     }
