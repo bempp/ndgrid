@@ -21,7 +21,7 @@ pub struct ParallelGrid<'a, C: Communicator, G: Grid + Sync> {
     local_grid: LocalGrid<G>,
 }
 
-unsafe impl<'a, C: Communicator, GridImpl: Grid + Sync> Sync for ParallelGrid<'a, C, GridImpl> {}
+unsafe impl<C: Communicator, GridImpl: Grid + Sync> Sync for ParallelGrid<'_, C, GridImpl> {}
 
 impl<'a, C: Communicator, G: Grid + Sync> ParallelGrid<'a, C, G> {
     /// Create new

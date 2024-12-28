@@ -774,7 +774,7 @@ fn synchronize_entities(
     // Now we have to send the ghost indices to the owning process. For this
     // each process first needs to know how many global indices it gets.
 
-    let mut counts = vec![0 as usize; size];
+    let mut counts = vec![0; size];
     for o in owners_of_ghosts.iter() {
         counts[*o] += chunk_length;
     }
@@ -862,7 +862,7 @@ fn all_to_all_varcount<T: Equivalence>(
     let counts = counts.iter().map(|&x| x as i32).collect_vec();
 
     // First send around the counts via an all-to-all
-    let mut recv_counts = vec![0 as i32; comm.size() as usize];
+    let mut recv_counts = vec![0; comm.size() as usize];
     comm.all_to_all_into(&counts, &mut recv_counts);
 
     // Now we can prepare the actual data. We have to allocate the data and compute the send partition and the receive partition.
