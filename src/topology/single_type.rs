@@ -10,10 +10,8 @@ use ndelement::types::ReferenceCellType;
 #[cfg(feature = "serde")]
 use rlst::RawAccessMut;
 use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::iter::Copied;
-use std::sync::Arc;
-use std::time::Instant;
 
 /// Topology of a single element grid
 #[derive(Debug)]
@@ -174,8 +172,10 @@ impl SingleTypeTopology {
         // entities[0] are a HashMap of all zero dimensional entities to their respective entity index.
         // The key of this HashMap is the ordered set of associated vertex indices for this entity.
         let mut entities = Vec::<HashMap<Vec<usize>, usize>>::new();
-        for _ in 0..dim - 1 {
-            entities.push(HashMap::new());
+        if dim > 0 {
+            for _ in 0..dim - 1 {
+                entities.push(HashMap::new());
+            }
         }
         // Old inefficient entity definition.
         //let mut entities = vec![vec![]; if dim == 0 { 0 } else { dim - 1 }];
@@ -343,35 +343,6 @@ impl SingleTypeTopology {
                 }
             }
         }
-
-        // println!("In new topology4");
-        // // downward_connectivity[i][0] = vertices of entity
-        // // This is similar to before. But now we actually add the vertices of each entity.
-        // // We iterate through the entities and the downward connectivity. Since the entities
-        // // don't have information about dim 0 we skip the first entry in the downward connectivity.
-        // // i + 1 is our current dimension. es_i is the list of entities of dimension i in the
-        // // reference cell, and dc_i is the corresponding iterator over downward connectivities.
-        // for (i, (es_i, dc_i)) in izip!(
-        //     entities.iter(),
-        //     downward_connectivity.iter_mut().take(dim).skip(1)
-        // )
-        // .enumerate()
-        // {
-        //     // We are now iterating over the entities of dimension i + 1. es_ij is the jth entity of dimension i + 1.
-        //     // dc_i0j is a column vector that contains the vertices that make up the jth entity of dimension i +  1.
-        //     for (j, (es_ij, mut dc_i0j)) in izip!(es_i.iter(), dc_i[0].col_iter_mut()).enumerate() {
-        //         // We are now copying the vertices from the entity es_ij into the column vector dc_i0j.
-        //         for (es_ijk, dc_i0jk) in izip!(es_ij.iter(), dc_i0j.iter_mut()) {
-        //             *dc_i0jk = *es_ijk;
-        //             // In each iteration we test for the upward connectivity whether the entity j is already in the list
-        //             // of upward connectivities for the vertex es_ijk. If not we add it.
-        //             // Again, I don't see how this could require a set as this is a unique mapping.
-        //             if !upward_connectivity[0][i][*es_ijk].contains(&j) {
-        //                 upward_connectivity[0][i][*es_ijk].push(j);
-        //             }
-        //         }
-        //     }
-        // }
 
         // We now have to fill the upward and downward connectivity for the other cases. This can only happen if dim > 0.
         if dim > 0 {
