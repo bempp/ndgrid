@@ -305,40 +305,60 @@ impl SingleTypeTopology {
             }
         }
 
-        // We iterate through all the cells
-        for cell_index in 0..ncells {
-            // We get the cell vertices.
-            let cell = &cells[cell_index * size..(cell_index + 1) * size];
-            for (i, (e_i, rc_i, et_i, dc_i)) in izip!(
-                entities.iter_mut(),
-                // Skip the vertices in the connectivity
-                ref_conn.iter().take(dim).skip(1),
-                // Skip the vertices in the entity types.
-                etypes.iter().take(dim).skip(1),
-                downward_connectivity.iter_mut().take(dim).skip(1)
-            )
-            .enumerate()
-            {
-                for (c_ij, et_ij) in izip!(rc_i, et_i) {
-                    // c_ij[0] is the list of reference cell vertex indices that are associated with the jth entity of dimension i.
-                    // cell[*i] below maps the local reference cell vertex index to the actual id of the vertex.
-                    // Hence, the following command gives us all the vertex indicies of the entity.
-                    let mut entity = c_ij[0].iter().map(|i| cell[*i]).collect::<Vec<_>>();
-                    // We reorient entities so that identities with same vertices but different order of vertices
-                    // are treated as the same entity.
-                    orient_entity(*et_ij, &mut entity);
-                    let entity_index = *e_i.get(&entity).unwrap();
+        // // We iterate through all the cells
+        // for cell_index in 0..ncells {
+        //     // We get the cell vertices.
+        //     let cell = &cells[cell_index * size..(cell_index + 1) * size];
+        //     for (i, (e_i, rc_i, et_i, dc_i)) in izip!(
+        //         entities.iter_mut(),
+        //         // Skip the vertices in the connectivity
+        //         ref_conn.iter().take(dim).skip(1),
+        //         // Skip the vertices in the entity types.
+        //         etypes.iter().take(dim).skip(1),
+        //         downward_connectivity.iter_mut().take(dim).skip(1)
+        //     )
+        //     .enumerate()
+        //     {
+        //         for (c_ij, et_ij) in izip!(rc_i, et_i) {
+        //             // c_ij[0] is the list of reference cell vertex indices that are associated with the jth entity of dimension i.
+        //             // cell[*i] below maps the local reference cell vertex index to the actual id of the vertex.
+        //             // Hence, the following command gives us all the vertex indicies of the entity.
+        //             let mut entity = c_ij[0].iter().map(|i| cell[*i]).collect::<Vec<_>>();
+        //             // We reorient entities so that identities with same vertices but different order of vertices
+        //             // are treated as the same entity.
+        //             orient_entity(*et_ij, &mut entity);
+        //             let entity_index = *e_i.get(&entity).unwrap();
 
-                    // We now have entity and entity index, so can fill up the downward and upward connectivity.
-                    assert_eq!(dc_i[0].r().slice(1, entity_index).len(), entity.len());
-                    for (dc_i_vertex, &entity_vertex) in izip!(
-                        dc_i[0].r_mut().slice(1, entity_index).iter_mut(),
-                        entity.iter()
-                    ) {
-                        *dc_i_vertex = entity_vertex;
-                        if !upward_connectivity[0][i][entity_vertex].contains(&entity_index) {
-                            upward_connectivity[0][i][entity_vertex].push(entity_index);
-                        }
+        //             // We now have entity and entity index, so can fill up the downward and upward connectivity.
+        //             assert_eq!(dc_i[0].r().slice(1, entity_index).len(), entity.len());
+        //             for (dc_i_vertex, &entity_vertex) in izip!(
+        //                 dc_i[0].r_mut().slice(1, entity_index).iter_mut(),
+        //                 entity.iter()
+        //             ) {
+        //                 *dc_i_vertex = entity_vertex;
+        //                 if !upward_connectivity[0][i][entity_vertex].contains(&entity_index) {
+        //                     upward_connectivity[0][i][entity_vertex].push(entity_index);
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+
+        // downward_connectivity[i][0] = vertices of entity
+        for (i, (es_i, dc_i)) in izip!(
+            entities.iter(),
+            downward_connectivity.iter_mut().take(dim).skip(1)
+        )
+        .enumerate()
+        {
+            for es_ij in es_i.iter() {
+                let entity_vertices = es_ij.0;
+                let entity_index = es_ij.1;
+                let mut dc_i0j = dc_i[0].r_mut().slice(1, *entity_index);
+                for (vertex, dc_i0jk) in izip!(entity_vertices.iter(), dc_i0j.iter_mut()) {
+                    *dc_i0jk = *vertex;
+                    if !upward_connectivity[0][i][*vertex].contains(entity_index) {
+                        upward_connectivity[0][i][*vertex].push(*entity_index);
                     }
                 }
             }
