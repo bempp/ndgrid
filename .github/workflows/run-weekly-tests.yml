@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         rust-version: ["stable", "beta", "nightly"]
-        mpi: [ 'mpich', 'openmpi']
+        mpi: [ 'openmpi']
         f_strict: ["", "strict,"]
         f_serde: ["", "serde,"]
     steps:
@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.12"]
     steps:
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1

@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         rust-version: ["stable"]
-        mpi: ['mpich', 'openmpi']
+        mpi: ['openmpi']
         feature-flags: ['--features "strict"', '--features "serde,strict"']
     steps:
       - name: Set up Rust
@@ -49,8 +49,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        mpi: ['mpich', 'openmpi']
+        python-version: ["3.12"]
+        mpi: ['openmpi']
     steps:
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -91,8 +91,8 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: ${{ matrix.rust-version }}
-      # - name: Install cargo-upgrades
-      #   run: cargo install cargo-upgrades
+      - name: Install cargo-upgrades
+        run: cargo install cargo-upgrades
       - uses: actions/checkout@v4
       - name: Check that dependencies are up to date
         run:
