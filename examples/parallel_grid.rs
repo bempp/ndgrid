@@ -1,5 +1,3 @@
-//? mpirun -n {{NPROCESSES}} --features "serde"
-
 use mpi::{
     collective::SystemOperation, environment::Universe, topology::Communicator,
     traits::CommunicatorCollectives,
