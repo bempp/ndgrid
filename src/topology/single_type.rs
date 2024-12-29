@@ -10,6 +10,7 @@ use ndelement::types::ReferenceCellType;
 #[cfg(feature = "serde")]
 use rlst::RawAccessMut;
 use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
+use std::collections::HashMap;
 use std::iter::Copied;
 
 /// Topology of a single element grid
@@ -82,7 +83,7 @@ impl ConvertToSerializable for SingleTypeTopology {
 
 // TODO: delete following line
 // unsafe impl Sync for SingleTypeTopology {}
-
+// Entities are reoriented so that the smallest vertex index comes first.
 fn orient_entity(entity_type: ReferenceCellType, vertices: &mut [usize]) {
     match entity_type {
         ReferenceCellType::Point => {}
@@ -134,9 +135,22 @@ impl SingleTypeTopology {
         let size = reference_cell::entity_counts(cell_type)[0];
         let ncells = cells.len() / size;
         let dim = reference_cell::dim(cell_type);
+
+        //The reference connectivity is a 4-dimensional array.
+        // The first dimension is the topological dimension of the entities for which we want the connectivity.
+        // The second dimension is the index of the entity for which we want to enquire connectivity.
+        // The third dimension is the dimension of the sub-entities for which we want to enquire connectivity.
+        // Hence, for a triangle ref_connectivity[0][1][1] gives us the indices of the two lines that point one
+        // is connected two.
         let ref_conn = reference_cell::connectivity(cell_type);
+
+        // This gives us all the subentity-types of the cell type. etypes[0] is a list of
+        // all the entity types of dimension 0 (i.e. vertices), etypes[1] is a list of all
+        // the entity types of dimension 1, etc.
         let etypes = reference_cell::entity_types(cell_type);
 
+        // The following iterates over all the entity types of each dimension and makes
+        // sure that within a dimension all entity types are identical.
         // Cells where faces are mixture of triangles and quads not supported
         for t in &etypes {
             for i in t {
@@ -146,6 +160,7 @@ impl SingleTypeTopology {
             }
         }
 
+        // This simply collects all the different entity types that are possible within an element.
         let entity_types = etypes
             .iter()
             .filter(|i| !i.is_empty())
@@ -153,30 +168,72 @@ impl SingleTypeTopology {
             .collect::<Vec<_>>();
 
         // List of entities by dimension
-        let mut entities = vec![vec![]; if dim == 0 { 0 } else { dim - 1 }];
+        // Entity are stored by dimension. We are not storing vertices. Hence, dim - 1.
+        // entities[0] are a HashMap of all zero dimensional entities to their respective entity index.
+        // The key of this HashMap is the ordered set of associated vertex indices for this entity.
+        let mut entities = Vec::<HashMap<Vec<usize>, usize>>::new();
+        if dim > 0 {
+            for _ in 0..dim - 1 {
+                entities.push(HashMap::new());
+            }
+        }
+        // Old inefficient entity definition.
+        //let mut entities = vec![vec![]; if dim == 0 { 0 } else { dim - 1 }];
+
+        // We setup entity counters for each dimension.
+
+        let mut entity_counter = vec![0; entities.len()];
+
+        // Now iterate through all the cells
         for cell_index in 0..ncells {
+            // Get all the vertices of the cell.
             let cell = &cells[cell_index * size..(cell_index + 1) * size];
-            // Iterate over topological dimension
-            for (e_i, rc_i, et_i) in izip!(
+            // Iterate over topological dimension.
+            // The variable e_i is a mutable reference to the list of entities of dimension i.
+            // The variable rc_i is a reference to the connectivity of the cell type for entities of dimension i.
+            // Hence, rc_i[0] is the connectivity information about the entity with reference index 0 and
+            // dimension i and et_i[0] gives the corresponding entity type.
+            // etypes is a reference to the entity types of the cell type at dimension i.
+            for (entity_dim, (e_i, rc_i, et_i)) in izip!(
                 entities.iter_mut(),
+                // Skip the vertices in the connectivity
                 ref_conn.iter().take(dim).skip(1),
+                // Skip the vertices in the entity types.
                 etypes.iter().take(dim).skip(1)
-            ) {
-                // For each entity of the given dimension
+            )
+            .enumerate()
+            {
+                // We iterate through the concrete entities of dimension i and the corresponding
+                // entity types. c_ij is a reference to the connectivity information of the jth entity
+                // with dimension i. et_ij is the corresponding entity type.
                 for (c_ij, et_ij) in izip!(rc_i, et_i) {
+                    // c_ij[0] is the list of reference cell vertex indices that are associated with the jth entity of dimension i.
+                    // cell[*i] below maps the local reference cell vertex index to the actual id of the vertex.
+                    // Hence, the following command gives us all the vertex indicies of the entity.
                     let mut entity = c_ij[0].iter().map(|i| cell[*i]).collect::<Vec<_>>();
+                    // We reorient entities so that identities with same vertices but different order of vertices
+                    // are treated as the same entity.
                     orient_entity(*et_ij, &mut entity);
-                    if !e_i.contains(&entity) {
-                        e_i.push(entity);
-                    }
+                    // An entity only gets added if it has not been added before.
+                    e_i.entry(entity).or_insert_with(|| {
+                        let old = entity_counter[entity_dim];
+                        entity_counter[entity_dim] += 1;
+                        old
+                    });
                 }
             }
         }
         // Number of entities by dimension
         let mut entity_counts = vec![0; dim + 1];
+        // Vertices are indexed consecutively starting from 0.
+        // So to get the number of vertices take the highest index
+        // and add 1.
         entity_counts[0] = cells.iter().max().unwrap() + 1;
         entity_counts[dim] = ncells;
         for d in 1..dim {
+            // In entities the dimension 0 is skipped.
+            // So entity_counts[d] is the number of entities in
+            // entities[d - 1].
             entity_counts[d] = entities[d - 1].len();
         }
 
@@ -184,13 +241,30 @@ impl SingleTypeTopology {
         // entities  of dimension dim0 (with dim0>=dim1) (eg edges of a triangle, vertices
         // of a tetrahedron, etc)
         // downward_connectivity[dim0][dim1][[.., dim0_entity_index]] = [dim1_entity_index]
+        // Hence, downward_connectivity[2][1][0, 5] for a triangle grid gives the index of the
+        // first edge of the 6th triangle.
+        // The following loop only creates space for the downward connectivity. It does not fill
+        // the actual entries.
         let mut downward_connectivity = entity_counts
             .iter()
             .enumerate()
+            // i is the topological dimension of the entities for which we want the connectivity.
+            // j is the reference cell index of the entity of dimension j.
             .map(|(i, j)| {
+                // ref_conn[i][0] gives us the first entity of dimension i. We don't need to look
+                // at other entities of dimension j since the information about number of
+                // subentities is the same.
                 ref_conn[i][0]
+                    // We iterate through all the dimensions it can be connected to.
                     .iter()
+                    // We take i + 1 dimensions of the connection.
+                    // If i = 2 (triangle) then we take vertices, edges, and triangles.
+                    // That's why take(i + 1).
                     .take(i + 1)
+                    // We now iterate through the connected dimensions, e.g. in the case
+                    // of i = 2, the dimensions 0, 1, 2. These are in r.
+                    // r.len() is the number of these entities connected to our i-dim entity.
+                    // and j is the actual number of i-dimensional entities.
                     .map(|r| rlst_dynamic_array2!(usize, [r.len(), *j]))
                     .collect::<Vec<_>>()
             })
@@ -200,6 +274,7 @@ impl SingleTypeTopology {
         // entities of dimension dim0 (with dim0<dim1) (eg triangles connected to an edge,
         // tetrahedra connected to a vertex, etc)
         // upward_connectivity[dim0][dim1 - dim0 - 1][dim0_entity_index][..] = [dim1_entity_index]
+        // TODO: The last part of upwards connectivity should be a set.
         let mut upward_connectivity = entity_counts
             .iter()
             .take(dim)
@@ -210,19 +285,65 @@ impl SingleTypeTopology {
         // downward_connectivity[d][d][i] = [i] (ie each entity is a sub-entity of itself)
         for (d, dc) in downward_connectivity.iter_mut().enumerate() {
             for (i, mut j) in dc[d].col_iter_mut().enumerate() {
+                // Each entity has exactly one sub-entity of the same dimension, namely itself.
+                // Hence, the matrix is a 1x1 matrix that refers back to itself.
                 j[[0]] = i;
             }
         }
 
         // downward_connectivity[dim][0] = vertices of each cell
+        // This is just the vertices that each cell is made of.
         for (i, mut dc_d0i) in downward_connectivity[dim][0].col_iter_mut().enumerate() {
             for (dc_d0ij, c_j) in izip!(dc_d0i.iter_mut(), &cells[i * size..(i + 1) * size]) {
                 *dc_d0ij = *c_j;
+                // We can also fill out the upward connectivity if dim > 0.
+                // The contains test should not be necessary as for eaach vertex a cell can only
+                // be added once. However, it seems better to move upward connectivity to sets anyway.
                 if dim > 0 && !upward_connectivity[0][dim - 1][*c_j].contains(&i) {
                     upward_connectivity[0][dim - 1][*c_j].push(i);
                 }
             }
         }
+
+        // // We iterate through all the cells
+        // for cell_index in 0..ncells {
+        //     // We get the cell vertices.
+        //     let cell = &cells[cell_index * size..(cell_index + 1) * size];
+        //     for (i, (e_i, rc_i, et_i, dc_i)) in izip!(
+        //         entities.iter_mut(),
+        //         // Skip the vertices in the connectivity
+        //         ref_conn.iter().take(dim).skip(1),
+        //         // Skip the vertices in the entity types.
+        //         etypes.iter().take(dim).skip(1),
+        //         downward_connectivity.iter_mut().take(dim).skip(1)
+        //     )
+        //     .enumerate()
+        //     {
+        //         for (c_ij, et_ij) in izip!(rc_i, et_i) {
+        //             // c_ij[0] is the list of reference cell vertex indices that are associated with the jth entity of dimension i.
+        //             // cell[*i] below maps the local reference cell vertex index to the actual id of the vertex.
+        //             // Hence, the following command gives us all the vertex indicies of the entity.
+        //             let mut entity = c_ij[0].iter().map(|i| cell[*i]).collect::<Vec<_>>();
+        //             // We reorient entities so that identities with same vertices but different order of vertices
+        //             // are treated as the same entity.
+        //             orient_entity(*et_ij, &mut entity);
+        //             let entity_index = *e_i.get(&entity).unwrap();
+
+        //             // We now have entity and entity index, so can fill up the downward and upward connectivity.
+        //             assert_eq!(dc_i[0].r().slice(1, entity_index).len(), entity.len());
+        //             for (dc_i_vertex, &entity_vertex) in izip!(
+        //                 dc_i[0].r_mut().slice(1, entity_index).iter_mut(),
+        //                 entity.iter()
+        //             ) {
+        //                 *dc_i_vertex = entity_vertex;
+        //                 if !upward_connectivity[0][i][entity_vertex].contains(&entity_index) {
+        //                     upward_connectivity[0][i][entity_vertex].push(entity_index);
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+
         // downward_connectivity[i][0] = vertices of entity
         for (i, (es_i, dc_i)) in izip!(
             entities.iter(),
@@ -230,40 +351,78 @@ impl SingleTypeTopology {
         )
         .enumerate()
         {
-            for (j, (es_ij, mut dc_i0j)) in izip!(es_i.iter(), dc_i[0].col_iter_mut()).enumerate() {
-                for (es_ijk, dc_i0jk) in izip!(es_ij.iter(), dc_i0j.iter_mut()) {
-                    *dc_i0jk = *es_ijk;
-                    if !upward_connectivity[0][i][*es_ijk].contains(&j) {
-                        upward_connectivity[0][i][*es_ijk].push(j);
+            for es_ij in es_i.iter() {
+                let entity_vertices = es_ij.0;
+                let entity_index = es_ij.1;
+                let mut dc_i0j = dc_i[0].r_mut().slice(1, *entity_index);
+                for (vertex, dc_i0jk) in izip!(entity_vertices.iter(), dc_i0j.iter_mut()) {
+                    *dc_i0jk = *vertex;
+                    if !upward_connectivity[0][i][*vertex].contains(entity_index) {
+                        upward_connectivity[0][i][*vertex].push(*entity_index);
                     }
                 }
             }
         }
 
+        // We now have to fill the upward and downward connectivity for the other cases. This can only happen if dim > 0.
         if dim > 0 {
+            // We collect the cell entities in an array. We do not need the connectivity of the vertices as that
+            // has already been dealt with. Hence, the skip(1). The index i specifies the subentity of the cell.
+            // and i.len() is the number of subentities of the given dimension.
+            // Hence, cell_entities[0] is a vector of length of all subentities of dimension 1 in the reference cell.
             let mut cell_entities = ref_conn
                 .iter()
                 .skip(1)
                 .map(|i| vec![0; i.len()])
                 .collect::<Vec<_>>();
+            // Now we iterate through each individual cell.
             for cell_index in 0..ncells {
-                // Collect indices of each subentity of the cell
+                // Collect indices of each subentity of the cell.
+                // The subentities of dimension the cell itself are just the cell indicies. Remember that a dimension index of
+                // dim - 1 denotes actually the dim dimensional subentity as we skipped vertices.
                 cell_entities[dim - 1][0] = cell_index;
+                // We now get all the vertices of the current cell.
                 let cell = &cells[cell_index * size..(cell_index + 1) * size];
+                // We now iterate through the connectivity dimensions. e_i is all entities of dimension i + 1.
+                // ce_i is the list of all cell entities of dimension i + 1. rc_i is the connectivity information
+                // of dimension i + 1 (because we do skip(1)) and etypes is the corresponding reference cell type
+                // (again with skip(1)).
                 for (e_i, ce_i, rc_i, et_i) in izip!(
                     entities.iter(),
                     cell_entities.iter_mut(),
                     ref_conn.iter().skip(1),
                     etypes.iter().skip(1)
                 ) {
+                    // This iterates over the actual sub entities.
+                    // - et_ij is the jth subentity of dimension i + 1.
+                    // - ce_ij is the index of the jth subentity of dimension i + 1 (that's what we want to get in this loop).
+                    // - rc_ij is the reference connectivity information of the ith subentity of dimension i + 1.
                     for (ce_ij, rc_ij, et_ij) in izip!(ce_i.iter_mut(), rc_i, et_i) {
+                        // We get the actual entity by mapping reference cell vertices to actual vertices
+                        // and then reorienting.
                         let mut entity = rc_ij[0].iter().map(|i| cell[*i]).collect::<Vec<_>>();
                         orient_entity(*et_ij, &mut entity);
-                        *ce_ij = e_i.iter().position(|r| *r == entity).unwrap();
+                        // AAARGGHH!!! This is expensive!!. We should use a hash map here.
+                        // This finds the index of the ith entity by using `position` method on the
+                        // entity list.
+                        *ce_ij = *e_i.get(&entity).unwrap();
+                        // Old inefficient version when entities was an array.
+                        //*ce_ij = e_i.iter().position(|r| *r == entity).unwrap();
                     }
                 }
+                // The following is a double loop that enters all k-dimensional entities connected to all
+                // i-dimensional entities into the downward connectivities.
                 // Copy these indices into connectivity for each dim
                 // Loop over dim0
+                // We now fill out the downward connectivity.
+                // dc_i is downward connectivity for dim i.
+                // rc_i is the reference connectivity for dim i.
+                // ce_i are the cell entitiies for dim i.
+                // The loop ignores dim 0 and dim 1 entities as everything for dim 1 entities
+                // has been processed at this point (entities with themselves have been done, and entities with vertices).
+                // The index i can only be 0 or one. We have 4 dimensions in total (0, 1, 2, 3). If we skip 0 and 1 then
+                // the possible dimensions are 2 and 3. Since i is a counter i=0 is associated with dimension 2 and i=1 is
+                // associated with dimension 3.
                 for (i, (dc_i, rc_i, ce_i)) in izip!(
                     downward_connectivity.iter_mut().skip(2),
                     ref_conn.iter().skip(2),
@@ -271,9 +430,17 @@ impl SingleTypeTopology {
                 )
                 .enumerate()
                 {
-                    // Loop over entities of dimension dim0
+                    // ce_ij is the jth subentity of dimension i.
+                    // rc_ij is the corresponding reference connectivity of the jth subentity of dimension i.
                     for (ce_ij, rc_ij) in izip!(ce_i, rc_i) {
-                        // Loop over dim1
+                        // k loops over the dimensions of the cell entities.
+                        // rc_ijk is the kth dimensional reference connectivity of the jth subentity of dimension i.
+                        // dc_ik is the kth dimensional downward connectivity of the subentities of dimension i.
+                        // If i = 0 we consider 2-dimensional entities (since we have skipped vertices and edges). Hence,
+                        // dc_i.iter_mut().take(i+2) takes the first two dimensions of the downward connectivity,
+                        // that is vertices and edges. It then skips over the vertices. So k = 0 is only option.
+                        // If i = 1 we consider 3-dimensional entities. dc_i.iter_mut().take(i+2) takes the first 3
+                        // dimensions, that is vertices, edges, faces. It then skips over the vertices. So k can be 0 and 1.
                         for (k, (dc_ik, rc_ijk, ce_k)) in izip!(
                             dc_i.iter_mut().take(i + 2).skip(1),
                             rc_ij.iter().take(i + 2).skip(1),
@@ -281,9 +448,16 @@ impl SingleTypeTopology {
                         )
                         .enumerate()
                         {
-                            // Loop over entities of dimension dim1
+                            // l is the concrete index of the kth dimensional connectivity of the jth subentity of dimension i.
+                            // We copy this into the right position of the downward connectivity.
+                            // Remember that ce_ij is the jth subentity of dimension i.
                             for (l, rc_ijkl) in rc_ijk.iter().enumerate() {
                                 dc_ik[[l, *ce_ij]] = ce_k[*rc_ijkl];
+                                // Now will in reverse the corresponding upward connectivity.
+                                // If i = 0 then we consider 2-dimensional entities (faces). k=0 corresponds to edges.
+                                // The upward connectivity between the two is upward_connectivity[1][0].
+                                // The general setup is upward_connectivity[dim0][dim1 - dim0 - 1][dim0_entity_index][..] = [dim1_entity_index].
+                                // We hae dim0 = k + 1 and dim1 = i + 2. Hence, dim1 - dim0 - 1 = i - k.
                                 if !upward_connectivity[k + 1][i - k][ce_k[*rc_ijkl]]
                                     .contains(ce_ij)
                                 {

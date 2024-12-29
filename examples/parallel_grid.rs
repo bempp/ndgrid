@@ -1,10 +1,12 @@
-//? mpirun -n {{NPROCESSES}} --features "serde"
-
-use mpi::{environment::Universe, topology::Communicator};
+use mpi::{
+    collective::SystemOperation, environment::Universe, topology::Communicator,
+    traits::CommunicatorCollectives,
+};
 use ndelement::types::ReferenceCellType;
 use ndgrid::{
     grid::local_grid::SingleElementGridBuilder,
-    traits::{Builder, Grid, ParallelBuilder},
+    traits::{Builder, Entity, Grid, ParallelBuilder},
+    types::Ownership,
 };
 
 fn main() {
@@ -33,17 +35,35 @@ fn main() {
     let comm = universe.world();
     let rank = comm.rank();
     let grid = if rank == 0 {
-        b.create_parallel_grid(&comm)
+        b.create_parallel_grid_root(&comm)
     } else {
-        b.receive_parallel_grid(&comm, 0)
+        b.create_parallel_grid(&comm, 0)
     };
 
-    println!(
-        "MPI rank {rank} has {} vertices",
-        grid.entity_count(ReferenceCellType::Point)
-    );
-    println!(
-        "MPI rank {rank} has {} cells",
-        grid.entity_count(ReferenceCellType::Quadrilateral)
-    );
+    // Get the global indices.
+
+    let global_vertices = grid
+        .entity_iter(0)
+        .filter(|e| matches!(e.ownership(), Ownership::Owned))
+        .map(|e| e.global_index())
+        .collect::<Vec<_>>();
+
+    let nvertices = global_vertices.len();
+
+    let global_cells = grid
+        .entity_iter(2)
+        .filter(|e| matches!(e.ownership(), Ownership::Owned))
+        .map(|e| e.global_index())
+        .collect::<Vec<_>>();
+
+    let ncells = global_cells.len();
+
+    let mut total_cells: usize = 0;
+    let mut total_vertices: usize = 0;
+
+    comm.all_reduce_into(&ncells, &mut total_cells, SystemOperation::sum());
+    comm.all_reduce_into(&nvertices, &mut total_vertices, SystemOperation::sum());
+
+    assert_eq!(total_cells, (n - 1) * (n - 1));
+    assert_eq!(total_vertices, n * n);
 }

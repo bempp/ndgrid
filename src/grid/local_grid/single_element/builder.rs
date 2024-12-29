@@ -14,7 +14,7 @@ use ndelement::{
     types::{Continuity, ReferenceCellType},
 };
 use rlst::{rlst_dynamic_array2, RawAccessMut};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Grid builder for a single element grid
 #[derive(Debug)]
@@ -29,6 +29,8 @@ pub struct SingleElementGridBuilder<T: RealScalar> {
     point_ids_to_indices: HashMap<usize, usize>,
     cell_indices_to_ids: Vec<usize>,
     cell_ids_to_indices: HashMap<usize, usize>,
+    point_indices: HashSet<usize>,
+    cell_indices: HashSet<usize>,
 }
 
 impl<T: RealScalar> SingleElementGridBuilder<T> {
@@ -57,6 +59,8 @@ impl<T: RealScalar> SingleElementGridBuilder<T> {
             point_ids_to_indices: HashMap::new(),
             cell_indices_to_ids: Vec::with_capacity(ncells),
             cell_ids_to_indices: HashMap::new(),
+            point_indices: HashSet::new(),
+            cell_indices: HashSet::new(),
         }
     }
 }
@@ -71,44 +75,49 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
         if data.len() != self.gdim {
             panic!("Point has wrong number of coordinates");
         }
-        if self.point_indices_to_ids.contains(&id) {
+        if self.point_indices.contains(&id) {
             panic!("Cannot add point with duplicate id.");
         }
         self.point_ids_to_indices
             .insert(id, self.point_indices_to_ids.len());
+        self.point_indices.insert(id);
         self.point_indices_to_ids.push(id);
         self.points.extend_from_slice(data);
     }
 
     fn add_cell(&mut self, id: usize, cell_data: &[usize]) {
-        if self.cell_indices_to_ids.contains(&id) {
+        if self.cell_indices.contains(&id) {
             panic!("Cannot add cell with duplicate id.");
         }
         assert_eq!(cell_data.len(), self.points_per_cell);
         self.cell_ids_to_indices
             .insert(id, self.cell_indices_to_ids.len());
+        self.cell_indices.insert(id);
         self.cell_indices_to_ids.push(id);
         for id in cell_data {
             self.cells.push(self.point_ids_to_indices[id]);
         }
     }
 
-    fn create_grid(self) -> SingleElementGrid<T, CiarletElement<T>> {
+    fn create_grid(&self) -> SingleElementGrid<T, CiarletElement<T>> {
         let cell_vertices =
             self.extract_vertices(&self.cells, &[self.element_data.0], &[self.element_data.1]);
-        let mut vertex_ids = vec![];
+
+        // Add the vertex ids. But need to make sure that we don't have duplicates.
+        // So first generate a set of vertex ids, then convert it to a vector.
+        // We finally sort the vector to make sure that grid generation is reproducible across runs
+        // as sets do not have a stable ordering.
+        let mut vertex_ids = HashSet::<usize>::new();
         for v in &cell_vertices {
-            if !vertex_ids.contains(v) {
-                vertex_ids.push(*v);
-            }
+            vertex_ids.insert(*v);
         }
 
-        let topology = self.create_topology(
-            vertex_ids,
-            (0..self.cell_count()).collect::<Vec<_>>(),
-            &cell_vertices,
-            &[self.element_data.0],
-        );
+        let vertex_ids = {
+            let mut tmp = Vec::<usize>::with_capacity(vertex_ids.len());
+            tmp.extend(vertex_ids.iter());
+            tmp.sort();
+            tmp
+        };
 
         let geometry = self.create_geometry(
             &self.point_indices_to_ids,
@@ -117,6 +126,14 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
             &[self.element_data.0],
             &[self.element_data.1],
         );
+
+        let topology = self.create_topology(
+            vertex_ids,
+            (0..self.cell_count()).collect::<Vec<_>>(),
+            &cell_vertices,
+            &[self.element_data.0],
+        );
+
         self.create_grid_from_topology_geometry(topology, geometry)
     }
 
@@ -177,10 +194,28 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
         let mut points = rlst_dynamic_array2!(T, [self.gdim(), npts]);
         points.data_mut().copy_from_slice(coordinates);
 
-        let cell_points = cell_points
-            .iter()
-            .map(|p| point_ids.iter().position(|i| *i == *p).unwrap())
-            .collect::<Vec<_>>();
+        // Create a map from point ids to the corresponding positions in the points array.
+        let point_ids_to_pos = {
+            let mut tmp = HashMap::<usize, usize>::new();
+            for (i, id) in point_ids.iter().enumerate() {
+                tmp.insert(*id, i);
+            }
+            tmp
+        };
+
+        let cell_points = {
+            let mut new_cell_points = Vec::<usize>::with_capacity(cell_points.len());
+            for id in cell_points {
+                new_cell_points.push(point_ids_to_pos[id]);
+            }
+            new_cell_points
+        };
+
+        // // TODO! Extremely inefficient!!. This should be done via hash maps.
+        // let cell_points = cell_points
+        //     .iter()
+        //     .map(|p| point_ids.iter().position(|i| *i == *p).unwrap())
+        //     .collect::<Vec<_>>();
         let family = LagrangeElementFamily::<T>::new(self.element_data.1, Continuity::Standard);
 
         SingleElementGeometry::<T, CiarletElement<T>>::new(
@@ -201,10 +236,27 @@ impl<T: RealScalar> TopologyBuilder for SingleElementGridBuilder<T> {
         cells: &[usize],
         _cell_types: &[ReferenceCellType],
     ) -> SingleTypeTopology {
-        let cells = cells
-            .iter()
-            .map(|v| vertex_ids.iter().position(|i| *i == *v).unwrap())
-            .collect::<Vec<_>>();
+        // Create a map from point ids to the corresponding positions in the points array.
+        let vertex_ids_to_pos = {
+            let mut tmp = HashMap::<usize, usize>::new();
+            for (i, id) in vertex_ids.iter().enumerate() {
+                tmp.insert(*id, i);
+            }
+            tmp
+        };
+
+        let cells = {
+            let mut new_cells = Vec::<usize>::with_capacity(cells.len());
+            for id in cells {
+                new_cells.push(vertex_ids_to_pos[id]);
+            }
+            new_cells
+        };
+
+        // let cells = cells
+        //     .iter()
+        //     .map(|v| vertex_ids.iter().position(|i| *i == *v).unwrap())
+        //     .collect::<Vec<_>>();
 
         SingleTypeTopology::new(
             &cells,

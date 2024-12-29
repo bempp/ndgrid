@@ -26,7 +26,7 @@ pub trait Builder {
     fn add_cell(&mut self, id: usize, cell_data: Self::CellData<'_>);
 
     /// Create the grid
-    fn create_grid(self) -> Self::Grid;
+    fn create_grid(&self) -> Self::Grid;
 
     /// Number of points
     fn point_count(&self) -> usize;
@@ -128,11 +128,14 @@ pub trait ParallelBuilder: Builder {
     where
         Self: 'a;
 
-    /// Create a parallel grid
-    fn create_parallel_grid<'a, C: Communicator>(&self, comm: &'a C) -> Self::ParallelGrid<'a, C>;
+    /// Create a parallel grid (call from root)
+    fn create_parallel_grid_root<'a, C: Communicator>(
+        &self,
+        comm: &'a C,
+    ) -> Self::ParallelGrid<'a, C>;
 
-    /// Receive a parallel grid
-    fn receive_parallel_grid<'a, C: Communicator>(
+    /// Create a parallel grid (call from other processes)
+    fn create_parallel_grid<'a, C: Communicator>(
         &self,
         comm: &'a C,
         root_rank: i32,
