@@ -21,7 +21,7 @@ where
 
 impl<'a, C: Communicator + 'a, G: ParallelGrid<C>> RONExportParallel<'a, C> for G
 where
-    Self::LocalGrid<'a>: RONExport,
+    Self::LocalGrid: RONExport,
     Self: 'a,
 {
 }
