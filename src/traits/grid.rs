@@ -64,13 +64,10 @@ pub trait ParallelGrid<C: Communicator>: Grid {
     //! MPI parallel grid
 
     /// Local grid type
-    type LocalGrid<'a>: Sync
-        + Grid<T = <Self as Grid>::T, EntityDescriptor = <Self as Grid>::EntityDescriptor>
-    where
-        Self: 'a;
+    type LocalGrid: Grid<T = <Self as Grid>::T, EntityDescriptor = <Self as Grid>::EntityDescriptor>;
 
     /// MPI communicator
     fn comm(&self) -> &C;
     /// Local grid on the current process
-    fn local_grid(&self) -> &Self::LocalGrid<'_>;
+    fn local_grid(&self) -> &Self::LocalGrid;
 }

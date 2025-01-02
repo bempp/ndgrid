@@ -21,8 +21,6 @@ pub struct ParallelGrid<'a, C: Communicator, G: Grid + Sync> {
     local_grid: LocalGrid<G>,
 }
 
-unsafe impl<C: Communicator, GridImpl: Grid + Sync> Sync for ParallelGrid<'_, C, GridImpl> {}
-
 impl<'a, C: Communicator, G: Grid + Sync> ParallelGrid<'a, C, G> {
     /// Create new
     pub fn new(
@@ -51,10 +49,8 @@ where
 }
 
 impl<C: Communicator, G: Grid + Sync> ParallelGridTrait<C> for ParallelGrid<'_, C, G> {
-    type LocalGrid<'a>
-        = LocalGrid<G>
-    where
-        Self: 'a;
+    type LocalGrid = LocalGrid<G>;
+
     fn comm(&self) -> &C {
         self.comm
     }
