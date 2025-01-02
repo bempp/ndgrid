@@ -46,7 +46,7 @@ pub struct ParallelGridSummaryData {
 
 pub trait RONExportParallel<'a, C: Communicator + 'a>: ParallelGrid<C>
 where
-    Self::LocalGrid<'a>: RONExport,
+    Self::LocalGrid: RONExport,
     Self: 'a,
 {
     //! Parallel grid export for RON
@@ -74,13 +74,13 @@ where
 
 pub trait RONImportParallel<'a, C: Communicator + 'a>: Sized + ParallelGrid<C>
 where
-    Self::LocalGrid<'a>: RONImport,
+    Self::LocalGrid: RONImport,
     Self: 'a,
 {
     //! Parallel grid import for RON
 
     /// Create parallel grid from comm and local_grid
-    fn create_from_ron_info(comm: &'a C, local_grid: Self::LocalGrid<'a>) -> Self;
+    fn create_from_ron_info(comm: &'a C, local_grid: Self::LocalGrid) -> Self;
 
     /// Export as RON
     fn import_from_ron(comm: &'a C, filename: &str) -> Self {
