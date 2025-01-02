@@ -27,7 +27,7 @@ crate-type = ["lib", "cdylib"]
 
 [dependencies]
 coupe = { git = "https://github.com/LIHPC-Computational-Geometry/coupe.git" }
-itertools = "0.13.*"
+itertools = "0.14.*"
 mpi = { version = "0.8.*" }
 ndelement = { git = "https://github.com/bempp/ndelement", default-features = false, features = ["mpi"] }
 num = "0.4"
