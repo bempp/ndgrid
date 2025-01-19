@@ -1,10 +1,12 @@
 //! Traits for a mesh entity
 use super::{Entity, GeometryMap};
-use crate::types::RealScalar;
+use crate::types::{Ownership, RealScalar};
+use bempp_distributed_tools::IndexLayout;
 use mpi::traits::Communicator;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter::Iterator;
+use std::rc::Rc;
 
 /// A grid
 pub trait Grid {
@@ -44,6 +46,24 @@ pub trait Grid {
     /// Number of entities
     fn entity_count(&self, entity_type: Self::EntityDescriptor) -> usize;
 
+    /// Number of cells
+    fn cell_count(&self) -> usize {
+        self.entity_types(self.topology_dim())
+            .iter()
+            .map(|&t| self.entity_count(t))
+            .sum()
+    }
+
+    /// Owned cell count
+    ///
+    /// Note. The default implementation iterates through all grid to count the number of owned elements.
+    /// Override this method if a more efficient implementation is available.
+    fn owned_cell_count(&self) -> usize {
+        self.entity_iter(self.topology_dim())
+            .filter(|e| matches!(e.ownership(), Ownership::Owned))
+            .count()
+    }
+
     /// Iterator over entities
     fn entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
 
@@ -70,4 +90,7 @@ pub trait ParallelGrid<C: Communicator>: Grid {
     fn comm(&self) -> &C;
     /// Local grid on the current process
     fn local_grid(&self) -> &Self::LocalGrid;
+
+    /// Return the cell index layout that describes where each global cell lives
+    fn cell_index_layout(&self) -> Rc<IndexLayout<'_, C>>;
 }
