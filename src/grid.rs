@@ -19,6 +19,7 @@ use mpi::traits::Communicator;
 pub struct ParallelGrid<'a, C: Communicator, G: Grid + Sync> {
     comm: &'a C,
     local_grid: LocalGrid<G>,
+    cell_index_layout: std::rc::Rc<bempp_distributed_tools::IndexLayout<'a, C>>,
 }
 
 impl<'a, C: Communicator, G: Grid + Sync> ParallelGrid<'a, C, G> {
@@ -29,9 +30,14 @@ impl<'a, C: Communicator, G: Grid + Sync> ParallelGrid<'a, C, G> {
         ownership: Vec<Vec<Ownership>>,
         global_indices: Vec<Vec<usize>>,
     ) -> Self {
+        let local_grid = LocalGrid::new(serial_grid, ownership, global_indices);
+        let owned_cell_count = local_grid.owned_cell_count();
         Self {
             comm,
-            local_grid: LocalGrid::new(serial_grid, ownership, global_indices),
+            local_grid,
+            cell_index_layout: std::rc::Rc::new(
+                bempp_distributed_tools::IndexLayout::from_local_counts(owned_cell_count, comm),
+            ),
         }
     }
 }
@@ -44,7 +50,14 @@ where
     Self: 'a,
 {
     fn create_from_ron_info(comm: &'a C, local_grid: LocalGrid<G>) -> Self {
-        Self { comm, local_grid }
+        let owned_cell_count = local_grid.owned_cell_count();
+        Self {
+            comm,
+            local_grid,
+            cell_index_layout: std::rc::Rc::new(
+                bempp_distributed_tools::IndexLayout::from_local_counts(owned_cell_count, comm),
+            ),
+        }
     }
 }
 
@@ -56,6 +69,10 @@ impl<C: Communicator, G: Grid + Sync> ParallelGridTrait<C> for ParallelGrid<'_, 
     }
     fn local_grid(&self) -> &LocalGrid<G> {
         &self.local_grid
+    }
+
+    fn cell_index_layout(&self) -> std::rc::Rc<bempp_distributed_tools::IndexLayout<'_, C>> {
+        self.cell_index_layout.clone()
     }
 }
 impl<C: Communicator, G: Grid + Sync> Grid for ParallelGrid<'_, C, G> {
