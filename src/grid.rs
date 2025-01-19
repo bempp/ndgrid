@@ -50,7 +50,14 @@ where
     Self: 'a,
 {
     fn create_from_ron_info(comm: &'a C, local_grid: LocalGrid<G>) -> Self {
-        Self { comm, local_grid }
+        let owned_cell_count = local_grid.owned_cell_count();
+        Self {
+            comm,
+            local_grid,
+            cell_index_layout: std::rc::Rc::new(
+                bempp_distributed_tools::IndexLayout::from_local_counts(owned_cell_count, comm),
+            ),
+        }
     }
 }
 
