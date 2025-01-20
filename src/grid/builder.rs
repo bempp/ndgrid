@@ -1,6 +1,6 @@
 //! Parallel grid builder
 
-use super::ParallelGrid;
+use super::ParallelGridImpl;
 use crate::{
     traits::{
         Builder, Entity, GeometryBuilder, Grid, GridBuilder, ParallelBuilder, Topology,
@@ -43,13 +43,13 @@ where
     B::Grid: Sync,
 {
     type ParallelGrid<'a, C: Communicator + 'a>
-        = ParallelGrid<'a, C, B::Grid>
+        = ParallelGridImpl<'a, C, B::Grid>
     where
         Self: 'a;
     fn create_parallel_grid_root<'a, C: Communicator>(
         &self,
         comm: &'a C,
-    ) -> ParallelGrid<'a, C, B::Grid> {
+    ) -> ParallelGridImpl<'a, C, B::Grid> {
         // If we have only a single process we can just create a serial grid.
         if comm.size() == 0 {
             let serial_grid = self.create_grid();
@@ -65,7 +65,7 @@ where
                 global_indices.push((0..entity_count).collect_vec());
             }
 
-            return ParallelGrid::new(comm, serial_grid, owners, global_indices);
+            return ParallelGridImpl::new(comm, serial_grid, owners, global_indices);
         }
         // Partition the cells via a KMeans algorithm. The midpoint of each cell is used and distributed
         // across processes via coupe. The returned array assigns each cell a process.
@@ -229,7 +229,7 @@ where
         &self,
         comm: &'a C,
         root_rank: i32,
-    ) -> ParallelGrid<'a, C, B::Grid> {
+    ) -> ParallelGridImpl<'a, C, B::Grid> {
         // First we receive all the data.
         let root_rank = root_rank as usize;
         let point_indices = scatterv(comm, root_rank);
@@ -278,7 +278,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         cell_types: Vec<Self::EntityDescriptor>,
         cell_degrees: Vec<usize>,
         cell_owners: Vec<usize>,
-    ) -> ParallelGrid<'a, C, Self::Grid>
+    ) -> ParallelGridImpl<'a, C, Self::Grid>
     where
         Self::Grid: Sync,
     {
@@ -460,7 +460,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         owners.push(cell_owners);
         global_indices.push(cell_global_indices);
 
-        ParallelGrid::new(comm, serial_grid, owners, global_indices)
+        ParallelGridImpl::new(comm, serial_grid, owners, global_indices)
     }
 
     /// Partition the cells

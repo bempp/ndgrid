@@ -124,7 +124,7 @@ pub trait ParallelBuilder: Builder {
     //! MPI parallel grid builder
 
     /// Parallel grid type
-    type ParallelGrid<'a, C: Communicator + 'a>: Grid + ParallelGrid<C>
+    type ParallelGrid<'a, C: Communicator + 'a>: ParallelGrid<C>
     where
         Self: 'a;
 

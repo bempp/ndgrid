@@ -12,5 +12,5 @@ pub mod traits;
 pub mod types;
 
 pub use grid::{
-    ParallelGrid, SingleElementGrid, SingleElementGridBorrowed, SingleElementGridBuilder,
+    ParallelGridImpl, SingleElementGrid, SingleElementGridBorrowed, SingleElementGridBuilder,
 };
