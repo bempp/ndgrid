@@ -80,11 +80,11 @@ pub trait Grid {
     ) -> Self::GeometryMap<'_>;
 }
 
-pub trait ParallelGrid<C: Communicator>: Grid {
+pub trait ParallelGrid<C: Communicator> {
     //! MPI parallel grid
 
     /// Local grid type
-    type LocalGrid: Grid<T = <Self as Grid>::T, EntityDescriptor = <Self as Grid>::EntityDescriptor>;
+    type LocalGrid: Grid;
 
     /// MPI communicator
     fn comm(&self) -> &C;

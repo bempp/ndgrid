@@ -5,7 +5,7 @@ use mpi::{
 use ndelement::types::ReferenceCellType;
 use ndgrid::{
     grid::local_grid::SingleElementGridBuilder,
-    traits::{Builder, Entity, Grid, ParallelBuilder},
+    traits::{Builder, Entity, Grid, ParallelBuilder, ParallelGrid},
     types::Ownership,
 };
 
@@ -43,6 +43,7 @@ fn main() {
     // Get the global indices.
 
     let global_vertices = grid
+        .local_grid()
         .entity_iter(0)
         .filter(|e| matches!(e.ownership(), Ownership::Owned))
         .map(|e| e.global_index())
@@ -51,6 +52,7 @@ fn main() {
     let nvertices = global_vertices.len();
 
     let global_cells = grid
+        .local_grid()
         .entity_iter(2)
         .filter(|e| matches!(e.ownership(), Ownership::Owned))
         .map(|e| e.global_index())

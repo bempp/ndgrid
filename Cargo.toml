@@ -2,7 +2,7 @@
 serde = ["dep:serde", "ndelement/serde", "dep:ron"]
 strict = []
 sleef = ["rlst/sleef"]
-default = ["sleef"]
+default = ["sleef", "serde"]
 
 [package]
 name = "ndgrid"
