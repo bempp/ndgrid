@@ -80,17 +80,20 @@ pub trait Grid {
     ) -> Self::GeometryMap<'_>;
 }
 
-pub trait ParallelGrid<C: Communicator> {
+pub trait ParallelGrid {
     //! MPI parallel grid
 
     /// Local grid type
     type LocalGrid: Grid;
 
+    /// Communicator
+    type C: Communicator;
+
     /// MPI communicator
-    fn comm(&self) -> &C;
+    fn comm(&self) -> &Self::C;
     /// Local grid on the current process
     fn local_grid(&self) -> &Self::LocalGrid;
 
     /// Return the cell index layout that describes where each global cell lives
-    fn cell_index_layout(&self) -> Rc<IndexLayout<'_, C>>;
+    fn cell_index_layout(&self) -> Rc<IndexLayout<'_, Self::C>>;
 }

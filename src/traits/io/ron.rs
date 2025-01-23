@@ -44,7 +44,7 @@ pub struct ParallelGridSummaryData {
     mpi_ranks: i32,
 }
 
-pub trait RONExportParallel<'a, C: Communicator + 'a>: ParallelGrid<C>
+pub trait RONExportParallel<'a, C: Communicator + 'a>: ParallelGrid<C = C>
 where
     Self::LocalGrid: RONExport,
     Self: 'a,
@@ -72,7 +72,7 @@ where
     }
 }
 
-pub trait RONImportParallel<'a, C: Communicator + 'a>: Sized + ParallelGrid<C>
+pub trait RONImportParallel<'a, C: Communicator + 'a>: Sized + ParallelGrid<C = C>
 where
     Self::LocalGrid: RONImport,
     Self: 'a,
