@@ -19,7 +19,7 @@ where
     }
 }
 
-impl<'a, C: Communicator + 'a, G: ParallelGrid<C>> RONExportParallel<'a, C> for G
+impl<'a, C: Communicator + 'a, G: ParallelGrid<C = C>> RONExportParallel<'a, C> for G
 where
     Self::LocalGrid: RONExport,
     Self: 'a,

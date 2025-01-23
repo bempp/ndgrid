@@ -61,8 +61,9 @@ where
     }
 }
 
-impl<C: Communicator, G: Grid + Sync> ParallelGrid<C> for ParallelGridImpl<'_, C, G> {
+impl<C: Communicator, G: Grid + Sync> ParallelGrid for ParallelGridImpl<'_, C, G> {
     type LocalGrid = LocalGrid<G>;
+    type C = C;
 
     fn comm(&self) -> &C {
         self.comm
