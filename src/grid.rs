@@ -65,6 +65,7 @@ impl<T: RealScalar, C: Communicator, G: Grid<T = T> + Sync> ParallelGrid
     for ParallelGridImpl<'_, C, G>
 {
     type LocalGrid = LocalGrid<G>;
+
     type C = C;
 
     type T = T;
