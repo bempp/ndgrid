@@ -98,5 +98,5 @@ pub trait ParallelGrid {
     fn local_grid(&self) -> &Self::LocalGrid;
 
     /// Return the cell index layout that describes where each global cell lives
-    fn cell_index_layout(&self) -> Rc<IndexLayout<'_, Self::C>>;
+    fn cell_layout(&self) -> Rc<IndexLayout<'_, Self::C>>;
 }

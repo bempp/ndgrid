@@ -19,7 +19,7 @@ use mpi::traits::Communicator;
 pub struct ParallelGridImpl<'a, C: Communicator, G: Grid + Sync> {
     comm: &'a C,
     local_grid: LocalGrid<G>,
-    cell_index_layout: std::rc::Rc<bempp_distributed_tools::IndexLayout<'a, C>>,
+    cell_layout: std::rc::Rc<bempp_distributed_tools::IndexLayout<'a, C>>,
 }
 
 impl<'a, C: Communicator, G: Grid + Sync> ParallelGridImpl<'a, C, G> {
@@ -35,9 +35,10 @@ impl<'a, C: Communicator, G: Grid + Sync> ParallelGridImpl<'a, C, G> {
         Self {
             comm,
             local_grid,
-            cell_index_layout: std::rc::Rc::new(
-                bempp_distributed_tools::IndexLayout::from_local_counts(owned_cell_count, comm),
-            ),
+            cell_layout: std::rc::Rc::new(bempp_distributed_tools::IndexLayout::from_local_counts(
+                owned_cell_count,
+                comm,
+            )),
         }
     }
 }
@@ -54,9 +55,10 @@ where
         Self {
             comm,
             local_grid,
-            cell_index_layout: std::rc::Rc::new(
-                bempp_distributed_tools::IndexLayout::from_local_counts(owned_cell_count, comm),
-            ),
+            cell_layout: std::rc::Rc::new(bempp_distributed_tools::IndexLayout::from_local_counts(
+                owned_cell_count,
+                comm,
+            )),
         }
     }
 }
@@ -76,7 +78,7 @@ impl<T: RealScalar, C: Communicator, G: Grid<T = T> + Sync> ParallelGrid
         &self.local_grid
     }
 
-    fn cell_index_layout(&self) -> std::rc::Rc<bempp_distributed_tools::IndexLayout<'_, C>> {
-        self.cell_index_layout.clone()
+    fn cell_layout(&self) -> std::rc::Rc<bempp_distributed_tools::IndexLayout<'_, C>> {
+        self.cell_layout.clone()
     }
 }
