@@ -10,7 +10,7 @@ use local_grid::LocalGrid;
 use crate::traits::{ConvertToSerializable, RONImportParallel};
 use crate::{
     traits::{Grid, ParallelGrid},
-    types::Ownership,
+    types::{Ownership, RealScalar},
 };
 use mpi::traits::Communicator;
 
@@ -61,14 +61,18 @@ where
     }
 }
 
-impl<C: Communicator, G: Grid + Sync> ParallelGrid for ParallelGridImpl<'_, C, G> {
+impl<T: RealScalar, C: Communicator, G: Grid<T = T> + Sync> ParallelGrid
+    for ParallelGridImpl<'_, C, G>
+{
     type LocalGrid = LocalGrid<G>;
+
     type C = C;
 
+    type T = T;
     fn comm(&self) -> &C {
         self.comm
     }
-    fn local_grid(&self) -> &LocalGrid<G> {
+    fn local_grid(&self) -> &Self::LocalGrid {
         &self.local_grid
     }
 

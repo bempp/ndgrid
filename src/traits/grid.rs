@@ -83,8 +83,11 @@ pub trait Grid {
 pub trait ParallelGrid {
     //! MPI parallel grid
 
+    /// Type of the Grid
+    type T: RealScalar;
+
     /// Local grid type
-    type LocalGrid: Grid;
+    type LocalGrid: Grid<T = Self::T>;
 
     /// Communicator
     type C: Communicator;
