@@ -99,4 +99,9 @@ pub trait ParallelGrid {
 
     /// Return the cell index layout that describes where each global cell lives
     fn cell_layout(&self) -> Rc<IndexLayout<'_, Self::C>>;
+
+    /// Return the global number of cells
+    fn global_cell_count(&self) -> usize {
+        self.cell_layout().number_of_global_indices()
+    }
 }
