@@ -70,6 +70,12 @@ pub trait Grid {
     /// An entity in this grid from an insertion id
     fn entity_from_id(&self, dim: usize, id: usize) -> Option<Self::Entity<'_>>;
 
+    /// Iterator over all cells
+    fn cell_iter(&self) -> Self::EntityIter<'_> {
+        let tdim = self.topology_dim();
+        self.entity_iter(tdim)
+    }
+
     /// Geometry map from reference entity to physical entities at the given points
     ///
     /// `points` should have space [entity_topology_dim, npts] and use column-major ordering
