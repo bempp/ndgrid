@@ -10,7 +10,7 @@ use ndgrid::{
 };
 
 fn main() {
-    let n = 8;
+    let n = 100;
 
     let mut b = SingleElementGridBuilder::<f64>::new(2, (ReferenceCellType::Quadrilateral, 1));
 
@@ -39,6 +39,28 @@ fn main() {
     } else {
         b.create_parallel_grid(&comm, 0)
     };
+
+    // Check that owned cells are sorted ahead of ghost cells
+
+    let cell_count_owned = grid
+        .local_grid()
+        .cell_iter()
+        .filter(|entity| entity.is_owned())
+        .count();
+
+    // Now check that the first `cell_count_owned` entities are actually owned.
+    for cell in grid.local_grid().cell_iter().take(cell_count_owned) {
+        assert!(cell.is_owned())
+    }
+
+    // Now make sure that the indices of the global cells are in consecutive order
+
+    let mut cell_global_count = grid.cell_layout().local_range().0;
+
+    for cell in grid.local_grid().cell_iter().take(cell_count_owned) {
+        assert_eq!(cell.global_index(), cell_global_count);
+        cell_global_count += 1;
+    }
 
     // Get the global indices.
 

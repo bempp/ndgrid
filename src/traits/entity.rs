@@ -40,6 +40,11 @@ pub trait Entity {
     /// The ownership of this entity
     fn ownership(&self) -> Ownership;
 
+    /// Return true if the entity is owned
+    fn is_owned(&self) -> bool {
+        matches!(self.ownership(), Ownership::Owned)
+    }
+
     /// The insertion id of this entity
     fn id(&self) -> Option<usize>;
 }
