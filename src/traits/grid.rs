@@ -71,6 +71,10 @@ pub trait Grid {
     fn entity_from_id(&self, dim: usize, id: usize) -> Option<Self::Entity<'_>>;
 
     /// Iterator over all cells
+    ///
+    /// This iterator first iterates through owned cells
+    /// and then through ghosts. The owned cells are sorted
+    /// by global index.
     fn cell_iter(&self) -> Self::EntityIter<'_> {
         let tdim = self.topology_dim();
         self.entity_iter(tdim)
