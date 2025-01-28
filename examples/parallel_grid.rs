@@ -19,7 +19,6 @@ fn main() {
     let universe: Universe = mpi::initialize().unwrap();
     let comm = universe.world();
     let rank = comm.rank();
-    println!("{rank} A");
     let grid = if rank == 0 {
         let mut i = 0;
         for y in 0..n {
@@ -38,13 +37,10 @@ fn main() {
             }
         }
 
-        println!("{rank} B");
         b.create_parallel_grid_root(&comm, GraphPartitioner::None)
     } else {
-        println!("{rank} B");
         b.create_parallel_grid(&comm, 0)
     };
-    println!("{rank} C");
 
     // Check that owned cells are sorted ahead of ghost cells
 

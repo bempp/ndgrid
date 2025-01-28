@@ -68,16 +68,15 @@ where
 
             return ParallelGridImpl::new(comm, serial_grid, owners, global_indices);
         }
-        println!("ROOT 0");
         // Partition the cells via a KMeans algorithm. The midpoint of each cell is used and distributed
         // across processes via coupe. The returned array assigns each cell a process.
         let cell_owners = self.partition_cells(comm.size() as usize, partitioner);
-        println!("ROOT 1");
+
         // Each vertex is assigned the minimum process that has a cell that contains it.
         // Note that the array is of the size of the points in the grid and contains garbage information
         // for points that are not vertices.
         let vertex_owners = self.assign_vertex_owners(comm.size() as usize, &cell_owners);
-        println!("ROOT 2");
+
         // This distributes cells, vertices and points to processes.
         // Each process gets now only the cell that it owns via `cell_owners` but also its neighbours.
         // Then all the corresponding vertices and points are also added to the corresponding cell.
@@ -85,7 +84,7 @@ where
         // assigned to each process and the actual indices.
         let (vertices_per_proc, points_per_proc, cells_per_proc) =
             self.get_vertices_points_and_cells(comm.size() as usize, &cell_owners);
-        println!("ROOT 3");
+
         // Compute the chunks array for the coordinates associated with the points.
         // The idx array for the coords is simply `self.gdim()` times the idx array for the points.
         let coords_per_proc = ChunkedData {
@@ -104,7 +103,7 @@ where
                 .map(|x| self.gdim() * x)
                 .collect(),
         };
-        println!("ROOT 4");
+
         // This compputes for each process the vertex owners.
         let vertex_owners_per_proc = ChunkedData::<usize> {
             data: {
@@ -117,7 +116,7 @@ where
             },
             idx_bounds: vertices_per_proc.idx_bounds.clone(),
         };
-        println!("ROOT 5");
+
         // We now compute the cell information for each process.
 
         // First we need the cell type.
@@ -132,7 +131,7 @@ where
             },
             idx_bounds: cells_per_proc.idx_bounds.clone(),
         };
-        println!("ROOT 6");
+
         // Now we need the cell degrees.
         let cell_degrees_per_proc = ChunkedData {
             data: {
@@ -145,7 +144,7 @@ where
             },
             idx_bounds: cells_per_proc.idx_bounds.clone(),
         };
-        println!("ROOT 7");
+
         // Now need the cell owners.
         let cell_owners_per_proc = ChunkedData {
             data: {
@@ -158,9 +157,9 @@ where
             },
             idx_bounds: cells_per_proc.idx_bounds.clone(),
         };
+
         // Finally the cell points. These are more messy since each cell might have different numbers of points. Hence,
         // we need to compute a new counts array.
-        println!("ROOT 8");
         let cell_points_per_proc = {
             // First compute the total number of points needed so that we can pre-allocated the array.
             let total_points = cells_per_proc
@@ -193,7 +192,7 @@ where
             // Finally return the chunks
             ChunkedData { data, idx_bounds }
         };
-        println!("ROOT 9");
+
         // Now we send everything across the processes. Every _per_proc variable is scattered across
         // the processes. After the scatter operation we have on each process the following data.
         // - `point_indices` contains the indices of the points that are owned by the current process.
@@ -205,7 +204,6 @@ where
         // - `cell_types` contains the types of the cells that are owned by the current process.
         // - `cell_degrees` contains the degrees of the cells that are owned by the current process.
         // - `cell_owners` contains the owners of the cells that are owned by the current process.
-        println!("ROOT 10");
         let point_indices = scatterv_root(comm, &points_per_proc);
         let coordinates = scatterv_root(comm, &coords_per_proc);
         let vertex_indices = scatterv_root(comm, &vertices_per_proc);
@@ -216,9 +214,8 @@ where
         let cell_degrees = scatterv_root(comm, &cell_degrees_per_proc);
         let cell_owners = scatterv_root(comm, &cell_owners_per_proc);
 
-        println!("ROOT 11");
         // This is executed on all ranks and creates the local grid.
-        let r = self.create_parallel_grid_internal(
+        self.create_parallel_grid_internal(
             comm,
             point_indices,
             coordinates,
@@ -229,9 +226,7 @@ where
             cell_types,
             cell_degrees,
             cell_owners,
-        );
-        println!("ROOT 12");
-        r
+        )
     }
     fn create_parallel_grid<'a, C: Communicator>(
         &self,
