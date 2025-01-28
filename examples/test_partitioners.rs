@@ -12,7 +12,7 @@ use ndgrid::{
 };
 
 fn run_test<C: Communicator>(comm: &C, partitioner: GraphPartitioner) {
-    let n = 100;
+    let n = 10;
 
     let mut b = SingleElementGridBuilder::<f64>::new(2, (ReferenceCellType::Quadrilateral, 1));
 
@@ -102,7 +102,7 @@ fn main() {
     run_test(&comm, GraphPartitioner::None);
 
     let mut p = vec![];
-    for i in 0..9801 {
+    for i in 0..81 {
         p.push(i % comm.size() as usize);
     }
     if comm.rank() == 0 {

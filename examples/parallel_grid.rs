@@ -12,7 +12,7 @@ use ndgrid::{
 };
 
 fn main() {
-    let n = 100;
+    let n = 10;
 
     let mut b = SingleElementGridBuilder::<f64>::new(2, (ReferenceCellType::Quadrilateral, 1));
 
