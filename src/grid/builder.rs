@@ -218,7 +218,7 @@ where
 
         println!("ROOT 11");
         // This is executed on all ranks and creates the local grid.
-        self.create_parallel_grid_internal(
+        let r = self.create_parallel_grid_internal(
             comm,
             point_indices,
             coordinates,
@@ -229,7 +229,9 @@ where
             cell_types,
             cell_degrees,
             cell_owners,
-        )
+        );
+        println!("ROOT 12");
+        r
     }
     fn create_parallel_grid<'a, C: Communicator>(
         &self,
