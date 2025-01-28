@@ -3,6 +3,7 @@ serde = ["dep:serde", "ndelement/serde", "dep:ron"]
 strict = []
 sleef = ["rlst/sleef"]
 default = ["sleef", "serde"]
+coupe = ["dep:coupe"]
 
 [package]
 name = "ndgrid"
@@ -26,7 +27,7 @@ name = "ndgrid"
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-coupe = { git = "https://github.com/LIHPC-Computational-Geometry/coupe.git" }
+coupe = { git = "https://github.com/LIHPC-Computational-Geometry/coupe.git", optional = true }
 itertools = "0.14.*"
 mpi = { version = "0.8.*" }
 ndelement = { git = "https://github.com/bempp/ndelement", default-features = false, features = ["mpi"] }

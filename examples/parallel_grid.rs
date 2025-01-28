@@ -6,7 +6,7 @@ use ndelement::types::ReferenceCellType;
 use ndgrid::{
     grid::local_grid::SingleElementGridBuilder,
     traits::{Builder, Entity, Grid, ParallelBuilder, ParallelGrid},
-    types::Ownership,
+    types::{GraphPartitioner, Ownership},
 };
 
 fn main() {
@@ -35,7 +35,7 @@ fn main() {
     let comm = universe.world();
     let rank = comm.rank();
     let grid = if rank == 0 {
-        b.create_parallel_grid_root(&comm)
+        b.create_parallel_grid_root(&comm, GraphPartitioner::None)
     } else {
         b.create_parallel_grid(&comm, 0)
     };

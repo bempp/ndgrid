@@ -1,7 +1,7 @@
 //! Grid builder
 use crate::{
     traits::{Grid, ParallelGrid},
-    types::RealScalar,
+    types::{GraphPartitioner, RealScalar},
 };
 use mpi::traits::Communicator;
 use std::fmt::Debug;
@@ -132,6 +132,7 @@ pub trait ParallelBuilder: Builder {
     fn create_parallel_grid_root<'a, C: Communicator>(
         &self,
         comm: &'a C,
+        partitioner: GraphPartitioner,
     ) -> Self::ParallelGrid<'a, C>;
 
     /// Create a parallel grid (call from other processes)

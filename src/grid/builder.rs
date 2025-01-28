@@ -6,7 +6,7 @@ use crate::{
         Builder, Entity, GeometryBuilder, Grid, GridBuilder, ParallelBuilder, Topology,
         TopologyBuilder,
     },
-    types::Ownership,
+    types::{GraphPartitioner, Ownership},
 };
 use itertools::{izip, Itertools};
 use mpi::{
@@ -49,6 +49,7 @@ where
     fn create_parallel_grid_root<'a, C: Communicator>(
         &self,
         comm: &'a C,
+        partitioner: GraphPartitioner,
     ) -> ParallelGridImpl<'a, C, B::Grid> {
         // If we have only a single process we can just create a serial grid.
         if comm.size() == 0 {
@@ -69,7 +70,7 @@ where
         }
         // Partition the cells via a KMeans algorithm. The midpoint of each cell is used and distributed
         // across processes via coupe. The returned array assigns each cell a process.
-        let cell_owners = self.partition_cells(comm.size() as usize);
+        let cell_owners = self.partition_cells(comm.size() as usize, partitioner);
         // Each vertex is assigned the minimum process that has a cell that contains it.
         // Note that the array is of the size of the points in the grid and contains garbage information
         // for points that are not vertices.
@@ -464,9 +465,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
     }
 
     /// Partition the cells
-    fn partition_cells(&self, nprocesses: usize) -> Vec<usize> {
-        use coupe::{KMeans, Partition, Point3D};
-
+    fn partition_cells(&self, nprocesses: usize, partitioner: GraphPartitioner) -> Vec<usize> {
         // Create an initial partitioning that roughly assigns the same
         // number of cells to each process.
         let mut partition = vec![];
@@ -476,54 +475,62 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             }
         }
 
-        // Compute the midpoints of each cell. If the geometric dimension is smaller than 3
-        // then the remaining dimensions are just set to 0.
-        let midpoints = (0..self.cell_count())
-            .map(|i| {
-                let v = self.cell_points(i);
-                Point3D::new(
-                    if self.gdim() > 0 {
-                        num::cast::<Self::T, f64>(
-                            v.iter().map(|j| self.point(*j)[0]).sum::<Self::T>(),
+        match partitioner {
+            GraphPartitioner::None => {}
+            #[cfg(feature = "coupe")]
+            GraphPartitioner::Coupe => {
+                // Compute the midpoints of each cell. If the geometric dimension is smaller than 3
+                // then the remaining dimensions are just set to 0.
+                let midpoints = (0..self.cell_count())
+                    .map(|i| {
+                        let v = self.cell_points(i);
+                        Point3D::new(
+                            if self.gdim() > 0 {
+                                num::cast::<Self::T, f64>(
+                                    v.iter().map(|j| self.point(*j)[0]).sum::<Self::T>(),
+                                )
+                                .unwrap()
+                                    / v.len() as f64
+                            } else {
+                                0.0
+                            },
+                            if self.gdim() > 1 {
+                                num::cast::<Self::T, f64>(
+                                    v.iter().map(|j| self.point(*j)[1]).sum::<Self::T>(),
+                                )
+                                .unwrap()
+                                    / v.len() as f64
+                            } else {
+                                0.0
+                            },
+                            if self.gdim() > 2 {
+                                num::cast::<Self::T, f64>(
+                                    v.iter().map(|j| self.point(*j)[2]).sum::<Self::T>(),
+                                )
+                                .unwrap()
+                                    / v.len() as f64
+                            } else {
+                                0.0
+                            },
                         )
-                        .unwrap()
-                            / v.len() as f64
-                    } else {
-                        0.0
-                    },
-                    if self.gdim() > 1 {
-                        num::cast::<Self::T, f64>(
-                            v.iter().map(|j| self.point(*j)[1]).sum::<Self::T>(),
-                        )
-                        .unwrap()
-                            / v.len() as f64
-                    } else {
-                        0.0
-                    },
-                    if self.gdim() > 2 {
-                        num::cast::<Self::T, f64>(
-                            v.iter().map(|j| self.point(*j)[2]).sum::<Self::T>(),
-                        )
-                        .unwrap()
-                            / v.len() as f64
-                    } else {
-                        0.0
-                    },
-                )
-            })
-            .collect::<Vec<_>>();
+                    })
+                    .collect::<Vec<_>>();
 
-        // Assign equal weights to each cell
-        let weights = vec![1.0; self.point_count()];
+                // Assign equal weights to each cell
+                let weights = vec![1.0; self.point_count()];
 
-        // Run the Coupe KMeans algorithm to create the partitioning. Maybe replace
-        // by Metis at some point.
-        KMeans {
-            delta_threshold: 0.0,
-            ..Default::default()
+                use coupe::{KMeans, Partition, Point3D};
+
+                // Run the Coupe KMeans algorithm to create the partitioning. Maybe replace
+                // by Metis at some point.
+                KMeans {
+                    delta_threshold: 0.0,
+                    ..Default::default()
+                }
+                .partition(&mut partition, (&midpoints, &weights))
+                .unwrap();
+            }
         }
-        .partition(&mut partition, (&midpoints, &weights))
-        .unwrap();
 
         // Return the new partitioning.
         partition
