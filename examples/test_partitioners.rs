@@ -101,6 +101,15 @@ fn main() {
     }
     run_test(&comm, GraphPartitioner::None);
 
+    let mut p = vec![];
+    for i in 0..9801 {
+        p.push(i % comm.size() as usize);
+    }
+    if comm.rank() == 0 {
+        println!("Testing GraphPartitioner::Manual");
+    }
+    run_test(&comm, GraphPartitioner::Manual(p));
+
     #[cfg(feature = "coupe")]
     if comm.rank() == 0 {
         println!("Testing GraphPartitioner::Coupe");

@@ -476,7 +476,8 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         }
 
         match partitioner {
-            GraphPartitioner::None => {}
+            GraphPartitioner::None => partition,
+            GraphPartitioner::Manual(p) => p,
             #[cfg(feature = "coupe")]
             GraphPartitioner::Coupe => {
                 // Compute the midpoints of each cell. If the geometric dimension is smaller than 3
@@ -529,11 +530,10 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
                 }
                 .partition(&mut partition, (&midpoints, &weights))
                 .unwrap();
+                // Return the new partitioning.
+                partition
             }
         }
-
-        // Return the new partitioning.
-        partition
     }
 
     /// Assign vertex owners

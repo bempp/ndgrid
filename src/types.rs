@@ -62,11 +62,13 @@ unsafe impl Equivalence for Ownership {
 
 /// Graph partitioner
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 #[repr(u8)]
 pub enum GraphPartitioner {
     /// No partioner: cells are split into approximately equal sized lists by index
     None,
+    /// A manual partition
+    Manual(Vec<usize>),
     #[cfg(feature = "coupe")]
     /// Coupe
     Coupe,
