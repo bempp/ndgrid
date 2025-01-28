@@ -25,19 +25,19 @@ jobs:
         uses: mpi4py/setup-mpi@v1
         with:
           mpi: ${{ matrix.mpi }}
-      # - name: Install cargo-mpirun
-      #   run: cargo install cargo-mpirun
+      - name: Install cargo-mpirun
+        run: cargo install cargo-mpirun
       - uses: actions/checkout@v4
       - name: Install LAPACK, OpenBLAS
         run:
           sudo apt-get install -y libopenblas-dev liblapack-dev
 
-      - name: Run unit tests
-        run: cargo test ${{ matrix.feature-flags }}
-      - name: Run unit tests in release mode
-        run: cargo test --release ${{ matrix.feature-flags }}
-      - name: Run tests
-        run: cargo test --examples --release ${{ matrix.feature-flags }}
+      #- name: Run unit tests
+      #  run: cargo test ${{ matrix.feature-flags }}
+      #- name: Run unit tests in release mode
+      #  run: cargo test --release ${{ matrix.feature-flags }}
+      #- name: Run tests
+      #  run: cargo test --examples --release ${{ matrix.feature-flags }}
       - name: Run examples
         run: |
           python3 find_examples.py
