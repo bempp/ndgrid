@@ -1,4 +1,4 @@
-//? mpirun -n {{NPROCESSES}} --features "serde"
+//? mpirun -n {{NPROCESSES}} --features "serde,coupe"
 
 use mpi::{
     collective::SystemOperation, environment::Universe, topology::Communicator,
@@ -39,7 +39,7 @@ fn main() {
         }
 
         println!("{rank} B");
-        b.create_parallel_grid_root(&comm, GraphPartitioner::None)
+        b.create_parallel_grid_root(&comm, GraphPartitioner::Coupe)
     } else {
         println!("{rank} B");
         b.create_parallel_grid(&comm, 0)
