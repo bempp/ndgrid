@@ -40,13 +40,11 @@ fn main() {
 
         println!("{rank} B");
         b.create_parallel_grid_root(&comm, GraphPartitioner::None)
-        println!("{rank} C");
     } else {
         println!("{rank} B");
         b.create_parallel_grid(&comm, 0)
-        println!("{rank} C");
     };
-    println!("{rank} D");
+    println!("{rank} C");
 
     // Check that owned cells are sorted ahead of ghost cells
 
