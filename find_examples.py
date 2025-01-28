@@ -34,6 +34,8 @@ for file in os.listdir(example_dir):
         and file.endswith(".rs")
         and os.path.isfile(os.path.join(example_dir, file))
     ):
+        if file == "test_partitioners.rs":
+            continue
         files.append((os.path.join(example_dir, file), file[:-3]))
 
 # Check that two examples do not share a name
