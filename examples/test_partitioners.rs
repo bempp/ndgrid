@@ -11,7 +11,6 @@ use ndgrid::{
     types::{GraphPartitioner, Ownership},
 };
 
-
 fn run_test<C: Communicator>(comm: &C, partitioner: GraphPartitioner) {
     let n = 100;
 
