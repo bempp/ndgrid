@@ -100,7 +100,6 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
         let mut coords = vec![G::T::zero(); gdim];
         for node in self.entity_iter(0) {
             node.geometry().points().next().unwrap().coords(&mut coords);
-            println!("{coords:?}");
             for (n, c) in coords.iter().enumerate() {
                 if n != 0 {
                     gmsh_s.push(' ');

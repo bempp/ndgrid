@@ -1,3 +1,5 @@
+//? mpirun -n {{NPROCESSES}} --features "serde"
+
 #[cfg(feature = "serde")]
 use mpi::{collective::CommunicatorCollectives, environment::Universe, traits::Communicator};
 #[cfg(feature = "serde")]
@@ -6,6 +8,7 @@ use ndelement::{ciarlet::CiarletElement, types::ReferenceCellType};
 use ndgrid::{
     grid::ParallelGridImpl,
     traits::{Builder, Grid, ParallelBuilder, RONExportParallel, RONImportParallel},
+    types::GraphPartitioner,
     SingleElementGrid, SingleElementGridBuilder,
 };
 
@@ -41,7 +44,7 @@ fn example_single_element_grid<C: Communicator>(
 
     if rank == 0 {
         create_single_element_grid_data(&mut b, n);
-        b.create_parallel_grid_root(comm)
+        b.create_parallel_grid_root(comm, GraphPartitioner::None)
     } else {
         b.create_parallel_grid(comm, 0)
     }

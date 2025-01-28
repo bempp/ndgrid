@@ -1,4 +1,4 @@
-//? mpirun -n {{NPROCESSES}} --features "serde"
+//? mpirun -n {{NPROCESSES}} --features "coupe"
 
 use mpi::{
     collective::SystemOperation, environment::Universe, topology::Communicator,
@@ -11,13 +11,11 @@ use ndgrid::{
     types::{GraphPartitioner, Ownership},
 };
 
-fn main() {
+fn run_test<C: Communicator>(comm: &C, partitioner: GraphPartitioner) {
     let n = 10;
 
     let mut b = SingleElementGridBuilder::<f64>::new(2, (ReferenceCellType::Quadrilateral, 1));
 
-    let universe: Universe = mpi::initialize().unwrap();
-    let comm = universe.world();
     let rank = comm.rank();
     let grid = if rank == 0 {
         let mut i = 0;
@@ -37,9 +35,9 @@ fn main() {
             }
         }
 
-        b.create_parallel_grid_root(&comm, GraphPartitioner::None)
+        b.create_parallel_grid_root(comm, partitioner)
     } else {
-        b.create_parallel_grid(&comm, 0)
+        b.create_parallel_grid(comm, 0)
     };
 
     // Check that owned cells are sorted ahead of ghost cells
@@ -92,4 +90,30 @@ fn main() {
 
     assert_eq!(total_cells, (n - 1) * (n - 1));
     assert_eq!(total_vertices, n * n);
+}
+
+fn main() {
+    let universe: Universe = mpi::initialize().unwrap();
+    let comm = universe.world();
+
+    if comm.rank() == 0 {
+        println!("Testing GraphPartitioner::None");
+    }
+    run_test(&comm, GraphPartitioner::None);
+
+    let mut p = vec![];
+    for i in 0..81 {
+        p.push(i % comm.size() as usize);
+    }
+    if comm.rank() == 0 {
+        println!("Testing GraphPartitioner::Manual");
+    }
+    run_test(&comm, GraphPartitioner::Manual(p));
+
+    #[cfg(feature = "coupe")]
+    if comm.rank() == 0 {
+        println!("Testing GraphPartitioner::Coupe");
+    }
+    #[cfg(feature = "coupe")]
+    run_test(&comm, GraphPartitioner::Coupe);
 }
