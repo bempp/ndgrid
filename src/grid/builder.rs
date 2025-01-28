@@ -230,7 +230,6 @@ where
             cell_degrees,
             cell_owners,
         )
-        println!("ROOT 12");
     }
     fn create_parallel_grid<'a, C: Communicator>(
         &self,
