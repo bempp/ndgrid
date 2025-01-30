@@ -54,6 +54,12 @@ pub trait Grid {
             .sum()
     }
 
+    /// Return the cell types in the grid
+    fn cell_types(&self) -> &[Self::EntityDescriptor] {
+        let tdim = self.topology_dim();
+        self.entity_types(tdim)
+    }
+
     /// Owned cell count
     ///
     /// Note. The default implementation iterates through all grid to count the number of owned elements.
