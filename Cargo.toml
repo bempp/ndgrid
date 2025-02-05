@@ -1,8 +1,7 @@
 [features]
 serde = ["dep:serde", "ndelement/serde", "dep:ron"]
 strict = []
-sleef = ["rlst/sleef"]
-default = ["sleef", "serde"]
+default = ["serde"]
 coupe = ["dep:coupe"]
 
 [package]
