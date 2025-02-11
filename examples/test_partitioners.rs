@@ -1,4 +1,4 @@
-//? mpirun -n {{NPROCESSES}} --features "coupe"
+//? mpirun -n {{NPROCESSES}} --features "coupe,scotch"
 
 use mpi::{
     collective::SystemOperation, environment::Universe, topology::Communicator,
@@ -116,4 +116,11 @@ fn main() {
     }
     #[cfg(feature = "coupe")]
     run_test(&comm, GraphPartitioner::Coupe);
+
+    #[cfg(feature = "scotch")]
+    if comm.rank() == 0 {
+        println!("Testing GraphPartitioner::Scotch");
+    }
+    #[cfg(feature = "scotch")]
+    run_test(&comm, GraphPartitioner::Scotch);
 }

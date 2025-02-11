@@ -27,9 +27,9 @@ jobs:
       - name: Install cargo-mpirun
         run: cargo install cargo-mpirun
       - uses: actions/checkout@v4
-      - name: Install LAPACK, OpenBLAS
+      - name: Install LAPACK, OpenBLAS, SCOTCH
         run:
-          sudo apt-get install -y libopenblas-dev liblapack-dev
+          sudo apt-get install -y libopenblas-dev liblapack-dev libscotch-dev
 
       - name: Build rust library
         run: cargo build --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}"
