@@ -33,7 +33,7 @@ ndelement = { git = "https://github.com/bempp/ndelement", default-features = fal
 num = "0.4"
 rlst = { git = "https://github.com/linalg-rs/rlst.git", default-features = false }
 serde = { version = "1", features = ["derive"], optional = true }
-ron = { version = "0.8", optional = true }
+ron = { version = "0.9", optional = true }
 c-api-tools = { version = "0.1.0" }
 bempp-distributed-tools = { git = "https://github.com/bempp/distributed_tools.git" }
 
