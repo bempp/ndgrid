@@ -56,7 +56,7 @@ fn test_parallel_export<C: Communicator>(comm: &C) {
 
     let n = 10;
     let grid = example_single_element_grid(comm, n);
-    let filename = format!("_examples_parallel_io_{}ranks.ron", size);
+    let filename = format!("_examples_parallel_io_{size}ranks.ron");
     grid.export_as_ron(&filename);
 }
 
@@ -66,7 +66,7 @@ fn test_parallel_import<C: Communicator>(comm: &C) {
 
     let size = comm.size();
 
-    let filename = format!("_examples_parallel_io_{}ranks.ron", size);
+    let filename = format!("_examples_parallel_io_{size}ranks.ron");
     let grid =
         ParallelGridImpl::<'_, C, SingleElementGrid<f64, CiarletElement<f64>>>::import_from_ron(
             comm, &filename,
