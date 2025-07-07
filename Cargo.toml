@@ -29,9 +29,9 @@ crate-type = ["lib", "cdylib"]
 coupe = { git = "https://github.com/LIHPC-Computational-Geometry/coupe.git", optional = true }
 itertools = "0.14.*"
 mpi = { version = "0.8.*" }
-ndelement = { git = "https://github.com/bempp/ndelement", default-features = false, features = ["mpi"] }
+ndelement = { git = "https://github.com/bempp/ndelement", features = ["mpi"] }
 num = "0.4"
-rlst = { git = "https://github.com/linalg-rs/rlst.git", default-features = false }
+rlst = { git = "https://github.com/linalg-rs/rlst.git" }
 serde = { version = "1", features = ["derive"], optional = true }
 ron = { version = "0.10", optional = true }
 c-api-tools = { version = "0.1.0" }
