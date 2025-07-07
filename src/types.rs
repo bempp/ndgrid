@@ -72,4 +72,7 @@ pub enum GraphPartitioner {
     #[cfg(feature = "coupe")]
     /// Coupe
     Coupe,
+    #[cfg(feature = "scotch")]
+    /// Scotch
+    Scotch,
 }

@@ -534,7 +534,11 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
                 .unwrap();
                 // Return the new partitioning.
                 partition
-            }
+            },
+            #[cfg(feature = "scotch")]
+            GraphPartitioner::Scotch => {
+                unimplemented!("not implemented yet");
+            },
         }
     }
 
