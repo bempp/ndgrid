@@ -15,6 +15,7 @@ jobs:
         f_strict: ["", "strict,"]
         f_serde: ["", "serde,"]
         f_coupe: ["", "coupe,"]
+        f_scotch: ["", "scotch,"]
     steps:
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -32,16 +33,16 @@ jobs:
           sudo apt-get install -y libopenblas-dev liblapack-dev libscotch-dev
 
       - name: Build rust library
-        run: cargo build --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}"
+        run: cargo build --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
       - name: Build rust library in release mode
-        run: cargo build --release --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}"
+        run: cargo build --release --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
 
       - name: Run unit tests
-        run: cargo test --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}"
+        run: cargo test --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
       - name: Run unit tests in release mode
-        run: cargo test --release --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}"
+        run: cargo test --release --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
       - name: Run tests
-        run: cargo test --examples --release --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}"
+        run: cargo test --examples --release --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
       - name: Run examples
         run: |
           python3 find_examples.py
@@ -49,4 +50,4 @@ jobs:
           ./examples.sh
 
       - name: Build docs
-        run: cargo doc --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}" --no-deps
+        run: cargo doc --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}" --no-deps
