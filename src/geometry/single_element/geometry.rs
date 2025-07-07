@@ -5,11 +5,10 @@ use crate::types::{Array2D, Array2DBorrowed, RealScalar};
 #[cfg(feature = "serde")]
 use ndelement::{
     ciarlet::{lagrange, CiarletElement},
-    types::Continuity,
-};
-use ndelement::{
+    map::IdentityMap,
     reference_cell,
     traits::{ElementFamily, FiniteElement},
+    types::Continuity,
     types::ReferenceCellType,
 };
 #[cfg(feature = "serde")]
@@ -47,7 +46,7 @@ where
 
 #[cfg(feature = "serde")]
 impl<T: RealScalar + serde::Serialize> ConvertToSerializable
-    for SingleElementGeometry<T, CiarletElement<T>>
+    for SingleElementGeometry<T, CiarletElement<T, IdentityMap>>
 where
     for<'de2> T: serde::Deserialize<'de2>,
 {
@@ -176,11 +175,11 @@ impl<'a, T: RealScalar, E: FiniteElement> SingleElementGeometryBorrowed<'a, T, E
         self.points().shape()[0]
     }
     /// Points
-    pub fn points(&self) -> &Array2DBorrowed<T> {
+    pub fn points(&self) -> &Array2DBorrowed<'_, T> {
         &self.points
     }
     /// Cells
-    pub fn cells(&self) -> &Array2DBorrowed<usize> {
+    pub fn cells(&self) -> &Array2DBorrowed<'_, usize> {
         &self.cells
     }
     /// Element for a sub-entity

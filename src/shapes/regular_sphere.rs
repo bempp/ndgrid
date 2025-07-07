@@ -5,7 +5,7 @@ use crate::{
     traits::Builder,
     types::RealScalar,
 };
-use ndelement::{ciarlet::CiarletElement, types::ReferenceCellType};
+use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
 use num::Float;
 use std::collections::{hash_map::Entry::Vacant, HashMap};
 
@@ -16,7 +16,7 @@ use std::collections::{hash_map::Entry::Vacant, HashMap};
 /// each edge). The new points are then scaled so that they are a distance of 1 from the origin.
 pub fn regular_sphere<T: RealScalar>(
     refinement_level: u32,
-) -> SingleElementGrid<T, CiarletElement<T>> {
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
     let mut b = SingleElementGridBuilder::new_with_capacity(
         3,
         2 + usize::pow(4, refinement_level + 1),

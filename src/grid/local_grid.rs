@@ -8,7 +8,6 @@ use crate::{
 
 mod single_element;
 pub use single_element::{SingleElementGrid, SingleElementGridBorrowed, SingleElementGridBuilder};
-pub(crate) use single_element::{SingleElementGridEntity, SingleElementGridEntityBorrowed};
 
 /// Grid entity
 #[derive(Debug)]
