@@ -176,11 +176,11 @@ impl<'a, T: RealScalar, E: FiniteElement> SingleElementGeometryBorrowed<'a, T, E
         self.points().shape()[0]
     }
     /// Points
-    pub fn points(&self) -> &Array2DBorrowed<T> {
+    pub fn points(&self) -> &Array2DBorrowed<'_, T> {
         &self.points
     }
     /// Cells
-    pub fn cells(&self) -> &Array2DBorrowed<usize> {
+    pub fn cells(&self) -> &Array2DBorrowed<'_, usize> {
         &self.cells
     }
     /// Element for a sub-entity
