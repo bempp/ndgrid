@@ -12,6 +12,7 @@ use crate::{
 };
 use ndelement::{
     ciarlet::{CiarletElement, LagrangeElementFamily},
+    map::IdentityMap,
     reference_cell,
     traits::{ElementFamily, FiniteElement},
     types::{Continuity, ReferenceCellType},
@@ -149,7 +150,7 @@ where
 
 #[cfg(feature = "serde")]
 impl<T: RealScalar + serde::Serialize> ConvertToSerializable
-    for SingleElementGrid<T, CiarletElement<T>>
+    for SingleElementGrid<T, CiarletElement<T, IdentityMap>>
 {
     type SerializableType = SerializableGrid<T>;
     fn to_serializable(&self) -> SerializableGrid<T> {
@@ -173,7 +174,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Singl
     }
 }
 
-impl<T: RealScalar> SingleElementGrid<T, CiarletElement<T>> {
+impl<T: RealScalar> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
     /// Create new from raw data
     pub fn new_from_raw_data(
         coordinates: &[T],
@@ -188,8 +189,9 @@ impl<T: RealScalar> SingleElementGrid<T, CiarletElement<T>> {
 
         let family = LagrangeElementFamily::<T>::new(geometry_degree, Continuity::Standard);
 
-        let geometry =
-            SingleElementGeometry::<T, CiarletElement<T>>::new(cell_type, points, cells, &family);
+        let geometry = SingleElementGeometry::<T, CiarletElement<T, IdentityMap>>::new(
+            cell_type, points, cells, &family,
+        );
 
         let points_per_cell = family.element(cell_type).dim();
         let tpoints_per_cell = reference_cell::entity_counts(cell_type)[0];
@@ -205,13 +207,6 @@ impl<T: RealScalar> SingleElementGrid<T, CiarletElement<T>> {
         let topology = SingleTypeTopology::new(&tcells, cell_type, None, None);
 
         Self { topology, geometry }
-    }
-
-    pub(crate) fn internal_geometry(&self) -> &SingleElementGeometry<T, CiarletElement<T>> {
-        &self.geometry
-    }
-    pub(crate) fn internal_topology(&self) -> &SingleTypeTopology {
-        &self.topology
     }
 }
 
@@ -319,7 +314,7 @@ mod test {
     };
     use rlst::{rlst_dynamic_array2, RandomAccessMut};
 
-    fn example_grid_triangle() -> SingleElementGrid<f64, CiarletElement<f64>> {
+    fn example_grid_triangle() -> SingleElementGrid<f64, CiarletElement<f64, IdentityMap>> {
         let mut points = rlst_dynamic_array2!(f64, [3, 4]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;
@@ -336,7 +331,7 @@ mod test {
         let family = LagrangeElementFamily::<f64>::new(1, Continuity::Standard);
         SingleElementGrid::new(
             SingleTypeTopology::new(&[0, 1, 2, 2, 1, 3], ReferenceCellType::Triangle, None, None),
-            SingleElementGeometry::<f64, CiarletElement<f64>>::new(
+            SingleElementGeometry::<f64, CiarletElement<f64, IdentityMap>>::new(
                 ReferenceCellType::Triangle,
                 points,
                 &[0, 1, 2, 2, 1, 3],
