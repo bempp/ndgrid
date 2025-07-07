@@ -9,6 +9,7 @@ use crate::{
 };
 use ndelement::{
     ciarlet::{lagrange, CiarletElement, LagrangeElementFamily},
+    map::IdentityMap,
     reference_cell,
     traits::{ElementFamily, FiniteElement},
     types::{Continuity, ReferenceCellType},
@@ -21,7 +22,7 @@ use std::collections::{HashMap, HashSet};
 pub struct SingleElementGridBuilder<T: RealScalar> {
     gdim: usize,
     element_data: (ReferenceCellType, usize),
-    element: CiarletElement<T>,
+    element: CiarletElement<T, IdentityMap>,
     points_per_cell: usize,
     pub(crate) points: Vec<T>,
     cells: Vec<usize>,
@@ -66,7 +67,7 @@ impl<T: RealScalar> SingleElementGridBuilder<T> {
 }
 
 impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
-    type Grid = SingleElementGrid<T, CiarletElement<T>>;
+    type Grid = SingleElementGrid<T, CiarletElement<T, IdentityMap>>;
     type T = T;
     type CellData<'a> = &'a [usize];
     type EntityDescriptor = ReferenceCellType;
@@ -99,7 +100,7 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
         }
     }
 
-    fn create_grid(&self) -> SingleElementGrid<T, CiarletElement<T>> {
+    fn create_grid(&self) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
         let cell_vertices =
             self.extract_vertices(&self.cells, &[self.element_data.0], &[self.element_data.1]);
 
@@ -181,7 +182,7 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
 }
 
 impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
-    type GridGeometry = SingleElementGeometry<T, CiarletElement<T>>;
+    type GridGeometry = SingleElementGeometry<T, CiarletElement<T, IdentityMap>>;
     fn create_geometry(
         &self,
         point_ids: &[usize],
@@ -189,7 +190,7 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
         cell_points: &[usize],
         _cell_types: &[ReferenceCellType],
         _cell_degrees: &[usize],
-    ) -> SingleElementGeometry<T, CiarletElement<T>> {
+    ) -> SingleElementGeometry<T, CiarletElement<T, IdentityMap>> {
         let npts = point_ids.len();
         let mut points = rlst_dynamic_array2!(T, [self.gdim(), npts]);
         points.data_mut().copy_from_slice(coordinates);
@@ -218,7 +219,7 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
         //     .collect::<Vec<_>>();
         let family = LagrangeElementFamily::<T>::new(self.element_data.1, Continuity::Standard);
 
-        SingleElementGeometry::<T, CiarletElement<T>>::new(
+        SingleElementGeometry::<T, CiarletElement<T, IdentityMap>>::new(
             self.element_data.0,
             points,
             &cell_points,

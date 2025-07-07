@@ -5,12 +5,14 @@ use crate::{
     traits::Builder,
     types::RealScalar,
 };
-use ndelement::{ciarlet::CiarletElement, types::ReferenceCellType};
+use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
 /// Create a square grid with triangle cells
 ///
 /// Create a grid of the square \[0,1\]^2 with triangle cells. The input ncells is the number of cells
 /// along each side of the square.
-pub fn screen_triangles<T: RealScalar>(ncells: usize) -> SingleElementGrid<T, CiarletElement<T>> {
+pub fn screen_triangles<T: RealScalar>(
+    ncells: usize,
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
     if ncells == 0 {
         panic!("Cannot create a grid with 0 cells");
     }
@@ -61,7 +63,7 @@ pub fn screen_triangles<T: RealScalar>(ncells: usize) -> SingleElementGrid<T, Ci
 /// cells along each side of the square.
 pub fn screen_quadrilaterals<T: RealScalar>(
     ncells: usize,
-) -> SingleElementGrid<T, CiarletElement<T>> {
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
     if ncells == 0 {
         panic!("Cannot create a grid with 0 cells");
     }

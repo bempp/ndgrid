@@ -405,7 +405,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             let owner_rank = match *owner {
                 Ownership::Owned => rank,
                 Ownership::Ghost(p, _) => p,
-                _ => panic!("Unsupported ownership: {:?}", owner),
+                _ => panic!("Unsupported ownership: {owner:?}"),
             };
             vertex_global_indices_to_owners.insert(*global_index, owner_rank);
         }

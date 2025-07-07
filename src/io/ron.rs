@@ -32,8 +32,7 @@ mod test {
     use crate::shapes::regular_sphere;
     use crate::traits::Grid;
     use crate::SingleElementGrid;
-    use ndelement::ciarlet::CiarletElement;
-    use ndelement::types::ReferenceCellType;
+    use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
 
     #[test]
     fn test_ron_export_and_import() {
@@ -41,7 +40,9 @@ mod test {
         let n = g.entity_count(ReferenceCellType::Interval);
         g.export_as_ron("_test_export.ron");
 
-        let g2 = SingleElementGrid::<f64, CiarletElement<f64>>::import_from_ron("_test_export.ron");
+        let g2 = SingleElementGrid::<f64, CiarletElement<f64, IdentityMap>>::import_from_ron(
+            "_test_export.ron",
+        );
 
         assert_eq!(g2.entity_count(ReferenceCellType::Interval), n);
     }
