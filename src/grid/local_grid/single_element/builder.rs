@@ -196,10 +196,10 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
         points.data_mut().copy_from_slice(coordinates);
 
         // Create a map from point ids to the corresponding positions in the points array.
-        let point_ids_to_pos = {
+        let point_indices_to_pos = {
             let mut tmp = HashMap::<usize, usize>::new();
             for (i, id) in point_ids.iter().enumerate() {
-                tmp.insert(*id, i);
+                tmp.insert(self.point_ids_to_indices[id], i);
             }
             tmp
         };
@@ -207,16 +207,11 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
         let cell_points = {
             let mut new_cell_points = Vec::<usize>::with_capacity(cell_points.len());
             for id in cell_points {
-                new_cell_points.push(point_ids_to_pos[id]);
+                new_cell_points.push(point_indices_to_pos[id]);
             }
             new_cell_points
         };
 
-        // // TODO! Extremely inefficient!!. This should be done via hash maps.
-        // let cell_points = cell_points
-        //     .iter()
-        //     .map(|p| point_ids.iter().position(|i| *i == *p).unwrap())
-        //     .collect::<Vec<_>>();
         let family = LagrangeElementFamily::<T>::new(self.element_data.1, Continuity::Standard);
 
         SingleElementGeometry::<T, CiarletElement<T, IdentityMap>>::new(
@@ -329,5 +324,20 @@ mod test {
 
         b.add_cell(0, &[0, 1, 2]);
         b.add_cell(0, &[1, 2, 3]);
+    }
+
+    #[test]
+    fn test_non_contiguous_ids() {
+        let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
+
+        b.add_point(0, &[0.0, 0.0, 0.0]);
+        b.add_point(1, &[1.0, 0.0, 0.0]);
+        b.add_point(2, &[0.0, 1.0, 0.0]);
+        b.add_point(4, &[1.0, 1.0, 0.0]);
+
+        b.add_cell(0, &[0, 1, 2]);
+        b.add_cell(2, &[1, 2, 4]);
+
+        b.create_grid();
     }
 }
