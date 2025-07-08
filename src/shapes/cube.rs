@@ -111,38 +111,44 @@ pub fn unit_square_boundary<T: RealScalar>(
         2 * (nx + ny),
         (ReferenceCellType::Interval, 1),
     );
-    for i in 0..nx {
-        b.add_point(i, &[T::from(i).unwrap() / T::from(nx).unwrap(), T::zero()]);
+    let dx = ny + 1;
+    let dy = 1;
+
+    println!("Starting: {nx},{ny}");
+
+    for i in 0..nx + 1 {
+        println!("i * dx = {}", i * dx);
+        b.add_point(i * dx, &[T::from(i).unwrap() / T::from(nx).unwrap(), T::zero()]);
+        println!("i * dx + ny * dy = {}", i * dx + ny * dy);
+        b.add_point(i * dx + ny * dy, &[T::from(i).unwrap() / T::from(nx).unwrap(), T::one()]);
     }
-    for j in 0..ny {
-        b.add_point(
-            nx + j,
-            &[T::one(), T::from(j).unwrap() / T::from(ny).unwrap()],
-        );
-    }
-    for i in 0..nx {
-        b.add_point(
-            nx + ny + i,
-            &[
-                T::one() - T::from(i).unwrap() / T::from(nx).unwrap(),
-                T::one(),
-            ],
-        );
-    }
-    for j in 0..ny {
-        b.add_point(
-            2 * nx + ny + j,
-            &[
-                T::zero(),
-                T::one() - T::from(j).unwrap() / T::from(ny).unwrap(),
-            ],
-        );
+    for j in 1..ny {
+        println!("j * dy = {}", j * dy);
+        b.add_point(j * dy, &[T::zero(), T::from(j).unwrap() / T::from(ny).unwrap()]);
+        println!("nx * dx + j * dy = {}", nx * dx + j * dy);
+        b.add_point(nx * dx + j * dy, &[T::one(), T::from(j).unwrap() / T::from(ny).unwrap()]);
     }
 
-    for i in 0..2 * nx + 2 * ny - 1 {
-        b.add_cell(i, &[i, i + 1]);
+    println!();
+
+    for i in 0..nx {
+        let origin = i * dx;
+        println!("[{} {}]", origin, origin + dx);
+        b.add_cell(2 * i, &[origin, origin + dx]);
+        let origin = i * dx + ny * dy;
+        println!("[{} {}]", origin, origin + dx);
+        b.add_cell(2 * i + 1, &[origin, origin + dx]);
     }
-    b.add_cell(2 * nx + 2 * ny, &[2 * nx + 2 * ny - 1, 0]);
+    for j in 0..ny {
+        let origin = j * dy;
+        println!("[{} {}]", origin, origin + dy);
+        b.add_cell(2 * nx + 2 * j, &[origin, origin + dy]);
+        let origin = nx * dx + j * dy;
+        println!("[{} {}]", origin, origin + dy);
+        b.add_cell(2 * nx + 2 * j + 1, &[origin, origin + dy]);
+    }
+
+    println!();
 
     b.create_grid()
 }
@@ -157,6 +163,114 @@ pub fn unit_cube<T: RealScalar>(
     nz: usize,
     cell_type: ReferenceCellType,
 ) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+    let mut b = SingleElementGridBuilder::new_with_capacity(
+        3,
+        (nx + 1) * (ny + 1) * (nz + 1),
+        match cell_type {
+            ReferenceCellType::Tetrahedron => 6 * nx * ny * nz,
+            ReferenceCellType::Hexahedron => 2 * nx * ny * nz,
+            _ => {
+                panic!("Unsupported cell type: {cell_type:?}")
+            }
+        },
+        (cell_type, 1),
+    );
+    for i in 0..nx + 1 {
+        for j in 0..ny + 1 {
+            for k in 0..nz + 1 {
+                b.add_point(
+                    (i * (ny + 1) + j) * (nz + 1) + k,
+                    &[
+                        T::from(i).unwrap() / T::from(nx).unwrap(),
+                        T::from(j).unwrap() / T::from(ny).unwrap(),
+                        T::from(k).unwrap() / T::from(nz).unwrap(),
+                    ],
+                );
+            }
+        }
+    }
+
+    match cell_type {
+        ReferenceCellType::Tetrahedron => {
+            for i in 0..nx {
+                for j in 0..ny {
+                    for k in 0..nz {
+                        let dx = (ny + 1) * (nz + 1);
+                        let dy = nz + 1;
+                        let dz = 1;
+                        let origin = i * dx + j * dy + k * dz;
+                        b.add_cell(
+                            6 * ((j * nx + i) * ny + k),
+                            &[origin, origin + dx, origin + dx + dy, origin + dx + dy + dz],
+                        );
+                        b.add_cell(
+                            6 * ((j * nx + i) * ny + k) + 1,
+                            &[origin, origin + dy, origin + dx + dy, origin + dx + dy + dz],
+                        );
+                        b.add_cell(
+                            6 * ((j * nx + i) * ny + k) + 2,
+                            &[origin, origin + dx, origin + dx + dz, origin + dx + dy + dz],
+                        );
+                        b.add_cell(
+                            6 * ((j * nx + i) * ny + k) + 3,
+                            &[origin, origin + dz, origin + dx + dz, origin + dx + dy + dz],
+                        );
+                        b.add_cell(
+                            6 * ((j * nx + i) * ny + k) + 4,
+                            &[origin, origin + dy, origin + dy + dz, origin + dx + dy + dz],
+                        );
+                        b.add_cell(
+                            6 * ((j * nx + i) * ny + k) + 5,
+                            &[origin, origin + dz, origin + dy + dz, origin + dx + dy + dz],
+                        );
+                    }
+                }
+            }
+        }
+        ReferenceCellType::Hexahedron => {
+            for i in 0..nx {
+                for j in 0..ny {
+                    for k in 0..nz {
+                        let dx = (ny + 1) * (nz + 1);
+                        let dy = nz + 1;
+                        let dz = 1;
+                        let origin = i * dx + j * dy + k * dz;
+                        b.add_cell(
+                            (j * nx + i) * ny + k,
+                            &[
+                                origin,
+                                origin + dx,
+                                origin + dy,
+                                origin + dy,
+                                origin + dz,
+                                origin + dx + dz,
+                                origin + dy + dz,
+                                origin + dy + dz,
+                            ],
+                        );
+                    }
+                }
+            }
+        }
+        _ => {
+            panic!("Unsupported cell type: {cell_type:?}")
+        }
+    }
+
+    b.create_grid()
+}
+
+/// Create a grid of the boundary of a unit cube
+///
+/// The unit cube is the cube with corners at (0,0,0), (1,0,0), (0,1,0), (1,1,0), (0,0,1),
+/// (1,0,1), (0,1,1) and (1,1,1)
+pub fn unit_cube_boundary<T: RealScalar>(
+    nx: usize,
+    ny: usize,
+    nz: usize,
+    cell_type: ReferenceCellType,
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+    unimplemented!();
     let mut b = SingleElementGridBuilder::new_with_capacity(
         3,
         (nx + 1) * (ny + 1) * (nz + 1),

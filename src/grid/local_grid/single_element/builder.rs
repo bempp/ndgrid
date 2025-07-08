@@ -204,19 +204,19 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
             tmp
         };
 
+        println!("{point_ids_to_pos:?}");
+
+        println!("{cell_points:?}");
+
         let cell_points = {
             let mut new_cell_points = Vec::<usize>::with_capacity(cell_points.len());
             for id in cell_points {
+                println!("id = {id}");
                 new_cell_points.push(point_ids_to_pos[id]);
             }
             new_cell_points
         };
 
-        // // TODO! Extremely inefficient!!. This should be done via hash maps.
-        // let cell_points = cell_points
-        //     .iter()
-        //     .map(|p| point_ids.iter().position(|i| *i == *p).unwrap())
-        //     .collect::<Vec<_>>();
         let family = LagrangeElementFamily::<T>::new(self.element_data.1, Continuity::Standard);
 
         SingleElementGeometry::<T, CiarletElement<T, IdentityMap>>::new(
