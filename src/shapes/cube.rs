@@ -208,42 +208,170 @@ pub fn unit_cube<T: RealScalar>(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::traits::{Entity, Geometry, Grid, Point};
+    use approx::*;
+
+    fn min(values: &[f64]) -> f64 {
+        let mut out = values[0];
+        for i in &values[1..] {
+            if *i < out {
+                out = *i;
+            }
+        }
+        out
+    }
+    fn max(values: &[f64]) -> f64 {
+        let mut out = values[0];
+        for i in &values[1..] {
+            if *i > out {
+                out = *i;
+            }
+        }
+        out
+    }
+
+    fn check_volume(
+        grid: &impl Grid<T = f64, EntityDescriptor = ReferenceCellType>,
+        expected_volume: f64,
+    ) {
+        let mut volume = 0.0;
+        for cell in grid.entity_iter(grid.topology_dim()) {
+            let g = cell.geometry();
+            match cell.entity_type() {
+                ReferenceCellType::Interval => {
+                    let mut points = vec![0.0; 2];
+                    for (i, p) in g.points().enumerate() {
+                        p.coords(&mut points[i..i + 1]);
+                    }
+                    volume += points[1] - points[0];
+                }
+                ReferenceCellType::Triangle => {
+                    let mut points = vec![0.0; 6];
+                    for (i, p) in g.points().enumerate() {
+                        p.coords(&mut points[2 * i..2 * i + 2]);
+                    }
+                    let x0 = min(&[points[0], points[2], points[4]]);
+                    let y0 = min(&[points[1], points[3], points[5]]);
+                    let x1 = max(&[points[0], points[2], points[4]]);
+                    let y1 = max(&[points[1], points[3], points[5]]);
+                    volume += (x1 - x0) * (y1 - y0) / 2.0;
+                }
+                ReferenceCellType::Quadrilateral => {
+                    let mut points = vec![0.0; 8];
+                    for (i, p) in g.points().enumerate() {
+                        p.coords(&mut points[2 * i..2 * i + 2]);
+                    }
+                    let x0 = points[0];
+                    let y0 = points[1];
+                    let x1 = points[2];
+                    let y1 = points[5];
+                    volume += (x1 - x0) * (y1 - y0);
+                }
+                ReferenceCellType::Tetrahedron => {
+                    let mut points = vec![0.0; 24];
+                    for (i, p) in g.points().enumerate() {
+                        p.coords(&mut points[3 * i..3 * i + 3]);
+                    }
+                    let x0 = min(&[points[0], points[3], points[6], points[9]]);
+                    let y0 = min(&[points[1], points[4], points[7], points[10]]);
+                    let z0 = min(&[points[2], points[5], points[8], points[11]]);
+                    let x1 = max(&[points[0], points[3], points[6], points[9]]);
+                    let y1 = max(&[points[1], points[4], points[7], points[10]]);
+                    let z1 = max(&[points[2], points[5], points[8], points[11]]);
+                    volume += (x1 - x0) * (y1 - y0) * (z1 - z0) / 6.0;
+                }
+                ReferenceCellType::Hexahedron => {
+                    let mut points = vec![0.0; 24];
+                    for (i, p) in g.points().enumerate() {
+                        p.coords(&mut points[3 * i..3 * i + 3]);
+                    }
+                    let x0 = points[0];
+                    let y0 = points[1];
+                    let z0 = points[2];
+                    let x1 = points[3];
+                    let y1 = points[7];
+                    let z1 = points[14];
+                    volume += (x1 - x0) * (y1 - y0) * (z1 - z0);
+                }
+                _ => {
+                    panic!("Unsupported cell");
+                }
+            }
+        }
+        assert_relative_eq!(volume, expected_volume, epsilon = 1e-10);
+    }
 
     #[test]
     fn test_unit_interval() {
-        let _g = unit_interval::<f64>(1);
-        let _g = unit_interval::<f64>(2);
-        let _g = unit_interval::<f64>(4);
-        let _g = unit_interval::<f64>(7);
+        check_volume(&unit_interval::<f64>(1), 1.0);
+        check_volume(&unit_interval::<f64>(2), 1.0);
+        check_volume(&unit_interval::<f64>(4), 1.0);
+        check_volume(&unit_interval::<f64>(7), 1.0);
     }
 
     #[test]
     fn test_unit_square_triangle() {
-        let _g = unit_square::<f64>(1, 1, ReferenceCellType::Triangle);
-        let _g = unit_square::<f64>(1, 1, ReferenceCellType::Triangle);
-        let _g = unit_square::<f64>(4, 5, ReferenceCellType::Triangle);
-        let _g = unit_square::<f64>(7, 6, ReferenceCellType::Triangle);
+        check_volume(&unit_square::<f64>(1, 1, ReferenceCellType::Triangle), 1.0);
+        check_volume(&unit_square::<f64>(1, 1, ReferenceCellType::Triangle), 1.0);
+        check_volume(&unit_square::<f64>(4, 5, ReferenceCellType::Triangle), 1.0);
+        check_volume(&unit_square::<f64>(7, 6, ReferenceCellType::Triangle), 1.0);
     }
     #[test]
     fn test_unit_square_quadrilateral() {
-        let _g = unit_square::<f64>(1, 1, ReferenceCellType::Quadrilateral);
-        let _g = unit_square::<f64>(2, 2, ReferenceCellType::Quadrilateral);
-        let _g = unit_square::<f64>(4, 5, ReferenceCellType::Quadrilateral);
-        let _g = unit_square::<f64>(7, 6, ReferenceCellType::Quadrilateral);
+        check_volume(
+            &unit_square::<f64>(1, 1, ReferenceCellType::Quadrilateral),
+            1.0,
+        );
+        check_volume(
+            &unit_square::<f64>(2, 2, ReferenceCellType::Quadrilateral),
+            1.0,
+        );
+        check_volume(
+            &unit_square::<f64>(4, 5, ReferenceCellType::Quadrilateral),
+            1.0,
+        );
+        check_volume(
+            &unit_square::<f64>(7, 6, ReferenceCellType::Quadrilateral),
+            1.0,
+        );
     }
 
     #[test]
     fn test_unit_cube_tetrahedron() {
-        let _g = unit_cube::<f64>(1, 1, 1, ReferenceCellType::Tetrahedron);
-        let _g = unit_cube::<f64>(2, 2, 2, ReferenceCellType::Tetrahedron);
-        let _g = unit_cube::<f64>(4, 5, 5, ReferenceCellType::Tetrahedron);
-        let _g = unit_cube::<f64>(7, 6, 4, ReferenceCellType::Tetrahedron);
+        check_volume(
+            &unit_cube::<f64>(1, 1, 1, ReferenceCellType::Tetrahedron),
+            1.0,
+        );
+        check_volume(
+            &unit_cube::<f64>(2, 2, 2, ReferenceCellType::Tetrahedron),
+            1.0,
+        );
+        check_volume(
+            &unit_cube::<f64>(4, 5, 5, ReferenceCellType::Tetrahedron),
+            1.0,
+        );
+        check_volume(
+            &unit_cube::<f64>(7, 6, 4, ReferenceCellType::Tetrahedron),
+            1.0,
+        );
     }
     #[test]
     fn test_unit_cube_hexahedron() {
-        let _g = unit_cube::<f64>(1, 1, 1, ReferenceCellType::Hexahedron);
-        let _g = unit_cube::<f64>(2, 2, 2, ReferenceCellType::Hexahedron);
-        let _g = unit_cube::<f64>(4, 5, 5, ReferenceCellType::Hexahedron);
-        let _g = unit_cube::<f64>(7, 6, 4, ReferenceCellType::Hexahedron);
+        check_volume(
+            &unit_cube::<f64>(1, 1, 1, ReferenceCellType::Hexahedron),
+            1.0,
+        );
+        check_volume(
+            &unit_cube::<f64>(2, 2, 2, ReferenceCellType::Hexahedron),
+            1.0,
+        );
+        check_volume(
+            &unit_cube::<f64>(4, 5, 5, ReferenceCellType::Hexahedron),
+            1.0,
+        );
+        check_volume(
+            &unit_cube::<f64>(7, 6, 4, ReferenceCellType::Hexahedron),
+            1.0,
+        );
     }
 }
