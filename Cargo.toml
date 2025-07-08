@@ -36,6 +36,7 @@ rlst = { git = "https://github.com/linalg-rs/rlst.git" }
 serde = { version = "1", features = ["derive"], optional = true }
 ron = { version = "0.10", optional = true }
 bempp-distributed-tools = { git = "https://github.com/bempp/distributed_tools.git" }
+scotch = { git = "https://github.com/mscroggs/scotch-rs.git", branch = "mscroggs/runtime" }
 
 [dev-dependencies]
 approx = "0.5"
