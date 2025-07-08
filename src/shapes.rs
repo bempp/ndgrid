@@ -4,6 +4,6 @@ mod cube;
 mod regular_sphere;
 mod screen;
 
-pub use cube::{unit_cube, unit_interval, unit_square};
+pub use cube::{unit_cube, unit_interval, unit_square, unit_square_boundary};
 pub use regular_sphere::regular_sphere;
 pub use screen::{screen_quadrilaterals, screen_triangles};

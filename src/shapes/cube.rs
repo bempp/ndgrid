@@ -98,6 +98,55 @@ pub fn unit_square<T: RealScalar>(
     b.create_grid()
 }
 
+/// Create a grid of the boundary of a unit square
+///
+/// The unit square is the square with corners at (0,0), (1,0), (0,1) and (1,1)
+pub fn unit_square_boundary<T: RealScalar>(
+    nx: usize,
+    ny: usize,
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+    let mut b = SingleElementGridBuilder::new_with_capacity(
+        2,
+        2 * (nx + ny),
+        2 * (nx + ny),
+        (ReferenceCellType::Interval, 1),
+    );
+    for i in 0..nx {
+        b.add_point(i, &[T::from(i).unwrap() / T::from(nx).unwrap(), T::zero()]);
+    }
+    for j in 0..ny {
+        b.add_point(
+            nx + j,
+            &[T::one(), T::from(j).unwrap() / T::from(ny).unwrap()],
+        );
+    }
+    for i in 0..nx {
+        b.add_point(
+            nx + ny + i,
+            &[
+                T::one() - T::from(i).unwrap() / T::from(nx).unwrap(),
+                T::one(),
+            ],
+        );
+    }
+    for j in 0..ny {
+        b.add_point(
+            2 * nx + ny + j,
+            &[
+                T::zero(),
+                T::one() - T::from(j).unwrap() / T::from(ny).unwrap(),
+            ],
+        );
+    }
+
+    for i in 0..2 * nx + 2 * ny - 1 {
+        b.add_cell(i, &[i, i + 1]);
+    }
+    b.add_cell(2 * nx + 2 * ny, &[2 * nx + 2 * ny - 1, 0]);
+
+    b.create_grid()
+}
+
 /// Create a unit cube grid
 ///
 /// The unit cube is the cube with corners at (0,0,0), (1,0,0), (0,1,0), (1,1,0), (0,0,1),
@@ -210,16 +259,8 @@ mod test {
     use super::*;
     use crate::traits::{Entity, Geometry, Grid, Point};
     use approx::*;
+    use itertools::izip;
 
-    fn min(values: &[f64]) -> f64 {
-        let mut out = values[0];
-        for i in &values[1..] {
-            if *i < out {
-                out = *i;
-            }
-        }
-        out
-    }
     fn max(values: &[f64]) -> f64 {
         let mut out = values[0];
         for i in &values[1..] {
@@ -235,68 +276,50 @@ mod test {
         expected_volume: f64,
     ) {
         let mut volume = 0.0;
-        for cell in grid.entity_iter(grid.topology_dim()) {
+        let tdim = grid.topology_dim();
+        let gdim = grid.geometry_dim();
+        for cell in grid.entity_iter(tdim) {
             let g = cell.geometry();
-            match cell.entity_type() {
+            let mut point = vec![0.0; gdim];
+            let mut min_p = vec![10.0; gdim];
+            let mut max_p = vec![-10.0; gdim];
+            for p in g.points() {
+                p.coords(&mut point);
+                for (j, v) in point.iter().enumerate() {
+                    if *v < min_p[j] {
+                        min_p[j] = *v;
+                    }
+                    if *v > max_p[j] {
+                        max_p[j] = *v;
+                    }
+                }
+            }
+            volume += match cell.entity_type() {
                 ReferenceCellType::Interval => {
-                    let mut points = vec![0.0; 2];
-                    for (i, p) in g.points().enumerate() {
-                        p.coords(&mut points[i..i + 1]);
-                    }
-                    volume += points[1] - points[0];
+                    max(&izip!(min_p, max_p).map(|(i, j)| j - i).collect::<Vec<_>>())
                 }
-                ReferenceCellType::Triangle => {
-                    let mut points = vec![0.0; 6];
-                    for (i, p) in g.points().enumerate() {
-                        p.coords(&mut points[2 * i..2 * i + 2]);
+                ReferenceCellType::Triangle => match gdim {
+                    2 => (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) / 2.0,
+                    3 => max(&[
+                        (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) / 2.0,
+                        (max_p[0] - min_p[0]) * (max_p[2] - min_p[2]) / 2.0,
+                        (max_p[1] - min_p[1]) * (max_p[2] - min_p[2]) / 2.0,
+                    ]),
+                    _ => {
+                        panic!("Unsupported dimension");
                     }
-                    let x0 = min(&[points[0], points[2], points[4]]);
-                    let y0 = min(&[points[1], points[3], points[5]]);
-                    let x1 = max(&[points[0], points[2], points[4]]);
-                    let y1 = max(&[points[1], points[3], points[5]]);
-                    volume += (x1 - x0) * (y1 - y0) / 2.0;
-                }
-                ReferenceCellType::Quadrilateral => {
-                    let mut points = vec![0.0; 8];
-                    for (i, p) in g.points().enumerate() {
-                        p.coords(&mut points[2 * i..2 * i + 2]);
-                    }
-                    let x0 = points[0];
-                    let y0 = points[1];
-                    let x1 = points[2];
-                    let y1 = points[5];
-                    volume += (x1 - x0) * (y1 - y0);
-                }
+                },
+                ReferenceCellType::Quadrilateral => (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]),
                 ReferenceCellType::Tetrahedron => {
-                    let mut points = vec![0.0; 24];
-                    for (i, p) in g.points().enumerate() {
-                        p.coords(&mut points[3 * i..3 * i + 3]);
-                    }
-                    let x0 = min(&[points[0], points[3], points[6], points[9]]);
-                    let y0 = min(&[points[1], points[4], points[7], points[10]]);
-                    let z0 = min(&[points[2], points[5], points[8], points[11]]);
-                    let x1 = max(&[points[0], points[3], points[6], points[9]]);
-                    let y1 = max(&[points[1], points[4], points[7], points[10]]);
-                    let z1 = max(&[points[2], points[5], points[8], points[11]]);
-                    volume += (x1 - x0) * (y1 - y0) * (z1 - z0) / 6.0;
+                    (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) * (max_p[2] - min_p[2]) / 6.0
                 }
                 ReferenceCellType::Hexahedron => {
-                    let mut points = vec![0.0; 24];
-                    for (i, p) in g.points().enumerate() {
-                        p.coords(&mut points[3 * i..3 * i + 3]);
-                    }
-                    let x0 = points[0];
-                    let y0 = points[1];
-                    let z0 = points[2];
-                    let x1 = points[3];
-                    let y1 = points[7];
-                    let z1 = points[14];
-                    volume += (x1 - x0) * (y1 - y0) * (z1 - z0);
+                    (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) * (max_p[2] - min_p[2])
                 }
                 _ => {
                     panic!("Unsupported cell");
                 }
-            }
+            };
         }
         assert_relative_eq!(volume, expected_volume, epsilon = 1e-10);
     }
@@ -316,6 +339,7 @@ mod test {
         check_volume(&unit_square::<f64>(4, 5, ReferenceCellType::Triangle), 1.0);
         check_volume(&unit_square::<f64>(7, 6, ReferenceCellType::Triangle), 1.0);
     }
+
     #[test]
     fn test_unit_square_quadrilateral() {
         check_volume(
@@ -334,6 +358,14 @@ mod test {
             &unit_square::<f64>(7, 6, ReferenceCellType::Quadrilateral),
             1.0,
         );
+    }
+
+    #[test]
+    fn test_unit_square_boundary() {
+        check_volume(&unit_square_boundary::<f64>(1, 1), 4.0);
+        check_volume(&unit_square_boundary::<f64>(1, 1), 4.0);
+        check_volume(&unit_square_boundary::<f64>(4, 5), 4.0);
+        check_volume(&unit_square_boundary::<f64>(7, 6), 4.0);
     }
 
     #[test]
