@@ -390,6 +390,85 @@ pub fn unit_cube_boundary<T: RealScalar>(
     b.create_grid()
 }
 
+/// Create a grid of the edges of a unit cube
+///
+/// The unit cube is the cube with corners at (0,0,0), (1,0,0), (0,1,0), (1,1,0), (0,0,1),
+/// (1,0,1), (0,1,1) and (1,1,1)
+pub fn unit_cube_edges<T: RealScalar>(
+    nx: usize,
+    ny: usize,
+    nz: usize,
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+    let mut b = SingleElementGridBuilder::new_with_capacity(
+        3,
+        4 * (nx + ny + nz + 1),
+        4 * (nx + ny + nz),
+        (ReferenceCellType::Interval, 1),
+    );
+    for i in 0..nx + 1 {
+        for j in if i == 0 || i == nx {
+            (0..ny + 1).collect::<Vec<_>>()
+        } else {
+            vec![0, ny]
+        } {
+            for k in if (i == 0 || i == nx) && (j == 0 || j == ny) {
+                (0..nz + 1).collect::<Vec<_>>()
+            } else {
+                vec![0, nz]
+            } {
+                b.add_point(
+                    (i * (ny + 1) + j) * (nz + 1) + k,
+                    &[
+                        T::from(i).unwrap() / T::from(nx).unwrap(),
+                        T::from(j).unwrap() / T::from(ny).unwrap(),
+                        T::from(k).unwrap() / T::from(nz).unwrap(),
+                    ],
+                );
+            }
+        }
+    }
+
+    let dx = (ny + 1) * (nz + 1);
+    let dy = nz + 1;
+    let dz = 1;
+    let mut cell_n = 0;
+    for i in 0..nx {
+        for origin in [
+            i * dx,
+            i * dx + ny * dy,
+            i * dx + nz * dz,
+            i * dx + ny * dy + nz * dz,
+        ] {
+            b.add_cell(cell_n, &[origin, origin + dx]);
+            cell_n += 1;
+        }
+    }
+    for j in 0..ny {
+        for origin in [
+            j * dy,
+            j * dy + nx * dx,
+            j * dy + nz * dz,
+            j * dy + nx * dx + nz * dz,
+        ] {
+            b.add_cell(cell_n, &[origin, origin + dy]);
+            cell_n += 1;
+        }
+    }
+    for k in 0..nz {
+        for origin in [
+            k * dz,
+            k * dz + nx * dx,
+            k * dz + ny * dy,
+            k * dz + nx * dx + ny * dy,
+        ] {
+            b.add_cell(cell_n, &[origin, origin + dz]);
+            cell_n += 1;
+        }
+    }
+
+    b.create_grid()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -591,5 +670,13 @@ mod test {
             &unit_cube::<f64>(7, 6, 4, ReferenceCellType::Hexahedron),
             1.0,
         );
+    }
+
+    #[test]
+    fn test_unit_cube_edges() {
+        check_volume(&unit_cube_edges::<f64>(1, 1, 1), 12.0);
+        check_volume(&unit_cube_edges::<f64>(2, 2, 2), 12.0);
+        check_volume(&unit_cube_edges::<f64>(4, 5, 5), 12.0);
+        check_volume(&unit_cube_edges::<f64>(7, 6, 4), 12.0);
     }
 }
