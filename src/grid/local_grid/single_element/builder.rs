@@ -195,34 +195,12 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
         let mut points = rlst_dynamic_array2!(T, [self.gdim(), npts]);
         points.data_mut().copy_from_slice(coordinates);
 
-        // Create a map from point ids to the corresponding positions in the points array.
-        let point_ids_to_pos = {
-            let mut tmp = HashMap::<usize, usize>::new();
-            for (i, id) in point_ids.iter().enumerate() {
-                tmp.insert(*id, i);
-            }
-            tmp
-        };
-
-        println!("{point_ids_to_pos:?}");
-
-        println!("{cell_points:?}");
-
-        let cell_points = {
-            let mut new_cell_points = Vec::<usize>::with_capacity(cell_points.len());
-            for id in cell_points {
-                println!("id = {id}");
-                new_cell_points.push(point_ids_to_pos[id]);
-            }
-            new_cell_points
-        };
-
         let family = LagrangeElementFamily::<T>::new(self.element_data.1, Continuity::Standard);
 
         SingleElementGeometry::<T, CiarletElement<T, IdentityMap>>::new(
             self.element_data.0,
             points,
-            &cell_points,
+            cell_points,
             &family,
         )
     }
@@ -253,11 +231,6 @@ impl<T: RealScalar> TopologyBuilder for SingleElementGridBuilder<T> {
             }
             new_cells
         };
-
-        // let cells = cells
-        //     .iter()
-        //     .map(|v| vertex_ids.iter().position(|i| *i == *v).unwrap())
-        //     .collect::<Vec<_>>();
 
         SingleTypeTopology::new(
             &cells,
@@ -329,5 +302,20 @@ mod test {
 
         b.add_cell(0, &[0, 1, 2]);
         b.add_cell(0, &[1, 2, 3]);
+    }
+
+    #[test]
+    fn test_non_contiguous_ids() {
+        let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
+
+        b.add_point(0, &[0.0, 0.0, 0.0]);
+        b.add_point(1, &[1.0, 0.0, 0.0]);
+        b.add_point(2, &[0.0, 1.0, 0.0]);
+        b.add_point(4, &[1.0, 1.0, 0.0]);
+
+        b.add_cell(0, &[0, 1, 2]);
+        b.add_cell(2, &[1, 2, 4]);
+
+        b.create_grid();
     }
 }
