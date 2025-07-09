@@ -195,23 +195,6 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
         let mut points = rlst_dynamic_array2!(T, [self.gdim(), npts]);
         points.data_mut().copy_from_slice(coordinates);
 
-        // Create a map from point ids to the corresponding positions in the points array.
-        let point_indices_to_pos = {
-            let mut tmp = HashMap::<usize, usize>::new();
-            for (i, id) in point_ids.iter().enumerate() {
-                tmp.insert(self.point_ids_to_indices[id], i);
-            }
-            tmp
-        };
-
-        let cell_points = {
-            let mut new_cell_points = Vec::<usize>::with_capacity(cell_points.len());
-            for id in cell_points {
-                new_cell_points.push(point_indices_to_pos[id]);
-            }
-            new_cell_points
-        };
-
         let family = LagrangeElementFamily::<T>::new(self.element_data.1, Continuity::Standard);
 
         SingleElementGeometry::<T, CiarletElement<T, IdentityMap>>::new(
