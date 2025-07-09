@@ -62,12 +62,12 @@ pub fn unit_square<T: RealScalar>(
         }
     }
 
+    let dx = ny + 1;
+    let dy = 1;
     match cell_type {
         ReferenceCellType::Triangle => {
             for i in 0..nx {
                 for j in 0..ny {
-                    let dx = ny + 1;
-                    let dy = 1;
                     let origin = i * dx + j * dy;
                     b.add_cell(2 * (j * nx + i), &[origin, origin + dx, origin + dx + dy]);
                     b.add_cell(
@@ -80,8 +80,6 @@ pub fn unit_square<T: RealScalar>(
         ReferenceCellType::Quadrilateral => {
             for i in 0..nx {
                 for j in 0..ny {
-                    let dx = ny + 1;
-                    let dy = 1;
                     let origin = i * dx + j * dy;
                     b.add_cell(
                         j * nx + i,
@@ -114,41 +112,39 @@ pub fn unit_square_boundary<T: RealScalar>(
     let dx = ny + 1;
     let dy = 1;
 
-    println!("Starting: {nx},{ny}");
-
     for i in 0..nx + 1 {
-        println!("i * dx = {}", i * dx);
-        b.add_point(i * dx, &[T::from(i).unwrap() / T::from(nx).unwrap(), T::zero()]);
-        println!("i * dx + ny * dy = {}", i * dx + ny * dy);
-        b.add_point(i * dx + ny * dy, &[T::from(i).unwrap() / T::from(nx).unwrap(), T::one()]);
+        b.add_point(
+            i * dx,
+            &[T::from(i).unwrap() / T::from(nx).unwrap(), T::zero()],
+        );
+        b.add_point(
+            i * dx + ny * dy,
+            &[T::from(i).unwrap() / T::from(nx).unwrap(), T::one()],
+        );
     }
     for j in 1..ny {
-        println!("j * dy = {}", j * dy);
-        b.add_point(j * dy, &[T::zero(), T::from(j).unwrap() / T::from(ny).unwrap()]);
-        println!("nx * dx + j * dy = {}", nx * dx + j * dy);
-        b.add_point(nx * dx + j * dy, &[T::one(), T::from(j).unwrap() / T::from(ny).unwrap()]);
+        b.add_point(
+            j * dy,
+            &[T::zero(), T::from(j).unwrap() / T::from(ny).unwrap()],
+        );
+        b.add_point(
+            nx * dx + j * dy,
+            &[T::one(), T::from(j).unwrap() / T::from(ny).unwrap()],
+        );
     }
-
-    println!();
 
     for i in 0..nx {
         let origin = i * dx;
-        println!("[{} {}]", origin, origin + dx);
         b.add_cell(2 * i, &[origin, origin + dx]);
         let origin = i * dx + ny * dy;
-        println!("[{} {}]", origin, origin + dx);
         b.add_cell(2 * i + 1, &[origin, origin + dx]);
     }
     for j in 0..ny {
         let origin = j * dy;
-        println!("[{} {}]", origin, origin + dy);
         b.add_cell(2 * nx + 2 * j, &[origin, origin + dy]);
         let origin = nx * dx + j * dy;
-        println!("[{} {}]", origin, origin + dy);
         b.add_cell(2 * nx + 2 * j + 1, &[origin, origin + dy]);
     }
-
-    println!();
 
     b.create_grid()
 }
@@ -190,14 +186,14 @@ pub fn unit_cube<T: RealScalar>(
         }
     }
 
+    let dx = (ny + 1) * (nz + 1);
+    let dy = nz + 1;
+    let dz = 1;
     match cell_type {
         ReferenceCellType::Tetrahedron => {
             for i in 0..nx {
                 for j in 0..ny {
                     for k in 0..nz {
-                        let dx = (ny + 1) * (nz + 1);
-                        let dy = nz + 1;
-                        let dz = 1;
                         let origin = i * dx + j * dy + k * dz;
                         b.add_cell(
                             6 * ((j * nx + i) * ny + k),
@@ -231,9 +227,6 @@ pub fn unit_cube<T: RealScalar>(
             for i in 0..nx {
                 for j in 0..ny {
                     for k in 0..nz {
-                        let dx = (ny + 1) * (nz + 1);
-                        let dy = nz + 1;
-                        let dz = 1;
                         let origin = i * dx + j * dy + k * dz;
                         b.add_cell(
                             (j * nx + i) * ny + k,
@@ -270,13 +263,12 @@ pub fn unit_cube_boundary<T: RealScalar>(
     nz: usize,
     cell_type: ReferenceCellType,
 ) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
-    unimplemented!();
     let mut b = SingleElementGridBuilder::new_with_capacity(
         3,
-        (nx + 1) * (ny + 1) * (nz + 1),
+        (nx + 1) * (ny + 1) * (nz + 1) - (nx - 1) * (ny - 1) * (nz - 1),
         match cell_type {
-            ReferenceCellType::Tetrahedron => 6 * nx * ny * nz,
-            ReferenceCellType::Hexahedron => 2 * nx * ny * nz,
+            ReferenceCellType::Triangle => 4 * (nx * ny + nx * nz + ny * nz),
+            ReferenceCellType::Quadrilateral => 2 * (nx * ny + nx * nz + ny * nz),
             _ => {
                 panic!("Unsupported cell type: {cell_type:?}")
             }
@@ -285,7 +277,11 @@ pub fn unit_cube_boundary<T: RealScalar>(
     );
     for i in 0..nx + 1 {
         for j in 0..ny + 1 {
-            for k in 0..nz + 1 {
+            for k in if i == 0 || i == nx || j == 0 || j == ny {
+                (0..nz + 1).collect::<Vec<_>>()
+            } else {
+                vec![0, nz]
+            } {
                 b.add_point(
                     (i * (ny + 1) + j) * (nz + 1) + k,
                     &[
@@ -298,65 +294,91 @@ pub fn unit_cube_boundary<T: RealScalar>(
         }
     }
 
+    let dx = (ny + 1) * (nz + 1);
+    let dy = nz + 1;
+    let dz = 1;
     match cell_type {
-        ReferenceCellType::Tetrahedron => {
+        ReferenceCellType::Triangle => {
+            let mut cell_n = 0;
             for i in 0..nx {
                 for j in 0..ny {
-                    for k in 0..nz {
-                        let dx = (ny + 1) * (nz + 1);
-                        let dy = nz + 1;
-                        let dz = 1;
-                        let origin = i * dx + j * dy + k * dz;
-                        b.add_cell(
-                            6 * ((j * nx + i) * ny + k),
-                            &[origin, origin + dx, origin + dx + dy, origin + dx + dy + dz],
-                        );
-                        b.add_cell(
-                            6 * ((j * nx + i) * ny + k) + 1,
-                            &[origin, origin + dy, origin + dx + dy, origin + dx + dy + dz],
-                        );
-                        b.add_cell(
-                            6 * ((j * nx + i) * ny + k) + 2,
-                            &[origin, origin + dx, origin + dx + dz, origin + dx + dy + dz],
-                        );
-                        b.add_cell(
-                            6 * ((j * nx + i) * ny + k) + 3,
-                            &[origin, origin + dz, origin + dx + dz, origin + dx + dy + dz],
-                        );
-                        b.add_cell(
-                            6 * ((j * nx + i) * ny + k) + 4,
-                            &[origin, origin + dy, origin + dy + dz, origin + dx + dy + dz],
-                        );
-                        b.add_cell(
-                            6 * ((j * nx + i) * ny + k) + 5,
-                            &[origin, origin + dz, origin + dy + dz, origin + dx + dy + dz],
-                        );
-                    }
+                    let origin = i * dx + j * dy;
+                    b.add_cell(cell_n, &[origin, origin + dx, origin + dx + dy]);
+                    b.add_cell(cell_n + 1, &[origin, origin + dx + dy, origin + dy]);
+                    let origin = i * dx + j * dy + nz * dz;
+                    b.add_cell(cell_n + 2, &[origin, origin + dx, origin + dx + dy]);
+                    b.add_cell(cell_n + 3, &[origin, origin + dx + dy, origin + dy]);
+                    cell_n += 4;
+                }
+            }
+            for i in 0..nx {
+                for k in 0..nz {
+                    let origin = i * dx + k * dz;
+                    b.add_cell(cell_n, &[origin, origin + dx, origin + dx + dz]);
+                    b.add_cell(cell_n + 1, &[origin, origin + dx + dz, origin + dz]);
+                    let origin = i * dx + ny * dy + k * dz;
+                    b.add_cell(cell_n + 2, &[origin, origin + dx, origin + dx + dz]);
+                    b.add_cell(cell_n + 3, &[origin, origin + dx + dz, origin + dz]);
+                    cell_n += 4;
+                }
+            }
+            for j in 0..ny {
+                for k in 0..nz {
+                    let origin = j * dy + k * dz;
+                    b.add_cell(cell_n, &[origin, origin + dy, origin + dy + dz]);
+                    b.add_cell(cell_n + 1, &[origin, origin + dy + dz, origin + dz]);
+                    let origin = nx * dx + j * dy + k * dz;
+                    b.add_cell(cell_n + 2, &[origin, origin + dy, origin + dy + dz]);
+                    b.add_cell(cell_n + 3, &[origin, origin + dy + dz, origin + dz]);
+                    cell_n += 4;
                 }
             }
         }
-        ReferenceCellType::Hexahedron => {
+        ReferenceCellType::Quadrilateral => {
+            let mut cell_n = 0;
             for i in 0..nx {
                 for j in 0..ny {
-                    for k in 0..nz {
-                        let dx = (ny + 1) * (nz + 1);
-                        let dy = nz + 1;
-                        let dz = 1;
-                        let origin = i * dx + j * dy + k * dz;
-                        b.add_cell(
-                            (j * nx + i) * ny + k,
-                            &[
-                                origin,
-                                origin + dx,
-                                origin + dy,
-                                origin + dy,
-                                origin + dz,
-                                origin + dx + dz,
-                                origin + dy + dz,
-                                origin + dy + dz,
-                            ],
-                        );
-                    }
+                    let origin = i * dx + j * dy;
+                    b.add_cell(
+                        cell_n,
+                        &[origin, origin + dx, origin + dy, origin + dx + dy],
+                    );
+                    let origin = i * dx + j * dy + nz * dz;
+                    b.add_cell(
+                        cell_n + 1,
+                        &[origin, origin + dx, origin + dy, origin + dx + dy],
+                    );
+                    cell_n += 2;
+                }
+            }
+            for i in 0..nx {
+                for k in 0..nz {
+                    let origin = i * dx + k * dz;
+                    b.add_cell(
+                        cell_n,
+                        &[origin, origin + dx, origin + dz, origin + dx + dz],
+                    );
+                    let origin = i * dx + ny * dy + k * dz;
+                    b.add_cell(
+                        cell_n + 1,
+                        &[origin, origin + dx, origin + dz, origin + dx + dz],
+                    );
+                    cell_n += 2;
+                }
+            }
+            for j in 0..ny {
+                for k in 0..nz {
+                    let origin = j * dy + k * dz;
+                    b.add_cell(
+                        cell_n,
+                        &[origin, origin + dy, origin + dz, origin + dy + dz],
+                    );
+                    let origin = nx * dx + j * dy + k * dz;
+                    b.add_cell(
+                        cell_n + 1,
+                        &[origin, origin + dy, origin + dz, origin + dy + dz],
+                    );
+                    cell_n += 2;
                 }
             }
         }
@@ -423,7 +445,17 @@ mod test {
                         panic!("Unsupported dimension");
                     }
                 },
-                ReferenceCellType::Quadrilateral => (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]),
+                ReferenceCellType::Quadrilateral => match gdim {
+                    2 => (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]),
+                    3 => max(&[
+                        (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]),
+                        (max_p[0] - min_p[0]) * (max_p[2] - min_p[2]),
+                        (max_p[1] - min_p[1]) * (max_p[2] - min_p[2]),
+                    ]),
+                    _ => {
+                        panic!("Unsupported dimension");
+                    }
+                },
                 ReferenceCellType::Tetrahedron => {
                     (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) * (max_p[2] - min_p[2]) / 6.0
                 }
@@ -449,7 +481,7 @@ mod test {
     #[test]
     fn test_unit_square_triangle() {
         check_volume(&unit_square::<f64>(1, 1, ReferenceCellType::Triangle), 1.0);
-        check_volume(&unit_square::<f64>(1, 1, ReferenceCellType::Triangle), 1.0);
+        check_volume(&unit_square::<f64>(2, 2, ReferenceCellType::Triangle), 1.0);
         check_volume(&unit_square::<f64>(4, 5, ReferenceCellType::Triangle), 1.0);
         check_volume(&unit_square::<f64>(7, 6, ReferenceCellType::Triangle), 1.0);
     }
@@ -477,9 +509,49 @@ mod test {
     #[test]
     fn test_unit_square_boundary() {
         check_volume(&unit_square_boundary::<f64>(1, 1), 4.0);
-        check_volume(&unit_square_boundary::<f64>(1, 1), 4.0);
+        check_volume(&unit_square_boundary::<f64>(2, 2), 4.0);
         check_volume(&unit_square_boundary::<f64>(4, 5), 4.0);
         check_volume(&unit_square_boundary::<f64>(7, 6), 4.0);
+    }
+
+    #[test]
+    fn test_unit_cube_boundary_triangle() {
+        check_volume(
+            &unit_cube_boundary::<f64>(1, 1, 1, ReferenceCellType::Triangle),
+            6.0,
+        );
+        check_volume(
+            &unit_cube_boundary::<f64>(2, 2, 2, ReferenceCellType::Triangle),
+            6.0,
+        );
+        check_volume(
+            &unit_cube_boundary::<f64>(4, 5, 5, ReferenceCellType::Triangle),
+            6.0,
+        );
+        check_volume(
+            &unit_cube_boundary::<f64>(7, 6, 4, ReferenceCellType::Triangle),
+            6.0,
+        );
+    }
+
+    #[test]
+    fn test_unit_cube_boundary_quadrilateral() {
+        check_volume(
+            &unit_cube_boundary::<f64>(1, 1, 1, ReferenceCellType::Quadrilateral),
+            6.0,
+        );
+        check_volume(
+            &unit_cube_boundary::<f64>(2, 2, 2, ReferenceCellType::Quadrilateral),
+            6.0,
+        );
+        check_volume(
+            &unit_cube_boundary::<f64>(4, 5, 5, ReferenceCellType::Quadrilateral),
+            6.0,
+        );
+        check_volume(
+            &unit_cube_boundary::<f64>(7, 6, 4, ReferenceCellType::Quadrilateral),
+            6.0,
+        );
     }
 
     #[test]
