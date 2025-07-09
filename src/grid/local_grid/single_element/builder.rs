@@ -200,7 +200,7 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
         SingleElementGeometry::<T, CiarletElement<T, IdentityMap>>::new(
             self.element_data.0,
             points,
-            &cell_points,
+            cell_points,
             &family,
         )
     }
