@@ -232,11 +232,6 @@ impl<T: RealScalar> TopologyBuilder for SingleElementGridBuilder<T> {
             new_cells
         };
 
-        // let cells = cells
-        //     .iter()
-        //     .map(|v| vertex_ids.iter().position(|i| *i == *v).unwrap())
-        //     .collect::<Vec<_>>();
-
         SingleTypeTopology::new(
             &cells,
             self.element_data.0,

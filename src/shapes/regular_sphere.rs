@@ -9,7 +9,7 @@ use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellT
 use num::Float;
 use std::collections::{hash_map::Entry::Vacant, HashMap};
 
-/// Create a regular sphere
+/// Create a surface grid of a regular sphere
 ///
 /// A regular sphere is created by starting with a regular octahedron. The shape is then refined `refinement_level` times.
 /// Each time the grid is refined, each triangle is split into four triangles (by adding lines connecting the midpoints of
