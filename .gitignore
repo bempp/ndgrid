@@ -12,8 +12,6 @@ Cargo.lock
 *.pyc
 python/ndgrid/_ndgridrs
 
-examples.sh
-
 *.btr
 
 .vscode/
