@@ -6,6 +6,9 @@ pub trait Point {
     /// Scalar type
     type T: RealScalar;
 
+    /// The point's index
+    fn index(&self) -> usize;
+
     /// Return the dimension of the point.
     fn dim(&self) -> usize;
 

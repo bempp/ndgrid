@@ -1,6 +1,6 @@
 //! Gmsh I/O
+use crate::traits::{Builder, Grid};
 use std::fs;
-use crate::traits::{Grid, Builder};
 
 pub trait GmshExport: Grid {
     //! Grid export for Gmsh
