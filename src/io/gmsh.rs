@@ -198,7 +198,7 @@ impl<T: FromStr, B: Builder<T=T, EntityDescriptor = ReferenceCellType>> GmshImpo
         let nodes = gmsh_section(&s, "Nodes");
         let nodes = nodes.lines().collect::<Vec<_>>();
 
-        let [num_entity_blocks, num_nodes, _min_node_tag, _max_node_tag] = nodes[0].split(" ").map(|i| i.parse::<usize>().unwrap()).collect::<Vec<_>>()[..] else { panic!("Unrecognised gmsh format"); };
+        let [num_entity_blocks, _num_nodes, _min_node_tag, _max_node_tag] = nodes[0].split(" ").map(|i| i.parse::<usize>().unwrap()).collect::<Vec<_>>()[..] else { panic!("Unrecognised gmsh format"); };
 
         let mut line_n = 1;
         for _ in 0..num_entity_blocks {
@@ -222,7 +222,7 @@ impl<T: FromStr, B: Builder<T=T, EntityDescriptor = ReferenceCellType>> GmshImpo
         let elements = gmsh_section(&s, "Elements");
         let elements = elements.lines().collect::<Vec<_>>();
 
-        let [num_entity_blocks, num_elements, _min_element_tag, _max_element_tag] = nodes[0].split(" ").map(|i| i.parse::<usize>().unwrap()).collect::<Vec<_>>()[..] else { panic!("Unrecognised gmsh format"); };
+        let [num_entity_blocks, _num_elements, _min_element_tag, _max_element_tag] = nodes[0].split(" ").map(|i| i.parse::<usize>().unwrap()).collect::<Vec<_>>()[..] else { panic!("Unrecognised gmsh format"); };
         
         let mut line_n = 1;
         for _ in 0..num_entity_blocks {
@@ -245,8 +245,7 @@ impl<T: FromStr, B: Builder<T=T, EntityDescriptor = ReferenceCellType>> GmshImpo
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{shapes::regular_sphere, traits::Builder, SingleElementGridBuilder, SingleElementGrid};
-    use ndelement::{ciarlet::CiarletElement, map::IdentityMap};
+    use crate::{shapes::regular_sphere, traits::Builder, SingleElementGridBuilder};
 
     #[test]
     fn test_regular_sphere_gmsh_io() {
@@ -255,7 +254,7 @@ mod test {
     }
 
     #[test]
-    fn test_gmsh_output_quads() {
+    fn test_export_quads() {
         let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Quadrilateral, 1));
         b.add_point(0, &[0.0, 0.0, 0.0]);
         b.add_point(1, &[1.0, 0.0, 0.0]);
@@ -276,7 +275,7 @@ mod test {
     }
 
     #[test]
-    fn test_gmsh_output_tetrahedra() {
+    fn test_export_tetrahedra() {
         let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Tetrahedron, 1));
         b.add_point(0, &[0.0, 0.0, 0.0]);
         b.add_point(1, &[1.0, 0.0, 0.0]);
@@ -296,7 +295,7 @@ mod test {
         g.export_as_gmsh("_test_io_tetrahedra.msh");
     }
     #[test]
-    fn test_gmsh_output_hexahedra() {
+    fn test_export_hexahedra() {
         let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Hexahedron, 1));
         b.add_point(0, &[0.0, 0.0, 0.0]);
         b.add_point(1, &[1.0, 0.0, 0.0]);
@@ -317,9 +316,39 @@ mod test {
     }
 
     #[test]
-    fn test_gmsh_import_triangle() {
+    fn test_import_triangle() {
         let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
         b.import_from_gmsh("meshes/sphere_triangle.msh");
-        let g = b.create_grid();
+        let _g = b.create_grid();
+    }
+
+    #[test]
+    fn test_import_quadrilateral() {
+        let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Quadrilateral, 1));
+        b.import_from_gmsh("meshes/cube_quadrilateral.msh");
+        let _g = b.create_grid();
+    }
+
+    #[test]
+    fn test_import_tetrahedron() {
+        let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Tetrahedron, 1));
+        b.import_from_gmsh("meshes/cube_tetrahedron.msh");
+        let _g = b.create_grid();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_import_wrong_cell() {
+        let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Quadrilateral, 1));
+        b.import_from_gmsh("meshes/cube_tetrahedron.msh");
+        let _g = b.create_grid();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_import_wrong_degree() {
+        let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 2));
+        b.import_from_gmsh("meshes/sphere_triangle.msh");
+        let _g = b.create_grid();
     }
 }
