@@ -1,9 +1,10 @@
 //! Gmsh I/O
 
-use crate::traits::{Entity, Geometry, GmshExport, Grid, Point, Topology};
+use crate::traits::{Builder, Entity, Geometry, GmshExport, Grid, Point, Topology, GmshImport};
 use itertools::izip;
 use ndelement::types::ReferenceCellType;
 use num::Zero;
+use std::str::FromStr;
 
 fn get_permutation_to_gmsh(cell_type: ReferenceCellType, degree: usize) -> Vec<usize> {
     match cell_type {
@@ -75,6 +76,23 @@ fn get_gmsh_cell(cell_type: ReferenceCellType, degree: usize) -> usize {
                 panic!("Unsupported degree");
             }
         },
+        _ => {
+            panic!("Unsupported cell type.");
+        }
+    }
+}
+
+fn interpret_gmsh_cell(gmsh_cell: usize) -> (ReferenceCellType, usize) {
+    match gmsh_cell {
+        2 => (ReferenceCellType::Triangle, 1),
+        9 => (ReferenceCellType::Triangle, 2),
+        21 => (ReferenceCellType::Triangle, 3),
+        23 => (ReferenceCellType::Triangle, 4),
+        25 => (ReferenceCellType::Triangle, 5),
+        3 => (ReferenceCellType::Quadrilateral, 1),
+        10 => (ReferenceCellType::Quadrilateral, 2),
+        4 => (ReferenceCellType::Tetrahedron, 1),
+        5 => (ReferenceCellType::Hexahedron, 1),
         _ => {
             panic!("Unsupported cell type.");
         }
@@ -156,10 +174,79 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
     }
 }
 
+/// Get a section from a gmsh string
+fn gmsh_section(s: &str, section: &str) -> String {
+    let a = s.split(&format!("${section}\n")).collect::<Vec<_>>();
+    if a.len() == 0 {
+        panic!("Section not found: {section}");
+    }
+    String::from(a[1].split(&format!("\n$End{section}")).collect::<Vec<_>>()[0])
+}
+
+impl<T: FromStr, B: Builder<T=T, EntityDescriptor = ReferenceCellType>> GmshImport for B {
+    fn import_from_gmsh_string(&mut self, s: String) {
+        let format = gmsh_section(&s, "MeshFormat");
+        // Check msh file version
+        let [version, ascii_mode, _binary_mode] = format.split(" ").collect::<Vec<_>>()[..] else { panic!("Unrecognised gmsh format"); };
+        if version != "4.1" {
+            unimplemented!("Unsupported gmsh file version");
+        }
+        if ascii_mode != "0" {
+            unimplemented!("Non-ASCII gmsh files currently not supported");
+        }
+        // Load nodes
+        let nodes = gmsh_section(&s, "Nodes");
+        let nodes = nodes.lines().collect::<Vec<_>>();
+
+        let [num_entity_blocks, num_nodes, _min_node_tag, _max_node_tag] = nodes[0].split(" ").map(|i| i.parse::<usize>().unwrap()).collect::<Vec<_>>()[..] else { panic!("Unrecognised gmsh format"); };
+
+        let mut line_n = 1;
+        for _ in 0..num_entity_blocks {
+            let [
+                _entity_dim, _entity_tag, parametric, num_nodes_in_block
+            ] = nodes[line_n].split(" ").map(|i| i.parse::<usize>().unwrap()).collect::<Vec<_>>()[..] else { panic!("Unrecognised gmsh format"); };
+            if parametric == 1 {
+                unimplemented!("Parametric nodes currently not supported")
+            }
+            line_n += 1;
+            let tags = &nodes[line_n..line_n + num_nodes_in_block];
+            let coords = &nodes[line_n + num_nodes_in_block..line_n + 2 * num_nodes_in_block];
+            for (t, c) in izip!(tags, coords) {
+                self.add_point(t.parse::<usize>().unwrap(), &c.split(" ").map(|i| if let Ok(j) = T::from_str(i) {j} else {panic!("Could not parse coordinate");}).collect::<Vec<_>>());
+            }
+            line_n += num_nodes_in_block + 2;
+        }
+
+
+        // Load elements
+        let elements = gmsh_section(&s, "Elements");
+        let elements = elements.lines().collect::<Vec<_>>();
+
+        let [num_entity_blocks, num_elements, _min_element_tag, _max_element_tag] = nodes[0].split(" ").map(|i| i.parse::<usize>().unwrap()).collect::<Vec<_>>()[..] else { panic!("Unrecognised gmsh format"); };
+        
+        let mut line_n = 1;
+        for _ in 0..num_entity_blocks {
+            let [
+                _entity_dim, _entity_tag, element_type, num_elements_in_block
+            ] = elements[line_n].split(" ").map(|i| i.parse::<usize>().unwrap()).collect::<Vec<_>>()[..] else { panic!("Unrecognised gmsh format"); };
+            let (cell_type, degree) = interpret_gmsh_cell(element_type);
+            line_n += 1;
+            for line in &elements[line_n..line_n + num_elements_in_block] {
+                let line = line.split(" ").map(|i| i.parse::<usize>().unwrap()).collect::<Vec<_>>();
+                // TODO: permute
+                self.add_cell_from_nodes_and_type(line[0], &line[1..], cell_type, degree);
+            }
+
+            line_n += num_elements_in_block;
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{shapes::regular_sphere, traits::Builder, SingleElementGridBuilder};
+    use crate::{shapes::regular_sphere, traits::Builder, SingleElementGridBuilder, SingleElementGrid};
+    use ndelement::{ciarlet::CiarletElement, map::IdentityMap};
 
     #[test]
     fn test_regular_sphere_gmsh_io() {
@@ -227,5 +314,12 @@ mod test {
         b.add_cell(2, &[4, 5, 6, 7, 8, 9, 10, 11]);
         let g = b.create_grid();
         g.export_as_gmsh("_test_io_hexahedra.msh");
+    }
+
+    #[test]
+    fn test_gmsh_import_triangle() {
+        let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
+        b.import_from_gmsh("meshes/sphere_triangle.msh");
+        let g = b.create_grid();
     }
 }
