@@ -30,6 +30,9 @@ cargo test
 Examples of use can be found in the [examples folder](examples/).
 
 ## Getting help
+Documentation of the latest release of ndgrid can be found on [docs.rs](https://docs.rs/ndgrid/latest/ndgrid/).
+Documentation of the latest development version of ndgrid can be found at [bempp.github.io/ndgrid/ndgrid](https://bempp.github.io/ndgrid/ndgrid).
+
 Errors in the library should be added to the [GitHub issue tracker](https://github.com/bempp/ndgrid/issues).
 
 Questions about the library and its use can be asked on the [Bempp Discourse](https://bempp.discourse.group).
