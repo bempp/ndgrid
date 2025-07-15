@@ -300,7 +300,7 @@ impl<T: FromStr, B: Builder<T = T, EntityDescriptor = ReferenceCellType>> GmshIm
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{shapes::regular_sphere, traits::Builder, SingleElementGridBuilder};
+    use crate::{shapes::regular_sphere, traits::{Builder, Topology}, SingleElementGridBuilder};
     use approx::*;
 
     #[test]
