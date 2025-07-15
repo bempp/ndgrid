@@ -1,6 +1,6 @@
 //! Gmsh I/O
 
-use crate::traits::{Builder, Entity, Geometry, GmshExport, GmshImport, Grid, Point, Topology};
+use crate::traits::{Builder, Entity, Geometry, GmshExport, GmshImport, Grid, Point};
 use itertools::izip;
 use ndelement::types::ReferenceCellType;
 use num::Zero;
