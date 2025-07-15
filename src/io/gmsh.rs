@@ -4,8 +4,8 @@ use crate::traits::{Builder, Entity, Geometry, GmshExport, GmshImport, Grid, Poi
 use itertools::izip;
 use ndelement::types::ReferenceCellType;
 use num::Zero;
-use std::str::FromStr;
 use std::collections::HashMap;
+use std::str::FromStr;
 
 fn get_permutation_to_gmsh(cell_type: ReferenceCellType, degree: usize) -> Vec<usize> {
     match cell_type {
@@ -171,7 +171,11 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
             for (i, index) in cells.iter().enumerate() {
                 gmsh_s.push_str(&format!("{}", i + 1));
                 let entity = self.entity(tdim, *index).unwrap();
-                let point_indices = entity.geometry().points().map(|i| i.index()).collect::<Vec<_>>();
+                let point_indices = entity
+                    .geometry()
+                    .points()
+                    .map(|i| i.index())
+                    .collect::<Vec<_>>();
                 for j in &gmsh_perm {
                     gmsh_s.push_str(&format!(" {}", point_indices[*j] + 1));
                 }
@@ -295,9 +299,9 @@ impl<T: FromStr, B: Builder<T = T, EntityDescriptor = ReferenceCellType>> GmshIm
 
 #[cfg(test)]
 mod test {
-    use approx::*;
     use super::*;
     use crate::{shapes::regular_sphere, traits::Builder, SingleElementGridBuilder};
+    use approx::*;
 
     #[test]
     fn test_regular_sphere_gmsh_io() {
@@ -378,12 +382,15 @@ mod test {
                 pt1.coords(&mut p1);
                 pt2.coords(&mut p2);
                 for (c1, c2) in izip!(&p1, &p2) {
-                    assert_relative_eq!(c1, c2, epsilon=1e-10);
+                    assert_relative_eq!(c1, c2, epsilon = 1e-10);
                 }
             }
         }
         for (h1, h2) in izip!(g.entity_iter(3), g2.entity_iter(3)) {
-            for (v1, v2) in izip!(h1.topology().sub_entity_iter(0), h2.topology().sub_entity_iter(0)) {
+            for (v1, v2) in izip!(
+                h1.topology().sub_entity_iter(0),
+                h2.topology().sub_entity_iter(0)
+            ) {
                 assert_eq!(v1, v2);
             }
         }
@@ -393,27 +400,32 @@ mod test {
     fn test_high_order_triangles() {
         let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 5));
         b.add_point(0, &[0.0, 0.0, 0.0]);
-        b.add_point(1, &[0.0, 1.0, 0.0]);
-        b.add_point(2, &[0.0, 1.0, 1.0]);
-        b.add_point(3, &[1.0, 0.0, 0.0]);
-        b.add_point(4, &[1.0, 1.0, 0.0]);
-        b.add_point(5, &[1.0, 1.0, 1.0]);
-        b.add_point(6, &[2.0, 0.0, 0.0]);
-        b.add_point(7, &[2.0, 1.0, 0.0]);
-        b.add_point(8, &[2.0, 0.0, 1.0]);
-        b.add_point(9, &[3.0, 0.0, 0.0]);
-        b.add_point(10, &[3.0, 1.0, 0.0]);
-        b.add_point(11, &[3.0, 1.0, 1.0]);
-        b.add_point(12, &[4.0, 0.0, 0.0]);
-        b.add_point(13, &[4.0, 1.0, 0.0]);
-        b.add_point(14, &[4.0, 1.0, 1.0]);
-        b.add_point(15, &[5.0, 0.0, 0.0]);
-        b.add_point(16, &[5.0, 1.0, 0.0]);
-        b.add_point(17, &[5.0, 1.0, 1.0]);
-        b.add_point(18, &[6.0, 0.0, 0.0]);
-        b.add_point(19, &[6.0, 1.0, 0.0]);
-        b.add_point(20, &[6.0, 1.0, 1.0]);
-        b.add_cell(1, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+        b.add_point(1, &[5.0, 0.0, 0.2]);
+        b.add_point(2, &[0.0, 5.0, 0.4]);
+        b.add_point(3, &[4.0, 1.0, -0.1]);
+        b.add_point(4, &[3.0, 2.0, 0.2]);
+        b.add_point(5, &[2.0, 3.0, -0.3]);
+        b.add_point(6, &[1.0, 4.0, -0.5]);
+        b.add_point(7, &[0.0, 1.0, 0.6]);
+        b.add_point(8, &[0.0, 2.0, 0.2]);
+        b.add_point(9, &[0.0, 3.0, 0.1]);
+        b.add_point(10, &[0.0, 4.0, -0.2]);
+        b.add_point(11, &[1.0, 0.0, -0.3]);
+        b.add_point(12, &[2.0, 0.0, -0.4]);
+        b.add_point(13, &[3.0, 0.0, -0.5]);
+        b.add_point(14, &[4.0, 0.0, -0.2]);
+        b.add_point(15, &[1.0, 1.0, 0.1]);
+        b.add_point(16, &[2.0, 1.0, 0.1]);
+        b.add_point(17, &[3.0, 1.0, 0.1]);
+        b.add_point(18, &[2.0, 1.0, 0.2]);
+        b.add_point(19, &[2.0, 2.0, 0.1]);
+        b.add_point(20, &[3.0, 1.0, 0.1]);
+        b.add_cell(
+            1,
+            &[
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+            ],
+        );
         let g = b.create_grid();
         g.export_as_gmsh("_test_io_high_order_triangle.msh");
 
@@ -432,11 +444,14 @@ mod test {
             v1.geometry().points().next().unwrap().coords(&mut p1);
             v2.geometry().points().next().unwrap().coords(&mut p2);
             for (c1, c2) in izip!(&p1, &p2) {
-                assert_relative_eq!(c1, c2, epsilon=1e-10);
+                assert_relative_eq!(c1, c2, epsilon = 1e-10);
             }
         }
-        for (h1, h2) in izip!(g.entity_iter(3), g2.entity_iter(3)) {
-            for (v1, v2) in izip!(h1.topology().sub_entity_iter(0), h2.topology().sub_entity_iter(0)) {
+        for (h1, h2) in izip!(g.entity_iter(2), g2.entity_iter(2)) {
+            for (v1, v2) in izip!(
+                h1.topology().sub_entity_iter(0),
+                h2.topology().sub_entity_iter(0)
+            ) {
                 assert_eq!(v1, v2);
             }
         }

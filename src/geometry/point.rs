@@ -49,8 +49,8 @@ impl<'a, T: RealScalar> Iterator for PointIter<'a, T> {
         self.index += 1;
         if self.index <= self.points.len() {
             Some(Point::new(
-self.points[self.index - 1].0,
-self.points[self.index - 1].1,
+                self.points[self.index - 1].0,
+                self.points[self.index - 1].1,
             ))
         } else {
             None
