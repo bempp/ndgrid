@@ -28,10 +28,10 @@ pub trait RONExport: Grid {
 pub trait RONImport: Sized + Grid {
     //! Grid import for RON
 
-    /// Generate the RON string for a grid
+    /// Generate grid from a RON string
     fn from_ron_string(s: String) -> Self;
 
-    /// Export as RON
+    /// Import from RON
     fn import_from_ron(filename: &str) -> Self {
         let content = fs::read_to_string(filename).expect("Unable to read file");
         Self::from_ron_string(content)

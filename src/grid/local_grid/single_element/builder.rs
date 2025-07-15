@@ -100,6 +100,19 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
         }
     }
 
+    fn add_cell_from_nodes_and_type(
+        &mut self,
+        id: usize,
+        nodes: &[usize],
+        cell_type: ReferenceCellType,
+        cell_degree: usize,
+    ) {
+        if (cell_type, cell_degree) != self.element_data {
+            panic!("Invalid cell type.");
+        }
+        self.add_cell(id, nodes);
+    }
+
     fn create_grid(&self) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
         let cell_vertices =
             self.extract_vertices(&self.cells, &[self.element_data.0], &[self.element_data.1]);
