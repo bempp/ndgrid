@@ -1,5 +1,3 @@
-//? mpirun -n {{NPROCESSES}}
-
 use mpi::{environment::Universe, traits::Communicator};
 use ndelement::types::ReferenceCellType;
 use ndgrid::{

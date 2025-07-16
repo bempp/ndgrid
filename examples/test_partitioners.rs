@@ -1,5 +1,3 @@
-//? mpirun -n {{NPROCESSES}} --features "coupe"
-
 use mpi::{
     collective::SystemOperation, environment::Universe, topology::Communicator,
     traits::CommunicatorCollectives,
