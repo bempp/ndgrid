@@ -1,6 +1,8 @@
 use itertools::izip;
-use ndelement::{types::ReferenceCellType, ciarlet::CiarletElement, map::IdentityMap};
-use ndgrid::traits::{Entity, Grid, Topology, RONExport, RONImport, GmshExport, GmshImport, Builder};
+use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
+use ndgrid::traits::{
+    Builder, Entity, GmshExport, GmshImport, Grid, RONExport, RONImport, Topology,
+};
 use ndgrid::{shapes, SingleElementGrid, SingleElementGridBuilder};
 
 /// Grid I/O
@@ -16,12 +18,15 @@ fn main() {
     g.export_as_ron("_unit_cube_boundary.ron");
 
     // A grid can be re-imported from raw RON data
-    let g2 = SingleElementGrid::<f64, CiarletElement<f64, IdentityMap>>::import_from_ron("_unit_cube_boundary.ron");
+    let g2 = SingleElementGrid::<f64, CiarletElement<f64, IdentityMap>>::import_from_ron(
+        "_unit_cube_boundary.ron",
+    );
 
     // Print the first 5 cells of each grid
     println!("The first 5 cells of the grids");
     for (cell, cell2) in izip!(g.cell_iter(), g2.cell_iter()).take(5) {
-        println!("{:?} {:?}",
+        println!(
+            "{:?} {:?}",
             cell.topology().sub_entity_iter(0).collect::<Vec<_>>(),
             cell2.topology().sub_entity_iter(0).collect::<Vec<_>>(),
         );
@@ -42,7 +47,8 @@ fn main() {
     // Print the first 5 cells of each grid
     println!("The first 5 cells of the grids");
     for (cell, cell3) in izip!(g.cell_iter(), g3.cell_iter()).take(5) {
-        println!("{:?} {:?}",
+        println!(
+            "{:?} {:?}",
             cell.topology().sub_entity_iter(0).collect::<Vec<_>>(),
             cell3.topology().sub_entity_iter(0).collect::<Vec<_>>(),
         );

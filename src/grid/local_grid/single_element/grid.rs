@@ -2,15 +2,18 @@
 #[cfg(feature = "serde")]
 use mpi::traits::Communicator;
 
-use mpi::traits::Equivalence;
 use crate::{
-    traits::ConvertToSerializable,
-    geometry::{single_element::SerializableGeometry, GeometryMap, SingleElementEntityGeometry, SingleElementGeometry},
+    geometry::{
+        single_element::SerializableGeometry, GeometryMap, SingleElementEntityGeometry,
+        SingleElementGeometry,
+    },
     topology::single_type::{SerializableTopology, SingleTypeEntityTopology, SingleTypeTopology},
-    traits::{Entity, Grid, DistributableGrid, Builder, ParallelBuilder},
-    types::{Array2D, Ownership, RealScalar, GraphPartitioner},
-    ParallelGridImpl, SingleElementGridBuilder
+    traits::ConvertToSerializable,
+    traits::{Builder, DistributableGrid, Entity, Grid, ParallelBuilder},
+    types::{Array2D, GraphPartitioner, Ownership, RealScalar},
+    ParallelGridImpl, SingleElementGridBuilder,
 };
+use mpi::traits::Equivalence;
 use ndelement::{
     ciarlet::{CiarletElement, LagrangeElementFamily},
     map::IdentityMap,
@@ -303,16 +306,26 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     }
 }
 
-impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType, T = T>> DistributableGrid
-    for SingleElementGrid<T, E>
+impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType, T = T>>
+    DistributableGrid for SingleElementGrid<T, E>
 {
-    type ParallelGrid<'a, C: Communicator + 'a> = ParallelGridImpl::<'a, C, SingleElementGrid::<T, CiarletElement<T, IdentityMap>>>;
+    type ParallelGrid<'a, C: Communicator + 'a> =
+        ParallelGridImpl<'a, C, SingleElementGrid<T, CiarletElement<T, IdentityMap>>>;
 
-    fn distribute<'a, C: Communicator>(&self, comm: &'a C, partitioner: GraphPartitioner) -> Self::ParallelGrid<'a, C> {
+    fn distribute<'a, C: Communicator>(
+        &self,
+        comm: &'a C,
+        partitioner: GraphPartitioner,
+    ) -> Self::ParallelGrid<'a, C> {
         let e = self.geometry.element();
         let pts = self.geometry.points();
         let cells = self.geometry.cells();
-        let mut b = SingleElementGridBuilder::<T>::new_with_capacity(self.geometry.dim(), pts.shape()[1], cells.shape()[1], (e.cell_type(), e.embedded_superdegree()));
+        let mut b = SingleElementGridBuilder::<T>::new_with_capacity(
+            self.geometry.dim(),
+            pts.shape()[1],
+            cells.shape()[1],
+            (e.cell_type(), e.embedded_superdegree()),
+        );
         for p in 0..pts.shape()[1] {
             b.add_point(p, pts.r().slice(1, p).data());
         }

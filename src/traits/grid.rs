@@ -1,6 +1,6 @@
 //! Traits for a mesh entity
 use super::{Entity, GeometryMap};
-use crate::types::{Ownership, RealScalar, GraphPartitioner};
+use crate::types::{GraphPartitioner, Ownership, RealScalar};
 use bempp_distributed_tools::IndexLayout;
 use mpi::traits::Communicator;
 use std::fmt::Debug;
@@ -125,8 +125,12 @@ pub trait ParallelGrid {
 /// A grid that can be be distributed across processes
 pub trait DistributableGrid {
     /// Parallel grid type when distrubuted
-    type ParallelGrid<'a, C: Communicator + 'a>: ParallelGrid<C=C>;
+    type ParallelGrid<'a, C: Communicator + 'a>: ParallelGrid<C = C>;
 
     /// Distribute this grid in parallel
-    fn distribute<'a, C: Communicator>(&self, comm: &'a C, partitioner: GraphPartitioner) -> Self::ParallelGrid<'a, C>;
+    fn distribute<'a, C: Communicator>(
+        &self,
+        comm: &'a C,
+        partitioner: GraphPartitioner,
+    ) -> Self::ParallelGrid<'a, C>;
 }

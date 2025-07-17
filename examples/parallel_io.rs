@@ -1,8 +1,13 @@
-use mpi::{environment::Universe, traits::Communicator};
 use itertools::izip;
-use ndelement::{types::ReferenceCellType, ciarlet::CiarletElement, map::IdentityMap};
-use ndgrid::traits::{Entity, Grid, Topology, RONExportParallel, RONImportParallel, ParallelBuilder, ParallelGrid, DistributableGrid};
-use ndgrid::{shapes, SingleElementGrid, SingleElementGridBuilder, ParallelGridImpl, types::GraphPartitioner};
+use mpi::{environment::Universe, traits::Communicator};
+use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
+use ndgrid::traits::{
+    DistributableGrid, Entity, Grid, ParallelBuilder, ParallelGrid, RONExportParallel,
+    RONImportParallel, Topology,
+};
+use ndgrid::{
+    shapes, types::GraphPartitioner, ParallelGridImpl, SingleElementGrid, SingleElementGridBuilder,
+};
 
 /// Grid I/O
 ///
@@ -34,8 +39,10 @@ fn main() {
     // Print the first 5 cells of each grid on process 0
     if rank == 0 {
         println!("The first 5 cells of the grids");
-        for (cell, cell2) in izip!(g.local_grid().cell_iter(), g2.local_grid().cell_iter()).take(5) {
-            println!("{:?} {:?}",
+        for (cell, cell2) in izip!(g.local_grid().cell_iter(), g2.local_grid().cell_iter()).take(5)
+        {
+            println!(
+                "{:?} {:?}",
                 cell.topology().sub_entity_iter(0).collect::<Vec<_>>(),
                 cell2.topology().sub_entity_iter(0).collect::<Vec<_>>(),
             );
