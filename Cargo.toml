@@ -58,10 +58,6 @@ required-features = ["serde"]
 command = "mpirun -n {{NPROCESSES}}"
 
 [[example]]
-name = "serial_grid"
-doc-scrape-examples = true
-
-[[example]]
 name = "single_element_grid"
 doc-scrape-examples = true
 

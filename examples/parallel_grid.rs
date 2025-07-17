@@ -9,14 +9,17 @@ use ndgrid::{
     types::{GraphPartitioner, Ownership},
 };
 
+/// Creating a distributed parallel grid
 fn main() {
-    let n = 10;
-
+    // The SingleElementGridBuilder is used to create the mesh
     let mut b = SingleElementGridBuilder::<f64>::new(2, (ReferenceCellType::Quadrilateral, 1));
 
     let universe: Universe = mpi::initialize().unwrap();
     let comm = universe.world();
     let rank = comm.rank();
+
+    // Add points and cells to the builder on process 0
+    let n = 10;
     let grid = if rank == 0 {
         let mut i = 0;
         for y in 0..n {
@@ -35,13 +38,14 @@ fn main() {
             }
         }
 
+        // Distrubute the grid
         b.create_parallel_grid_root(&comm, GraphPartitioner::None)
     } else {
+        // receice the grid
         b.create_parallel_grid(&comm, 0)
     };
 
     // Check that owned cells are sorted ahead of ghost cells
-
     let cell_count_owned = grid
         .local_grid()
         .cell_iter()
@@ -54,7 +58,6 @@ fn main() {
     }
 
     // Now make sure that the indices of the global cells are in consecutive order
-
     let mut cell_global_count = grid.cell_layout().local_range().0;
 
     for cell in grid.local_grid().cell_iter().take(cell_count_owned) {
@@ -62,8 +65,7 @@ fn main() {
         cell_global_count += 1;
     }
 
-    // Get the global indices.
-
+    // Get the global indices
     let global_vertices = grid
         .local_grid()
         .entity_iter(0)
@@ -88,6 +90,7 @@ fn main() {
     comm.all_reduce_into(&ncells, &mut total_cells, SystemOperation::sum());
     comm.all_reduce_into(&nvertices, &mut total_vertices, SystemOperation::sum());
 
+    // Check that the total number of cells and vertices are correct
     assert_eq!(total_cells, (n - 1) * (n - 1));
     assert_eq!(total_vertices, n * n);
 }
