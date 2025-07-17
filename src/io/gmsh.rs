@@ -115,7 +115,6 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
         }
         let mut points = points.iter().collect::<Vec<_>>();
         points.sort_by(|i, j| i.0.cmp(j.0));
-        println!("{points:?}");
         let node_count = points.len();
 
         let mut gmsh_s = String::from("");
@@ -442,7 +441,6 @@ mod test {
         for (v1, v2) in izip!(g.entity_iter(0), g2.entity_iter(0)) {
             v1.geometry().points().next().unwrap().coords(&mut p1);
             v2.geometry().points().next().unwrap().coords(&mut p2);
-            println!("{p1:?} {p2:?}");
         }
         for (v1, v2) in izip!(g.entity_iter(0), g2.entity_iter(0)) {
             v1.geometry().points().next().unwrap().coords(&mut p1);
