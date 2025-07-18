@@ -1,5 +1,5 @@
 use itertools::izip;
-use mpi::{environment::Universe, traits::Communicator};
+use mpi::{environment::Universe, traits::Communicator, collective::CommunicatorCollectives};
 use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
 use ndgrid::traits::{
     DistributableGrid, Entity, Grid, ParallelBuilder, ParallelGrid, RONExportParallel,
@@ -32,6 +32,9 @@ fn main() {
 
     // If the serde option is used, the raw grid data can be exported in RON format
     g.export_as_ron("_unit_cube_boundary_parallel.ron");
+
+    // Wait for export to finish
+    comm.barrier();
 
     // A grid can be re-imported from raw RON data. Note that it must be imported on the same number of processes as it was exported using
     let g2 = ParallelGridImpl::<'_, _, SingleElementGrid::<f64, CiarletElement<f64, IdentityMap>>>::import_from_ron(&comm, "_unit_cube_boundary_parallel.ron");
