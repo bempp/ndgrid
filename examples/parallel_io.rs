@@ -1,5 +1,5 @@
 use itertools::izip;
-use mpi::{environment::Universe, traits::Communicator, collective::CommunicatorCollectives};
+use mpi::{collective::CommunicatorCollectives, environment::Universe, traits::Communicator};
 use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
 use ndgrid::traits::{
     DistributableGrid, Entity, Grid, ParallelBuilder, ParallelGrid, RONExportParallel,
