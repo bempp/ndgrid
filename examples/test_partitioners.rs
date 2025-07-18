@@ -9,6 +9,7 @@ use ndgrid::{
     types::{GraphPartitioner, Ownership},
 };
 
+/// Test that a graph partitioner works
 fn run_test<C: Communicator>(comm: &C, partitioner: GraphPartitioner) {
     let n = 10;
 
@@ -90,6 +91,7 @@ fn run_test<C: Communicator>(comm: &C, partitioner: GraphPartitioner) {
     assert_eq!(total_vertices, n * n);
 }
 
+/// Run tests
 fn main() {
     let universe: Universe = mpi::initialize().unwrap();
     let comm = universe.world();

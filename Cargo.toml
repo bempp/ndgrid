@@ -58,12 +58,13 @@ required-features = ["serde"]
 command = "mpirun -n {{NPROCESSES}}"
 
 [[example]]
-name = "serial_grid"
+name = "single_element_grid"
 doc-scrape-examples = true
 
 [[example]]
-name = "single_element_grid"
+name = "io"
 doc-scrape-examples = true
+required-features = ["serde"]
 
 [[example]]
 name = "test_parallel_grid"
@@ -72,11 +73,18 @@ name = "test_parallel_grid"
 command = "mpirun -n {{NPROCESSES}}"
 
 [[example]]
+name = "parallel_io"
+required-features = ["serde"]
+
+[package.metadata.example.parallel_io.templated-examples]
+command = "mpirun -n 4"
+
+[[example]]
 name = "test_parallel_io"
 required-features = ["serde"]
 
 [package.metadata.example.test_parallel_io.templated-examples]
-rcommand = "mpirun -n {{NPROCESSES}}"
+command = "mpirun -n {{NPROCESSES}}"
 
 [[example]]
 name = "test_partitioners"

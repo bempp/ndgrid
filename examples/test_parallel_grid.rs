@@ -6,6 +6,7 @@ use ndgrid::{
     SingleElementGridBuilder,
 };
 
+/// Test that using non-contiguous numbering does not cause panic
 fn test_noncontiguous_numbering<C: Communicator>(comm: &C) {
     let rank = comm.rank();
     let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Quadrilateral, 1));
@@ -43,6 +44,7 @@ fn test_noncontiguous_numbering<C: Communicator>(comm: &C) {
     assert!(g.local_grid().entity_count(ReferenceCellType::Point) > 0);
 }
 
+/// Run tests
 fn main() {
     let universe: Universe = mpi::initialize().unwrap();
     let world = universe.world();

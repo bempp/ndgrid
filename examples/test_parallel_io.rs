@@ -43,6 +43,7 @@ fn example_single_element_grid<C: Communicator>(
     }
 }
 
+/// Test that grids can be exported as RON in parallel
 fn test_parallel_export<C: Communicator>(comm: &C) {
     let size = comm.size();
 
@@ -52,6 +53,7 @@ fn test_parallel_export<C: Communicator>(comm: &C) {
     grid.export_as_ron(&filename);
 }
 
+/// Test that grids can be imported from RON in parallel
 fn test_parallel_import<C: Communicator>(comm: &C) {
     use ndgrid::traits::ParallelGrid;
 
@@ -72,6 +74,7 @@ fn test_parallel_import<C: Communicator>(comm: &C) {
     );
 }
 
+/// Run tests
 fn main() {
     let universe: Universe = mpi::initialize().unwrap();
     let world = universe.world();

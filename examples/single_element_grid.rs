@@ -2,7 +2,7 @@ use ndelement::types::ReferenceCellType;
 use ndgrid::grid::local_grid::SingleElementGridBuilder;
 use ndgrid::traits::{Builder, Entity, Geometry, Grid, Point, Topology};
 
-/// Creating a single element grid
+/// Creating a (serial) single element grid
 ///
 /// In a single element grid, the same finite element will be used to represent the geometry
 /// of each cell. For example, a grid of bilinear quadrilaterals can be created by using a degree 1

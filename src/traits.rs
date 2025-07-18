@@ -12,7 +12,7 @@ pub use builder::{Builder, GeometryBuilder, GridBuilder, ParallelBuilder, Topolo
 pub use entity::Entity;
 pub use geometry::{Geometry, Point};
 pub use geometry_map::GeometryMap;
-pub use grid::{Grid, ParallelGrid};
+pub use grid::{DistributableGrid, Grid, ParallelGrid};
 #[cfg(feature = "serde")]
 pub(crate) use io::ConvertToSerializable;
 pub use io::{GmshExport, GmshImport};
