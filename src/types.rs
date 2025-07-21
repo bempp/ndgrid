@@ -70,9 +70,9 @@ pub enum GraphPartitioner {
     /// A manual partition
     Manual(Vec<usize>),
     #[cfg(feature = "coupe")]
-    /// Coupe
+    /// Use Coupe's KMeans implementation to generate a partition
     Coupe,
     #[cfg(feature = "scotch")]
-    /// Scotch
+    /// Use Scotch to generate a partition
     Scotch,
 }
