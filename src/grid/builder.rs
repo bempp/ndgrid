@@ -540,10 +540,10 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             }
             #[cfg(feature = "scotch")]
             GraphPartitioner::Scotch => {
-                let mut vertex_to_cells = HashMap::<usize, HashSet<usize>>::new();
+                let mut vertex_to_cells = HashMap::<usize, HashSet<i32>>::new();
                 for i in 0..self.cell_count() {
                     for v in self.cell_vertices(i) {
-                        vertex_to_cells.entry(*v).or_default().insert(i);
+                        vertex_to_cells.entry(*v).or_default().insert(i as i32);
                     }
                 }
 
@@ -553,8 +553,8 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
                     let end = endpoints[endpoints.len() - 1] as usize;
                     for v in self.cell_vertices(i) {
                         for c in vertex_to_cells.get(v).unwrap() {
-                            if !connectivity[end..].contains(&(*c as i32)) {
-                                connectivity.push(*c as i32)
+                            if !connectivity[end..].contains(c) {
+                                connectivity.push(*c)
                             }
                         }
                     }
