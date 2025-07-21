@@ -1,5 +1,3 @@
-//? mpirun -n {{NPROCESSES}} --features "coupe,scotch"
-
 use mpi::{
     collective::SystemOperation, environment::Universe, topology::Communicator,
     traits::CommunicatorCollectives,
@@ -11,6 +9,7 @@ use ndgrid::{
     types::{GraphPartitioner, Ownership},
 };
 
+/// Test that a graph partitioner works
 fn run_test<C: Communicator>(comm: &C, partitioner: GraphPartitioner) {
     let n = 10;
 
@@ -92,6 +91,7 @@ fn run_test<C: Communicator>(comm: &C, partitioner: GraphPartitioner) {
     assert_eq!(total_vertices, n * n);
 }
 
+/// Run tests
 fn main() {
     let universe: Universe = mpi::initialize().unwrap();
     let comm = universe.world();
@@ -110,17 +110,13 @@ fn main() {
     }
     run_test(&comm, GraphPartitioner::Manual(p));
 
-    #[cfg(feature = "coupe")]
     if comm.rank() == 0 {
         println!("Testing GraphPartitioner::Coupe");
     }
-    #[cfg(feature = "coupe")]
     run_test(&comm, GraphPartitioner::Coupe);
 
-    #[cfg(feature = "scotch")]
     if comm.rank() == 0 {
         println!("Testing GraphPartitioner::Scotch");
     }
-    #[cfg(feature = "scotch")]
     run_test(&comm, GraphPartitioner::Scotch);
 }

@@ -1,10 +1,5 @@
-//? mpirun -n {{NPROCESSES}} --features "serde"
-
-#[cfg(feature = "serde")]
 use mpi::{collective::CommunicatorCollectives, environment::Universe, traits::Communicator};
-#[cfg(feature = "serde")]
 use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
-#[cfg(feature = "serde")]
 use ndgrid::{
     grid::ParallelGridImpl,
     traits::{Builder, Grid, ParallelBuilder, RONExportParallel, RONImportParallel},
@@ -12,7 +7,6 @@ use ndgrid::{
     SingleElementGrid, SingleElementGridBuilder,
 };
 
-#[cfg(feature = "serde")]
 fn create_single_element_grid_data(b: &mut SingleElementGridBuilder<f64>, n: usize) {
     for y in 0..n {
         for x in 0..n {
@@ -33,7 +27,6 @@ fn create_single_element_grid_data(b: &mut SingleElementGridBuilder<f64>, n: usi
     }
 }
 
-#[cfg(feature = "serde")]
 fn example_single_element_grid<C: Communicator>(
     comm: &C,
     n: usize,
@@ -50,7 +43,7 @@ fn example_single_element_grid<C: Communicator>(
     }
 }
 
-#[cfg(feature = "serde")]
+/// Test that grids can be exported as RON in parallel
 fn test_parallel_export<C: Communicator>(comm: &C) {
     let size = comm.size();
 
@@ -60,7 +53,7 @@ fn test_parallel_export<C: Communicator>(comm: &C) {
     grid.export_as_ron(&filename);
 }
 
-#[cfg(feature = "serde")]
+/// Test that grids can be imported from RON in parallel
 fn test_parallel_import<C: Communicator>(comm: &C) {
     use ndgrid::traits::ParallelGrid;
 
@@ -81,7 +74,7 @@ fn test_parallel_import<C: Communicator>(comm: &C) {
     );
 }
 
-#[cfg(feature = "serde")]
+/// Run tests
 fn main() {
     let universe: Universe = mpi::initialize().unwrap();
     let world = universe.world();
@@ -99,5 +92,3 @@ fn main() {
     }
     test_parallel_import(&world);
 }
-#[cfg(not(feature = "serde"))]
-fn main() {}

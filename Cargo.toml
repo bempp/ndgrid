@@ -50,3 +50,47 @@ cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
 
 [lints.clippy]
 wildcard_imports = "forbid"
+
+[[example]]
+name = "parallel_grid"
+doc-scrape-examples = true
+required-features = ["serde"]
+
+[package.metadata.example.parallel_grid.templated-examples]
+command = "mpirun -n {{NPROCESSES}}"
+
+[[example]]
+name = "single_element_grid"
+doc-scrape-examples = true
+
+[[example]]
+name = "io"
+doc-scrape-examples = true
+required-features = ["serde"]
+
+[[example]]
+name = "test_parallel_grid"
+
+[package.metadata.example.test_parallel_grid.templated-examples]
+command = "mpirun -n {{NPROCESSES}}"
+
+[[example]]
+name = "parallel_io"
+required-features = ["serde"]
+
+[package.metadata.example.parallel_io.templated-examples]
+command = "mpirun -n 4"
+
+[[example]]
+name = "test_parallel_io"
+required-features = ["serde"]
+
+[package.metadata.example.test_parallel_io.templated-examples]
+command = "mpirun -n {{NPROCESSES}}"
+
+[[example]]
+name = "test_partitioners"
+required-features = ["coupe", "scotch"]
+
+[package.metadata.example.test_partitioners.templated-examples]
+command = "mpirun -n {{NPROCESSES}}"

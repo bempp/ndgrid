@@ -25,6 +25,15 @@ pub trait Builder {
     /// Add a cell to the grid
     fn add_cell(&mut self, id: usize, cell_data: Self::CellData<'_>);
 
+    /// Add a cell to the grid
+    fn add_cell_from_nodes_and_type(
+        &mut self,
+        id: usize,
+        nodes: &[usize],
+        cell_type: Self::EntityDescriptor,
+        cell_degree: usize,
+    );
+
     /// Create the grid
     fn create_grid(&self) -> Self::Grid;
 
