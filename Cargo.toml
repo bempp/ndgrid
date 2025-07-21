@@ -57,7 +57,7 @@ wildcard_imports = "forbid"
 [[example]]
 name = "parallel_grid"
 doc-scrape-examples = true
-required-features = ["serde"]
+required-features = ["serde", "scotch"]
 
 [package.metadata.example.parallel_grid.templated-examples]
 command = "mpirun -n {{NPROCESSES}}"
