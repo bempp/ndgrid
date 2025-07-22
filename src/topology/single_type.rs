@@ -5,8 +5,7 @@ use crate::traits::ConvertToSerializable;
 use crate::traits::Topology;
 use crate::types::{Array2D, Array2DBorrowed};
 use itertools::izip;
-use ndelement::reference_cell;
-use ndelement::types::ReferenceCellType;
+use ndelement::{orientation::compute_orientation, reference_cell, types::ReferenceCellType};
 #[cfg(feature = "serde")]
 use rlst::RawAccessMut;
 use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
@@ -22,6 +21,7 @@ pub struct SingleTypeTopology {
     entity_counts: Vec<usize>,
     pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,
     pub(crate) upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
+    pub(crate) orientation: Vec<Vec<i32>>,
 }
 
 #[cfg(feature = "serde")]
@@ -34,6 +34,7 @@ pub struct SerializableTopology {
     entity_counts: Vec<usize>,
     downward_connectivity: Vec<Vec<(Vec<usize>, [usize; 2])>>,
     upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
+    orientation: Vec<Vec<i32>>,
 }
 
 #[cfg(feature = "serde")]
@@ -55,6 +56,7 @@ impl ConvertToSerializable for SingleTypeTopology {
                 })
                 .collect::<Vec<_>>(),
             upward_connectivity: self.upward_connectivity.clone(),
+            orientation: self.orientation.clone(),
         }
     }
     fn from_serializable(s: SerializableTopology) -> Self {
@@ -77,6 +79,7 @@ impl ConvertToSerializable for SingleTypeTopology {
                 })
                 .collect::<Vec<_>>(),
             upward_connectivity: s.upward_connectivity,
+            orientation: s.orientation,
         }
     }
 }
@@ -134,9 +137,6 @@ impl SingleTypeTopology {
                 entities.push(HashMap::new());
             }
         }
-        // Old inefficient entity definition.
-        //let mut entities = vec![vec![]; if dim == 0 { 0 } else { dim - 1 }];
-
         // We setup entity counters for each dimension.
 
         let mut entity_counter = vec![0; entities.len()];
@@ -381,6 +381,18 @@ impl SingleTypeTopology {
             ids.push(None);
         }
         ids.push(cell_ids);
+
+        let mut orientation = vec![];
+
+        for d in 1..dim + 1 {
+            orientation.push(
+                downward_connectivity[d][0]
+                    .col_iter()
+                    .map(|vertices| compute_orientation(entity_types[d], vertices.data()))
+                    .collect::<Vec<_>>(),
+            );
+        }
+
         Self {
             dim,
             ids,
@@ -388,6 +400,7 @@ impl SingleTypeTopology {
             entity_counts,
             downward_connectivity,
             upward_connectivity,
+            orientation,
         }
     }
     /// Topological dimension
@@ -485,6 +498,14 @@ impl Topology for SingleTypeEntityTopology<'_> {
     fn sub_entity(&self, dim: usize, index: usize) -> usize {
         self.topology.downward_connectivity[self.dim][dim][[index, self.entity_index]]
     }
+
+    fn orientation(&self) -> i32 {
+        if self.dim == 0 {
+            0
+        } else {
+            self.topology.orientation[self.dim - 1][self.entity_index]
+        }
+    }
 }
 
 /// Topology of a single element grid with borrowed data
@@ -496,6 +517,7 @@ pub struct SingleTypeTopologyBorrowed<'a> {
     entity_counts: &'a [usize],
     pub(crate) downward_connectivity: Vec<Vec<Array2DBorrowed<'a, usize>>>,
     pub(crate) upward_connectivity: Vec<Vec<Vec<&'a [usize]>>>,
+    pub(crate) orientation: Vec<&'a [i32]>,
 }
 
 impl<'a> SingleTypeTopologyBorrowed<'a> {
@@ -507,6 +529,7 @@ impl<'a> SingleTypeTopologyBorrowed<'a> {
         entity_counts: &'a [usize],
         downward_connectivity: Vec<Vec<Array2DBorrowed<'a, usize>>>,
         upward_connectivity: Vec<Vec<Vec<&'a [usize]>>>,
+        orientation: Vec<&'a [i32]>,
     ) -> Self {
         Self {
             dim,
@@ -515,6 +538,7 @@ impl<'a> SingleTypeTopologyBorrowed<'a> {
             entity_counts,
             downward_connectivity,
             upward_connectivity,
+            orientation,
         }
     }
     /// Topological dimension
@@ -597,6 +621,10 @@ impl Topology for SingleTypeEntityTopologyBorrowed<'_> {
 
     fn sub_entity(&self, dim: usize, index: usize) -> usize {
         self.topology.downward_connectivity[self.dim][dim][[index, self.entity_index]]
+    }
+
+    fn orientation(&self) -> i32 {
+        self.topology.orientation[self.dim][self.entity_index]
     }
 }
 
@@ -916,4 +944,24 @@ mod test {
     make_tests!(interval);
     make_tests!(triangle);
     make_tests!(tetrahedron);
+
+    #[test]
+    fn test_orientation_triangle() {
+        let t =
+            SingleTypeTopology::new(&[0, 1, 2, 0, 2, 1], ReferenceCellType::Triangle, None, None);
+        println!("{:?}", t.orientation);
+        assert_ne!(t.orientation[1][0], t.orientation[1][1]);
+    }
+
+    #[test]
+    fn test_orientation_quadrilateral() {
+        let t = SingleTypeTopology::new(
+            &[0, 1, 2, 3, 0, 3, 1, 2],
+            ReferenceCellType::Quadrilateral,
+            None,
+            None,
+        );
+        println!("{:?}", t.orientation);
+        assert_ne!(t.orientation[1][0], t.orientation[1][1]);
+    }
 }

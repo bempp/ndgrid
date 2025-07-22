@@ -146,6 +146,7 @@ impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
         entity_counts: &'a [usize],
         downward_connectivity: Vec<Vec<Array2DBorrowed<'a, usize>>>,
         upward_connectivity: Vec<Vec<Vec<&'a [usize]>>>,
+        orientation: Vec<&'a [i32]>,
         points: Array2DBorrowed<'a, T>,
         cells: Array2DBorrowed<'a, usize>,
         elements: Vec<E>,
@@ -157,6 +158,7 @@ impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
             entity_counts,
             downward_connectivity,
             upward_connectivity,
+            orientation,
         );
         let geometry = SingleElementGeometryBorrowed::new(points, cells, elements);
 
