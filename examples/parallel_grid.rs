@@ -38,8 +38,9 @@ fn main() {
             }
         }
 
-        // Distrubute the grid
-        b.create_parallel_grid_root(&comm, GraphPartitioner::None)
+        // Distribute the grid
+        // In this example, we use Scotch to partition the grid into pieces to be handles by each process
+        b.create_parallel_grid_root(&comm, GraphPartitioner::Scotch)
     } else {
         // receice the grid
         b.create_parallel_grid(&comm, 0)

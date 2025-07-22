@@ -3,6 +3,7 @@ serde = ["dep:serde", "ndelement/serde", "dep:ron"]
 strict = []
 default = ["serde"]
 coupe = ["dep:coupe"]
+scotch = ["dep:scotch"]
 
 [package]
 name = "ndgrid"
@@ -35,6 +36,10 @@ rlst = { git = "https://github.com/linalg-rs/rlst.git" }
 serde = { version = "1", features = ["derive"], optional = true }
 ron = { version = "0.10", optional = true }
 bempp-distributed-tools = { git = "https://github.com/bempp/distributed_tools.git" }
+scotch = { version = "0.2.1", optional = true }
+
+[patch.crates-io]
+scotch = { git = "https://github.com/mscroggs/scotch-rs.git", branch = "mscroggs/runtime", optional = true }
 
 [dev-dependencies]
 approx = "0.5"
@@ -52,7 +57,7 @@ wildcard_imports = "forbid"
 [[example]]
 name = "parallel_grid"
 doc-scrape-examples = true
-required-features = ["serde"]
+required-features = ["serde", "scotch"]
 
 [package.metadata.example.parallel_grid.templated-examples]
 command = "mpirun -n {{NPROCESSES}}"
@@ -88,7 +93,7 @@ command = "mpirun -n {{NPROCESSES}}"
 
 [[example]]
 name = "test_partitioners"
-required-features = ["coupe"]
+required-features = ["coupe", "scotch"]
 
 [package.metadata.example.test_partitioners.templated-examples]
 command = "mpirun -n {{NPROCESSES}}"

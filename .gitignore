@@ -21,3 +21,4 @@ python/ndgrid/_ndgridrs
 _*.msh
 _*.ron
 
+dist/

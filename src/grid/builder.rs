@@ -15,6 +15,12 @@ use mpi::{
 };
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "coupe")]
+use coupe::{KMeans, Partition, Point3D};
+
+#[cfg(feature = "scotch")]
+use scotch::{graph, Architecture, Graph, Strategy};
+
 // A simple struct to hold chunked data. The data is a long
 // array and `idx_bounds` is a vector sunch that `chunks[idx_bounds[i]..idx_bounds[i+1]]`
 // is one chunk. The last element of `idx_bounds` is the length of the data array.
@@ -68,8 +74,7 @@ where
 
             return ParallelGridImpl::new(comm, serial_grid, owners, global_indices);
         }
-        // Partition the cells via a KMeans algorithm. The midpoint of each cell is used and distributed
-        // across processes via coupe. The returned array assigns each cell a process.
+        // Partition the cells
         let cell_owners = self.partition_cells(comm.size() as usize, partitioner);
 
         // Each vertex is assigned the minimum process that has a cell that contains it.
@@ -522,8 +527,6 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
                 // Assign equal weights to each cell
                 let weights = vec![1.0; self.point_count()];
 
-                use coupe::{KMeans, Partition, Point3D};
-
                 // Run the Coupe KMeans algorithm to create the partitioning. Maybe replace
                 // by Metis at some point.
                 KMeans {
@@ -534,6 +537,50 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
                 .unwrap();
                 // Return the new partitioning.
                 partition
+            }
+            #[cfg(feature = "scotch")]
+            GraphPartitioner::Scotch => {
+                let mut vertex_to_cells = HashMap::<usize, HashSet<i32>>::new();
+                for i in 0..self.cell_count() {
+                    for v in self.cell_vertices(i) {
+                        vertex_to_cells.entry(*v).or_default().insert(i as i32);
+                    }
+                }
+
+                let mut endpoints = vec![0];
+                let mut connectivity = vec![];
+                for i in 0..self.cell_count() {
+                    let end = endpoints[endpoints.len() - 1] as usize;
+                    for v in self.cell_vertices(i) {
+                        for c in vertex_to_cells.get(v).unwrap() {
+                            if !connectivity[end..].contains(c) {
+                                connectivity.push(*c)
+                            }
+                        }
+                    }
+                    endpoints.push(connectivity.len() as i32);
+                }
+
+                let mut strategy = Strategy::new(); // use the default strategy.
+                let arch = Architecture::complete(nprocesses as i32);
+
+                let data = graph::Data::new(
+                    0,
+                    &endpoints[..endpoints.len() - 1],
+                    &endpoints[1..],
+                    &[],
+                    &[],
+                    &connectivity,
+                    &[],
+                );
+                let mut graph = Graph::build(&data).expect("Could not build graph");
+                let (vertnbr, _edgenbr) = graph.size();
+                let mut parttab = vec![0; vertnbr as usize];
+                let _ = graph
+                    .mapping(&arch, &mut parttab)
+                    .compute(&mut strategy)
+                    .expect("");
+                parttab.iter().map(|i| *i as usize).collect::<Vec<_>>()
             }
         }
     }

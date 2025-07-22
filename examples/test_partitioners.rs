@@ -110,10 +110,13 @@ fn main() {
     }
     run_test(&comm, GraphPartitioner::Manual(p));
 
-    #[cfg(feature = "coupe")]
     if comm.rank() == 0 {
         println!("Testing GraphPartitioner::Coupe");
     }
-    #[cfg(feature = "coupe")]
     run_test(&comm, GraphPartitioner::Coupe);
+
+    if comm.rank() == 0 {
+        println!("Testing GraphPartitioner::Scotch");
+    }
+    run_test(&comm, GraphPartitioner::Scotch);
 }
