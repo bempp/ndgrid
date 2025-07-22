@@ -20,4 +20,7 @@ pub trait Topology {
 
     /// An index of a sub-entity of this entity
     fn sub_entity(&self, dim: usize, index: usize) -> usize;
+
+    /// A 32-bit integer that encodes the orientation differences between this entity and the corresponding reference entity
+    fn orientation(&self) -> i32;
 }
