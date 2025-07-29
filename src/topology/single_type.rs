@@ -280,7 +280,9 @@ impl SingleTypeTopology {
             for (dc_d0ij, c_j) in izip!(dc_d0i.iter_mut(), &cells[i * size..(i + 1) * size]) {
                 *dc_d0ij = *c_j;
                 // We can also fill out the upward connectivity if dim > 0.
-                if dim > 0 {
+                // The contains test should not be necessary as for eaach vertex a cell can only
+                // be added once. However, it seems better to move upward connectivity to sets anyway.
+                if dim > 0 && !upward_connectivity[0][dim - 1][*c_j].contains(&i) {
                     upward_connectivity[0][dim - 1][*c_j].insert(i);
                 }
             }
@@ -299,7 +301,9 @@ impl SingleTypeTopology {
                 let mut dc_i0j = dc_i[0].r_mut().slice(1, *entity_index);
                 for (vertex, dc_i0jk) in izip!(entity_vertices.iter(), dc_i0j.iter_mut()) {
                     *dc_i0jk = *vertex;
-                    upward_connectivity[0][i][*vertex].insert(*entity_index);
+                    if !upward_connectivity[0][i][*vertex].contains(entity_index) {
+                        upward_connectivity[0][i][*vertex].insert(*entity_index);
+                    }
                 }
             }
         }
@@ -389,7 +393,11 @@ impl SingleTypeTopology {
                                 // The upward connectivity between the two is upward_connectivity[1][0].
                                 // The general setup is upward_connectivity[dim0][dim1 - dim0 - 1][dim0_entity_index][..] = [dim1_entity_index].
                                 // We hae dim0 = k + 1 and dim1 = i + 2. Hence, dim1 - dim0 - 1 = i - k.
-                                upward_connectivity[k + 1][i - k][ce_k[*rc_ijkl]].insert(*ce_ij);
+                                if !upward_connectivity[k + 1][i - k][ce_k[*rc_ijkl]]
+                                    .contains(ce_ij)
+                                {
+                                    upward_connectivity[k + 1][i - k][ce_k[*rc_ijkl]].insert(*ce_ij);
+                                }
                             }
                         }
                     }
