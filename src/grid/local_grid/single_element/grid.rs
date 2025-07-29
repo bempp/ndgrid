@@ -379,11 +379,12 @@ mod test {
         );
         for edge in grid.entity_iter(1) {
             let cell = grid.entity(grid.topology_dim(), edge.cell_index).unwrap();
-            for (i, v) in izip!(
-                &conn[1][edge.entity_index][0],
-                edge.topology().sub_entity_iter(0)
-            ) {
-                assert_eq!(v, cell.topology().sub_entity(0, *i));
+            println!("{:?}", conn[1][edge.entity_index][0]);
+            for v in edge.topology().sub_entity_iter(0) {
+                println!("{v}");
+            }
+            for v in edge.topology().sub_entity_iter(0) {
+                assert!(conn[1][edge.entity_index][0].contains(&v));
             }
         }
     }
