@@ -248,8 +248,8 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
             if dim == self.topology_dim() {
                 Some(SingleElementGridEntity::new(self, local_index, dim, 0))
             } else {
-                let cell = self.topology.upward_connectivity[dim][self.topology_dim() - dim - 1]
-                    [local_index][0];
+                let cell = *self.topology.upward_connectivity[dim][self.topology_dim() - dim - 1]
+                    [local_index].iter().next().unwrap();
                 let index = self.topology.downward_connectivity[self.topology_dim()][dim]
                     .r()
                     .slice(1, cell)

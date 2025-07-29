@@ -9,7 +9,7 @@ use ndelement::{orientation::compute_orientation, reference_cell, types::Referen
 #[cfg(feature = "serde")]
 use rlst::RawAccessMut;
 use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::iter::Copied;
 
 /// Topology of a single element grid
@@ -21,7 +21,7 @@ pub struct SingleTypeTopology {
     entity_types: Vec<ReferenceCellType>,
     entity_counts: Vec<usize>,
     pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,
-    pub(crate) upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
+    pub(crate) upward_connectivity: Vec<Vec<Vec<HashSet<usize>>>>,
     pub(crate) orientation: Vec<Vec<i32>>,
 }
 
@@ -56,7 +56,13 @@ impl ConvertToSerializable for SingleTypeTopology {
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
-            upward_connectivity: self.upward_connectivity.clone(),
+            upward_connectivity: self.upward_connectivity.iter().map(|a|
+                a.iter().map(|b|
+                    b.iter().map(|c| {
+                        c.iter().map(|i| *i).collect::<Vec<_>>()
+                    }).collect::<Vec<_>>()
+                ).collect::<Vec<_>>()
+            ).collect::<Vec<_>>(),
             orientation: self.orientation.clone(),
         }
     }
@@ -92,7 +98,17 @@ impl ConvertToSerializable for SingleTypeTopology {
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
-            upward_connectivity: s.upward_connectivity,
+            upward_connectivity: s.upward_connectivity.iter().map(|a|
+                a.iter().map(|b|
+                    b.iter().map(|c| {
+                        let mut d = HashSet::new();
+                        for i in c {
+                            d.insert(*i);
+                        }
+                        d
+                    }).collect::<Vec<_>>()
+                ).collect::<Vec<_>>()
+            ).collect::<Vec<_>>(),
             orientation: s.orientation,
         }
     }
@@ -242,13 +258,12 @@ impl SingleTypeTopology {
         // entities of dimension dim0 (with dim0<dim1) (eg triangles connected to an edge,
         // tetrahedra connected to a vertex, etc)
         // upward_connectivity[dim0][dim1 - dim0 - 1][dim0_entity_index][..] = [dim1_entity_index]
-        // TODO: The last part of upwards connectivity should be a set.
         let mut upward_connectivity = entity_counts
             .iter()
             .take(dim)
             .enumerate()
-            .map(|(i, j)| vec![vec![vec![]; *j]; dim - i])
-            .collect::<Vec<Vec<Vec<Vec<usize>>>>>();
+            .map(|(i, j)| vec![vec![HashSet::new(); *j]; dim - i])
+            .collect::<Vec<_>>();
 
         // downward_connectivity[d][d][i] = [i] (ie each entity is a sub-entity of itself)
         for (d, dc) in downward_connectivity.iter_mut().enumerate() {
@@ -268,7 +283,7 @@ impl SingleTypeTopology {
                 // The contains test should not be necessary as for eaach vertex a cell can only
                 // be added once. However, it seems better to move upward connectivity to sets anyway.
                 if dim > 0 && !upward_connectivity[0][dim - 1][*c_j].contains(&i) {
-                    upward_connectivity[0][dim - 1][*c_j].push(i);
+                    upward_connectivity[0][dim - 1][*c_j].insert(i);
                 }
             }
         }
@@ -287,7 +302,7 @@ impl SingleTypeTopology {
                 for (vertex, dc_i0jk) in izip!(entity_vertices.iter(), dc_i0j.iter_mut()) {
                     *dc_i0jk = *vertex;
                     if !upward_connectivity[0][i][*vertex].contains(entity_index) {
-                        upward_connectivity[0][i][*vertex].push(*entity_index);
+                        upward_connectivity[0][i][*vertex].insert(*entity_index);
                     }
                 }
             }
@@ -381,7 +396,7 @@ impl SingleTypeTopology {
                                 if !upward_connectivity[k + 1][i - k][ce_k[*rc_ijkl]]
                                     .contains(ce_ij)
                                 {
-                                    upward_connectivity[k + 1][i - k][ce_k[*rc_ijkl]].push(*ce_ij);
+                                    upward_connectivity[k + 1][i - k][ce_k[*rc_ijkl]].insert(*ce_ij);
                                 }
                             }
                         }
@@ -456,7 +471,7 @@ impl SingleTypeTopology {
         &self.downward_connectivity
     }
     /// Upward connectivity
-    pub fn upward_connectivity(&self) -> &[Vec<Vec<Vec<usize>>>] {
+    pub fn upward_connectivity(&self) -> &[Vec<Vec<HashSet<usize>>>] {
         &self.upward_connectivity
     }
     /// Cell sub-entity index
@@ -505,11 +520,11 @@ impl Topology for SingleTypeEntityTopology<'_> {
         Self: 'a;
 
     type ConnectedEntityIndexIter<'a>
-        = Copied<std::slice::Iter<'a, usize>>
+        = Copied<std::collections::hash_set::Iter<'a, usize>>
     where
         Self: 'a;
 
-    fn connected_entity_iter(&self, dim: usize) -> Copied<std::slice::Iter<'_, usize>> {
+    fn connected_entity_iter(&self, dim: usize) -> Copied<std::collections::hash_set::Iter<'_, usize>> {
         self.topology.upward_connectivity[self.dim][dim - self.dim - 1][self.entity_index]
             .iter()
             .copied()
