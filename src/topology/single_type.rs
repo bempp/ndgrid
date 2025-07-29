@@ -242,7 +242,6 @@ impl SingleTypeTopology {
         // entities of dimension dim0 (with dim0<dim1) (eg triangles connected to an edge,
         // tetrahedra connected to a vertex, etc)
         // upward_connectivity[dim0][dim1 - dim0 - 1][dim0_entity_index][..] = [dim1_entity_index]
-        // TODO: The last part of upwards connectivity should be a set.
         let mut upward_connectivity = entity_counts
             .iter()
             .take(dim)
@@ -265,9 +264,7 @@ impl SingleTypeTopology {
             for (dc_d0ij, c_j) in izip!(dc_d0i.iter_mut(), &cells[i * size..(i + 1) * size]) {
                 *dc_d0ij = *c_j;
                 // We can also fill out the upward connectivity if dim > 0.
-                // The contains test should not be necessary as for eaach vertex a cell can only
-                // be added once. However, it seems better to move upward connectivity to sets anyway.
-                if dim > 0 && !upward_connectivity[0][dim - 1][*c_j].contains(&i) {
+                if dim > 0 {
                     upward_connectivity[0][dim - 1][*c_j].push(i);
                 }
             }
