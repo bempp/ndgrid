@@ -277,12 +277,9 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     }
 
     fn entity_from_id(&self, dim: usize, id: usize) -> Option<Self::Entity<'_>> {
-        // TODO: store a HashMap rather than doing a find every time?
-        self.topology.ids[dim].as_ref().map(|ids| {
-            ids.iter()
-                .find(|&i| *i == id)
-                .map(|i| self.entity(dim, *i))?
-        })?
+        self.topology.ids_to_indices[dim]
+            .get(&id)
+            .map(|i| self.entity(dim, *i))?
     }
 
     fn geometry_map(

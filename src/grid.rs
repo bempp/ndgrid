@@ -2,7 +2,7 @@
 mod builder;
 pub mod local_grid;
 
-pub use local_grid::{SingleElementGrid, SingleElementGridBorrowed, SingleElementGridBuilder};
+pub use local_grid::{SingleElementGrid, SingleElementGridBuilder};
 
 use local_grid::LocalGrid;
 
