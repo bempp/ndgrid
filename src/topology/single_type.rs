@@ -949,7 +949,6 @@ mod test {
     fn test_orientation_triangle() {
         let t =
             SingleTypeTopology::new(&[0, 1, 2, 0, 2, 1], ReferenceCellType::Triangle, None, None);
-        println!("{:?}", t.orientation);
         assert_ne!(t.orientation[1][0], t.orientation[1][1]);
     }
 
@@ -961,7 +960,6 @@ mod test {
             None,
             None,
         );
-        println!("{:?}", t.orientation);
         assert_ne!(t.orientation[1][0], t.orientation[1][1]);
     }
 }
