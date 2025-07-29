@@ -17,6 +17,7 @@ use std::iter::Copied;
 pub struct SingleTypeTopology {
     dim: usize,
     pub(crate) ids: Vec<Option<Vec<usize>>>,
+    pub(crate) ids_to_indices: Vec<HashMap<usize, usize>>,
     entity_types: Vec<ReferenceCellType>,
     entity_counts: Vec<usize>,
     pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,
@@ -62,6 +63,19 @@ impl ConvertToSerializable for SingleTypeTopology {
     fn from_serializable(s: SerializableTopology) -> Self {
         Self {
             dim: s.dim,
+            ids_to_indices: s
+                .ids
+                .iter()
+                .map(|ids_option| {
+                    let mut ie = HashMap::new();
+                    if let Some(ids) = ids_option {
+                        for (i, j) in ids.iter().enumerate() {
+                            ie.insert(*j, i);
+                        }
+                    }
+                    ie
+                })
+                .collect::<Vec<_>>(),
             ids: s.ids,
             entity_types: s.entity_types,
             entity_counts: s.entity_counts,
@@ -382,6 +396,19 @@ impl SingleTypeTopology {
         }
         ids.push(cell_ids);
 
+        let ids_to_indices = ids
+            .iter()
+            .map(|ids_option| {
+                let mut ie = HashMap::new();
+                if let Some(ids) = ids_option {
+                    for (i, j) in ids.iter().enumerate() {
+                        ie.insert(*j, i);
+                    }
+                }
+                ie
+            })
+            .collect::<Vec<_>>();
+
         let mut orientation = vec![];
 
         for d in 1..dim + 1 {
@@ -396,6 +423,7 @@ impl SingleTypeTopology {
         Self {
             dim,
             ids,
+            ids_to_indices,
             entity_types,
             entity_counts,
             downward_connectivity,
