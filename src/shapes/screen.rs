@@ -24,16 +24,12 @@ pub fn screen_triangles<T: RealScalar>(
     );
 
     let zero = T::from(0.0).unwrap();
-    let n = T::from(ncells + 1).unwrap();
+    let n = T::from(ncells).unwrap();
     for y in 0..ncells + 1 {
         for x in 0..ncells + 1 {
             b.add_point(
                 y * (ncells + 1) + x,
-                &[
-                    T::from(x).unwrap() / (n - 1),
-                    T::from(y).unwrap() / (n - 1),
-                    zero,
-                ],
+                &[T::from(x).unwrap() / n, T::from(y).unwrap() / n, zero],
             );
         }
     }
@@ -79,16 +75,12 @@ pub fn screen_quadrilaterals<T: RealScalar>(
     );
 
     let zero = T::from(0.0).unwrap();
-    let n = T::from(ncells + 1).unwrap();
+    let n = T::from(ncells).unwrap();
     for y in 0..ncells + 1 {
         for x in 0..ncells + 1 {
             b.add_point(
                 y * (ncells + 1) + x,
-                &[
-                    T::from(x).unwrap() / (n - 1),
-                    T::from(y).unwrap() / (n - 1),
-                    zero,
-                ],
+                &[T::from(x).unwrap() / n, T::from(y).unwrap() / n, zero],
             );
         }
     }
