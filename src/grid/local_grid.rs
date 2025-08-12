@@ -192,6 +192,19 @@ impl<G: Grid + Sync> Grid for LocalGrid<G> {
         )
     }
 
+    fn entity_iter_by_type(
+        &self,
+        dim: usize,
+        entity_type: Self::EntityDescriptor,
+    ) -> Self::EntityIter<'_> {
+        debug_assert!(self.entity_types(dim).contains(&entity_type));
+        GridEntityIter::new(
+            self.serial_grid.entity_iter_by_type(dim, entity_type),
+            &self.ownership[dim],
+            &self.global_indices[dim],
+        )
+    }
+
     fn entity_from_id(&self, dim: usize, id: usize) -> Option<Self::Entity<'_>> {
         self.serial_grid
             .entity_from_id(dim, id)

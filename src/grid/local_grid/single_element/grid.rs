@@ -276,6 +276,15 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
         SingleElementGridEntityIter::new(self, dim)
     }
 
+    fn entity_iter_by_type(
+        &self,
+        dim: usize,
+        entity_type: ReferenceCellType,
+    ) -> Self::EntityIter<'_> {
+        debug_assert!(self.entity_types(dim).contains(&entity_type));
+        SingleElementGridEntityIter::new(self, dim)
+    }
+
     fn entity_from_id(&self, dim: usize, id: usize) -> Option<Self::Entity<'_>> {
         self.topology.ids_to_indices[dim]
             .get(&id)
