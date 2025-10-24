@@ -222,7 +222,7 @@ fn gmsh_section(s: &str, section: &str) -> String {
 
 impl<T, B> GmshImport for B
 where
-    T: FromStr + FromBytes + Debug,
+    T: FromStr + FromBytes,
     <T as FromBytes>::Bytes: Sized,
     B: Builder<T = T, EntityDescriptor = ReferenceCellType>,
 {

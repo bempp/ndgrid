@@ -87,8 +87,6 @@ pub trait GmshImport: Builder {
             panic!("Unrecognised format");
         };
 
-        //assert_eq!(version, "4.1", "Unsupported gmsh file version");
-
         const GMSH_INT_SIZE: usize = 4;
 
         if binary_mode == "1" {

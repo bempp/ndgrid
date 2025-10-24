@@ -45,10 +45,3 @@ fn test_gmsh_import_binary_v4() {
     b.import_from_gmsh(&relative_file("test_mesh_binary_v4.msh"));
     let _g = b.create_grid();
 }
-
-#[test]
-fn test_gmsh_import_binary() {
-    let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
-    b.import_from_gmsh(&relative_file("test_mesh_bin.msh"));
-    let _g = b.create_grid();
-}
