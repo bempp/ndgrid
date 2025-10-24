@@ -19,11 +19,26 @@ pub trait GmshExport: Grid {
 pub trait GmshImport: Builder {
     //! Grid import for Gmsh
 
-    /// Generate grid from a Gmsh string
-    fn import_from_gmsh_string(&mut self, s: String);
+    /// Generate grid from a Gmsh v1 string
+    fn import_from_gmsh_v1(&mut self, s: String);
 
-    /// Generate grid from a Gmsh binary
-    fn import_from_gmsh_binary(
+    /// Generate grid from a Gmsh v2 string
+    fn import_from_gmsh_string_v2(&mut self, s: String);
+
+    /// Generate grid from a Gmsh v2 binary
+    fn import_from_gmsh_binary_v2(
+        &mut self,
+        reader: BufReader<File>,
+        data_size: usize,
+        // check endianness.
+        is_le: bool,
+    );
+
+    /// Generate grid from a Gmsh v4 string
+    fn import_from_gmsh_string_v4(&mut self, s: String);
+
+    /// Generate grid from a Gmsh v4 binary
+    fn import_from_gmsh_binary_v4(
         &mut self,
         reader: BufReader<File>,
         data_size: usize,
@@ -37,9 +52,33 @@ pub trait GmshImport: Builder {
         let mut reader = BufReader::new(f);
 
         let mut line = String::new();
-        for _ in 0..2 {
-            reader.read_line(&mut line).expect("Unable to read header");
+        reader.read_line(&mut line).expect("Unable to read header");
+
+        if line.starts_with("$NOD") {
+            let mut content = String::new();
+            reader
+                .read_to_string(&mut content)
+                .expect("Unable to read mesh");
+
+            content.replace_range(0..0, "$Nodes\n");
+            for (f, r) in [
+                ("$ENDNOD", "$EndNodes"),
+                ("$ELM", "$Elements"),
+                ("$ENDELM", "$EndElements"),
+            ]
+            .iter()
+            {
+                let Some(offset) = content.find(f) else {
+                    panic!("Invalid file format");
+                };
+                content.replace_range(offset..offset + f.len(), r);
+            }
+
+            self.import_from_gmsh_v1(content);
+            return;
         }
+
+        reader.read_line(&mut line).expect("Unable to read header");
 
         let [version, binary_mode, data_size] = line.split("\n").collect::<Vec<_>>()[1]
             .split(" ")
@@ -47,8 +86,6 @@ pub trait GmshImport: Builder {
         else {
             panic!("Unrecognised format");
         };
-
-        assert_eq!(version, "4.1", "Unsupported gmsh file version");
 
         const GMSH_INT_SIZE: usize = 4;
 
@@ -68,14 +105,23 @@ pub trait GmshImport: Builder {
                 .expect("Unable to read endianness");
 
             let is_le = u32::from_le_bytes(buf) == 1;
-            self.import_from_gmsh_binary(reader, data_size, is_le);
+
+            if version.starts_with("2") {
+                self.import_from_gmsh_binary_v2(reader, data_size, is_le);
+            } else {
+                self.import_from_gmsh_binary_v4(reader, data_size, is_le);
+            }
         } else {
             let mut content = String::new();
             reader
                 .read_to_string(&mut content)
                 .expect("Unable to read content");
 
-            self.import_from_gmsh_string(content);
+            if version.starts_with("2") {
+                self.import_from_gmsh_string_v2(content);
+            } else {
+                self.import_from_gmsh_string_v4(content);
+            }
         }
     }
 }

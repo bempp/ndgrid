@@ -12,15 +12,36 @@ fn relative_file(filename: &str) -> String {
 }
 
 #[test]
-fn test_gmsh_import() {
+fn test_gmsh_import_v1() {
     let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
-    b.import_from_gmsh(&relative_file("test_mesh.msh"));
+    b.import_from_gmsh(&relative_file("test_mesh_v1.msh"));
     let _g = b.create_grid();
 }
 
 #[test]
-fn test_gmsh_import_binary() {
+fn test_gmsh_import_ascii_v2() {
     let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
-    b.import_from_gmsh(&relative_file("test_mesh_bin.msh"));
+    b.import_from_gmsh(&relative_file("test_mesh_ascii_v2.msh"));
+    let _g = b.create_grid();
+}
+
+#[test]
+fn test_gmsh_import_binary_v2() {
+    let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
+    b.import_from_gmsh(&relative_file("test_mesh_binary_v2.msh"));
+    let _g = b.create_grid();
+}
+
+#[test]
+fn test_gmsh_import_ascii_v4() {
+    let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
+    b.import_from_gmsh(&relative_file("test_mesh_ascii_v4.msh"));
+    let _g = b.create_grid();
+}
+
+#[test]
+fn test_gmsh_import_binary_v4() {
+    let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
+    b.import_from_gmsh(&relative_file("test_mesh_binary_v4.msh"));
     let _g = b.create_grid();
 }
