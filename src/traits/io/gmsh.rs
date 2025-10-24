@@ -57,7 +57,10 @@ pub trait GmshImport: Builder {
                 .parse::<usize>()
                 .expect("Unable to parse data size");
 
-            assert!(data_size <= std::mem::size_of::<usize>(), "Unsupported data size");
+            assert!(
+                data_size <= std::mem::size_of::<usize>(),
+                "Unsupported data size"
+            );
 
             let mut buf = [0u8; GMSH_INT_SIZE];
             reader

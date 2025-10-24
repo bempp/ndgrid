@@ -413,7 +413,10 @@ where
                     };
 
                     for _ in 0..num_entity_blocks {
-                        read_exact!(3 * GMSH_INT_SIZE, "Unable to read element entity block info");
+                        read_exact!(
+                            3 * GMSH_INT_SIZE,
+                            "Unable to read element entity block info"
+                        );
                         let [_entity_dim, _entity_tag, element_type] = buf
                             .chunks(GMSH_INT_SIZE)
                             .map(|i| parse::<usize>(i, GMSH_INT_SIZE, is_le))
