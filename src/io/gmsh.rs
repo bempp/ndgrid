@@ -6,7 +6,6 @@ use ndelement::types::ReferenceCellType;
 use num::traits::FromBytes;
 use num::Zero;
 use std::collections::HashMap;
-use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::str::FromStr;
