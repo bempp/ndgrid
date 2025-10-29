@@ -343,8 +343,9 @@ impl<'t> MixedEntityTopology<'t> {
         }
     }
 }
-/*
+
 impl Topology for MixedEntityTopology<'_> {
+    type EntityDescriptor = ReferenceCellType;
     type EntityIndexIter<'a>
         = Copied<std::slice::Iter<'a, usize>>
     where
@@ -355,34 +356,43 @@ impl Topology for MixedEntityTopology<'_> {
     where
         Self: 'a;
 
-    fn connected_entity_iter(&self, dim: usize) -> Copied<std::slice::Iter<'_, usize>> {
+    fn connected_entity_iter(&self, entity_type: ReferenceCellType) -> Copied<std::slice::Iter<'_, usize>> {
+        panic!();
+        /*
         self.topology.upward_connectivity[self.entity_type][dim - self.dim - 1][self.entity_index]
             .iter()
             .copied()
+        */
     }
 
-    fn sub_entity_iter(&self, dim: usize) -> Copied<std::slice::Iter<'_, usize>> {
+    fn sub_entity_iter(&self, entity_type: ReferenceCellType) -> Copied<std::slice::Iter<'_, usize>> {
+        panic!();
+        /*
         let rows = self.topology.downward_connectivity[self.dim][dim].shape()[0];
         self.topology.downward_connectivity[self.dim][dim].data()
             [rows * self.entity_index..rows * (self.entity_index + 1)]
             .iter()
             .copied()
+        */
     }
 
-    fn sub_entity(&self, dim: usize, index: usize) -> usize {
+    fn sub_entity(&self, entity_type: ReferenceCellType, index: usize) -> usize {
+        panic!();
+        /*
         self.topology.downward_connectivity[self.dim][dim][[index, self.entity_index]]
+        */
     }
 
     fn orientation(&self) -> i32 {
-        if self.dim == 0 {
+        if reference_cell::dim(self.entity_type) == 0 {
             0
         } else {
-            self.topology.orientation[self.dim - 1][self.entity_index]
+            self.topology.orientation[&self.entity_type][self.entity_index]
         }
+        
     }
 }
 
-*/
 #[cfg(test)]
 mod test {
     use super::*;
@@ -425,25 +435,25 @@ mod test {
         //! Test sub-entities of a triangle
         let t = example_topology_triangle_and_quad();
         let cell0 = MixedEntityTopology::new(&t, ReferenceCellType::Quadrilateral, 0);
-        /*
-        assert_eq!(cell0.sub_entity(0, 0), 0);
-        assert_eq!(cell0.sub_entity(0, 1), 1);
-        assert_eq!(cell0.sub_entity(0, 2), 2);
-        assert_eq!(cell0.sub_entity(0, 3), 3);
-        assert_eq!(cell0.sub_entity(1, 0), 0);
-        assert_eq!(cell0.sub_entity(1, 1), 1);
-        assert_eq!(cell0.sub_entity(1, 2), 2);
-        assert_eq!(cell0.sub_entity(1, 3), 3);
-        assert_eq!(cell0.sub_entity(2, 0), 0);
-        let cell1 = MixedEntityTopology::new(&t, ReferenceCellType::Triangle, 1);
-        assert_eq!(cell1.sub_entity(0, 0), 2);
-        assert_eq!(cell1.sub_entity(0, 1), 1);
-        assert_eq!(cell1.sub_entity(0, 2), 3);
-        assert_eq!(cell1.sub_entity(1, 0), 3);
-        assert_eq!(cell1.sub_entity(1, 1), 4);
-        assert_eq!(cell1.sub_entity(1, 2), 0);
-        assert_eq!(cell1.sub_entity(2, 0), 1);
+        assert_eq!(cell0.sub_entity(ReferenceCellType::Point, 0), 0);
+        assert_eq!(cell0.sub_entity(ReferenceCellType::Point, 1), 1);
+        assert_eq!(cell0.sub_entity(ReferenceCellType::Point, 2), 2);
+        assert_eq!(cell0.sub_entity(ReferenceCellType::Point, 3), 3);
+        assert_eq!(cell0.sub_entity(ReferenceCellType::Interval, 0), 0);
+        assert_eq!(cell0.sub_entity(ReferenceCellType::Interval, 1), 1);
+        assert_eq!(cell0.sub_entity(ReferenceCellType::Interval, 2), 2);
+        assert_eq!(cell0.sub_entity(ReferenceCellType::Interval, 3), 3);
+        assert_eq!(cell0.sub_entity(ReferenceCellType::Quadrilateral, 0), 0);
+        let cell1 = MixedEntityTopology::new(&t, ReferenceCellType::Triangle, 0);
+        assert_eq!(cell1.sub_entity(ReferenceCellType::Point, 0), 1);
+        assert_eq!(cell1.sub_entity(ReferenceCellType::Point, 1), 4);
+        assert_eq!(cell1.sub_entity(ReferenceCellType::Point, 2), 3);
+        assert_eq!(cell1.sub_entity(ReferenceCellType::Interval, 0), 4);
+        assert_eq!(cell1.sub_entity(ReferenceCellType::Interval, 1), 2);
+        assert_eq!(cell1.sub_entity(ReferenceCellType::Interval, 2), 5);
+        assert_eq!(cell1.sub_entity(ReferenceCellType::Triangle, 0), 0);
 
+        /*
         let edge0 = MixedEntityTopology::new(&t, ReferenceCellType::Interval, 0);
         assert_eq!(edge0.sub_entity(0, 0), 1);
         assert_eq!(edge0.sub_entity(0, 1), 2);
