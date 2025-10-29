@@ -42,12 +42,21 @@ fn main() {
     // Print the first 5 cells of each grid on process 0
     if rank == 0 {
         println!("The first 5 cells of the grids");
-        for (cell, cell2) in izip!(g.local_grid().cell_iter(), g2.local_grid().cell_iter()).take(5)
+        for (cell, cell2) in izip!(
+            g.local_grid().entity_iter(ReferenceCellType::Triangle),
+            g2.local_grid().entity_iter(ReferenceCellType::Triangle)
+        )
+        .take(5)
         {
             println!(
                 "{:?} {:?}",
-                cell.topology().sub_entity_iter(0).collect::<Vec<_>>(),
-                cell2.topology().sub_entity_iter(0).collect::<Vec<_>>(),
+                cell.topology()
+                    .sub_entity_iter(ReferenceCellType::Point)
+                    .collect::<Vec<_>>(),
+                cell2
+                    .topology()
+                    .sub_entity_iter(ReferenceCellType::Point)
+                    .collect::<Vec<_>>(),
             );
         }
     }

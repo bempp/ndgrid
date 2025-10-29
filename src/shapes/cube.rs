@@ -491,60 +491,61 @@ mod test {
         expected_volume: f64,
     ) {
         let mut volume = 0.0;
-        let tdim = grid.topology_dim();
         let gdim = grid.geometry_dim();
-        for cell in grid.entity_iter(tdim) {
-            let g = cell.geometry();
-            let mut point = vec![0.0; gdim];
-            let mut min_p = vec![10.0; gdim];
-            let mut max_p = vec![-10.0; gdim];
-            for p in g.points() {
-                p.coords(&mut point);
-                for (j, v) in point.iter().enumerate() {
-                    if *v < min_p[j] {
-                        min_p[j] = *v;
-                    }
-                    if *v > max_p[j] {
-                        max_p[j] = *v;
+        for t in grid.cell_types() {
+            for cell in grid.entity_iter(*t) {
+                let g = cell.geometry();
+                let mut point = vec![0.0; gdim];
+                let mut min_p = vec![10.0; gdim];
+                let mut max_p = vec![-10.0; gdim];
+                for p in g.points() {
+                    p.coords(&mut point);
+                    for (j, v) in point.iter().enumerate() {
+                        if *v < min_p[j] {
+                            min_p[j] = *v;
+                        }
+                        if *v > max_p[j] {
+                            max_p[j] = *v;
+                        }
                     }
                 }
+                volume += match cell.entity_type() {
+                    ReferenceCellType::Interval => {
+                        max(&izip!(min_p, max_p).map(|(i, j)| j - i).collect::<Vec<_>>())
+                    }
+                    ReferenceCellType::Triangle => match gdim {
+                        2 => (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) / 2.0,
+                        3 => max(&[
+                            (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) / 2.0,
+                            (max_p[0] - min_p[0]) * (max_p[2] - min_p[2]) / 2.0,
+                            (max_p[1] - min_p[1]) * (max_p[2] - min_p[2]) / 2.0,
+                        ]),
+                        _ => {
+                            panic!("Unsupported dimension");
+                        }
+                    },
+                    ReferenceCellType::Quadrilateral => match gdim {
+                        2 => (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]),
+                        3 => max(&[
+                            (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]),
+                            (max_p[0] - min_p[0]) * (max_p[2] - min_p[2]),
+                            (max_p[1] - min_p[1]) * (max_p[2] - min_p[2]),
+                        ]),
+                        _ => {
+                            panic!("Unsupported dimension");
+                        }
+                    },
+                    ReferenceCellType::Tetrahedron => {
+                        (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) * (max_p[2] - min_p[2]) / 6.0
+                    }
+                    ReferenceCellType::Hexahedron => {
+                        (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) * (max_p[2] - min_p[2])
+                    }
+                    _ => {
+                        panic!("Unsupported cell");
+                    }
+                };
             }
-            volume += match cell.entity_type() {
-                ReferenceCellType::Interval => {
-                    max(&izip!(min_p, max_p).map(|(i, j)| j - i).collect::<Vec<_>>())
-                }
-                ReferenceCellType::Triangle => match gdim {
-                    2 => (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) / 2.0,
-                    3 => max(&[
-                        (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) / 2.0,
-                        (max_p[0] - min_p[0]) * (max_p[2] - min_p[2]) / 2.0,
-                        (max_p[1] - min_p[1]) * (max_p[2] - min_p[2]) / 2.0,
-                    ]),
-                    _ => {
-                        panic!("Unsupported dimension");
-                    }
-                },
-                ReferenceCellType::Quadrilateral => match gdim {
-                    2 => (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]),
-                    3 => max(&[
-                        (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]),
-                        (max_p[0] - min_p[0]) * (max_p[2] - min_p[2]),
-                        (max_p[1] - min_p[1]) * (max_p[2] - min_p[2]),
-                    ]),
-                    _ => {
-                        panic!("Unsupported dimension");
-                    }
-                },
-                ReferenceCellType::Tetrahedron => {
-                    (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) * (max_p[2] - min_p[2]) / 6.0
-                }
-                ReferenceCellType::Hexahedron => {
-                    (max_p[0] - min_p[0]) * (max_p[1] - min_p[1]) * (max_p[2] - min_p[2])
-                }
-                _ => {
-                    panic!("Unsupported cell");
-                }
-            };
         }
         assert_relative_eq!(volume, expected_volume, epsilon = 1e-10);
     }

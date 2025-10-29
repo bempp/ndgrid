@@ -26,17 +26,19 @@ fn main() {
 
     // Print the coordinates or each point in the mesh
     let mut coords = vec![0.0; grid.geometry_dim()];
-    for point in grid.entity_iter(0) {
+    for point in grid.entity_iter(ReferenceCellType::Point) {
         point.geometry().points().collect::<Vec<_>>()[0].coords(coords.as_mut_slice());
         println!("point {}: {:#?}", point.local_index(), coords);
     }
 
     // Print the vertices of each cell
-    for cell in grid.entity_iter(2) {
+    for cell in grid.entity_iter(ReferenceCellType::Quadrilateral) {
         println!(
             "cell {}: {:?} ",
             cell.local_index(),
-            cell.topology().sub_entity_iter(0).collect::<Vec<_>>()
+            cell.topology()
+                .sub_entity_iter(ReferenceCellType::Point)
+                .collect::<Vec<_>>()
         );
     }
 }

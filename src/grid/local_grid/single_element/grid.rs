@@ -107,7 +107,7 @@ pub struct SingleElementGridEntityIter<
     E: FiniteElement<CellType = ReferenceCellType, T = T>,
 > {
     grid: &'a SingleElementGrid<T, E>,
-    dim: usize,
+    entity_type: ReferenceCellType,
     index: usize,
 }
 
@@ -115,10 +115,10 @@ impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
     SingleElementGridEntityIter<'a, T, E>
 {
     /// Create new
-    pub fn new(grid: &'a SingleElementGrid<T, E>, dim: usize) -> Self {
+    pub fn new(grid: &'a SingleElementGrid<T, E>, entity_type: ReferenceCellType) -> Self {
         Self {
             grid,
-            dim,
+            entity_type,
             index: 0,
         }
     }
@@ -130,7 +130,7 @@ impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> I
 
     fn next(&mut self) -> Option<SingleElementGridEntity<'a, T, E>> {
         self.index += 1;
-        self.grid.entity(self.dim, self.index - 1)
+        self.grid.entity(self.entity_type, self.index - 1)
     }
 }
 
@@ -239,12 +239,13 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
         self.topology.dim()
     }
 
-    fn entity(&self, dim: usize, local_index: usize) -> Option<Self::Entity<'_>> {
-        if local_index
-            < self
-                .topology
-                .entity_count(self.topology.entity_types()[dim])
-        {
+    fn entity(
+        &self,
+        entity_type: ReferenceCellType,
+        local_index: usize,
+    ) -> Option<Self::Entity<'_>> {
+        let dim = reference_cell::dim(entity_type);
+        if local_index < self.topology.entity_count(entity_type) {
             if dim == self.topology_dim() {
                 Some(SingleElementGridEntity::new(self, local_index, dim, 0))
             } else {
@@ -272,23 +273,19 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
         self.topology.entity_count(entity_type)
     }
 
-    fn entity_iter(&self, dim: usize) -> Self::EntityIter<'_> {
-        SingleElementGridEntityIter::new(self, dim)
+    fn entity_iter(&self, entity_type: ReferenceCellType) -> Self::EntityIter<'_> {
+        SingleElementGridEntityIter::new(self, entity_type)
     }
 
-    fn entity_iter_by_type(
+    fn entity_from_id(
         &self,
-        dim: usize,
         entity_type: ReferenceCellType,
-    ) -> Self::EntityIter<'_> {
-        debug_assert!(self.entity_types(dim).contains(&entity_type));
-        SingleElementGridEntityIter::new(self, dim)
-    }
-
-    fn entity_from_id(&self, dim: usize, id: usize) -> Option<Self::Entity<'_>> {
-        self.topology.ids_to_indices[dim]
+        id: usize,
+    ) -> Option<Self::Entity<'_>> {
+        let entity_dim = reference_cell::dim(entity_type);
+        self.topology.ids_to_indices[entity_dim]
             .get(&id)
-            .map(|i| self.entity(dim, *i))?
+            .map(|i| self.entity(entity_type, *i))?
     }
 
     fn geometry_map(
@@ -383,16 +380,16 @@ mod test {
     #[test]
     fn test_edges_triangle() {
         let grid = example_grid_triangle();
-        let conn = reference_cell::connectivity(
-            grid.entity(grid.topology_dim(), 0).unwrap().entity_type(),
-        );
-        for edge in grid.entity_iter(1) {
-            let cell = grid.entity(grid.topology_dim(), edge.cell_index).unwrap();
+        let conn = reference_cell::connectivity(ReferenceCellType::Triangle);
+        for edge in grid.entity_iter(ReferenceCellType::Interval) {
+            let cell = grid
+                .entity(ReferenceCellType::Triangle, edge.cell_index)
+                .unwrap();
             for (i, v) in izip!(
                 &conn[1][edge.entity_index][0],
-                edge.topology().sub_entity_iter(0)
+                edge.topology().sub_entity_iter(ReferenceCellType::Point)
             ) {
-                assert_eq!(v, cell.topology().sub_entity(0, *i));
+                assert_eq!(v, cell.topology().sub_entity(ReferenceCellType::Point, *i));
             }
         }
     }

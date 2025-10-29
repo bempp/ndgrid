@@ -13,7 +13,7 @@ pub trait Entity {
     type EntityDescriptor: Debug + PartialEq + Eq + Clone + Copy + Hash;
 
     /// Topology type
-    type Topology<'a>: Topology
+    type Topology<'a>: Topology<EntityDescriptor = Self::EntityDescriptor>
     where
         Self: 'a;
 
