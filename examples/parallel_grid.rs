@@ -49,19 +49,27 @@ fn main() {
     // Check that owned cells are sorted ahead of ghost cells
     let cell_count_owned = grid
         .local_grid()
-        .cell_iter()
+        .entity_iter(ReferenceCellType::Quadrilateral)
         .filter(|entity| entity.is_owned())
         .count();
 
     // Now check that the first `cell_count_owned` entities are actually owned.
-    for cell in grid.local_grid().cell_iter().take(cell_count_owned) {
+    for cell in grid
+        .local_grid()
+        .entity_iter(ReferenceCellType::Quadrilateral)
+        .take(cell_count_owned)
+    {
         assert!(cell.is_owned())
     }
 
     // Now make sure that the indices of the global cells are in consecutive order
     let mut cell_global_count = grid.cell_layout().local_range().0;
 
-    for cell in grid.local_grid().cell_iter().take(cell_count_owned) {
+    for cell in grid
+        .local_grid()
+        .entity_iter(ReferenceCellType::Quadrilateral)
+        .take(cell_count_owned)
+    {
         assert_eq!(cell.global_index(), cell_global_count);
         cell_global_count += 1;
     }
@@ -69,7 +77,7 @@ fn main() {
     // Get the global indices
     let global_vertices = grid
         .local_grid()
-        .entity_iter(0)
+        .entity_iter(ReferenceCellType::Point)
         .filter(|e| matches!(e.ownership(), Ownership::Owned))
         .map(|e| e.global_index())
         .collect::<Vec<_>>();
@@ -78,7 +86,7 @@ fn main() {
 
     let global_cells = grid
         .local_grid()
-        .entity_iter(2)
+        .entity_iter(ReferenceCellType::Quadrilateral)
         .filter(|e| matches!(e.ownership(), Ownership::Owned))
         .map(|e| e.global_index())
         .collect::<Vec<_>>();
