@@ -63,13 +63,15 @@ where
 
             // Need to fill ownership and global indices now.
 
-            let mut owners = vec![];
-            let mut global_indices = vec![];
+            let mut owners = HashMap::new();
+            let mut global_indices = HashMap::new();
 
-            for dim in 0..(1 + self.tdim()) {
-                let entity_count = serial_grid.entity_iter(dim).count();
-                owners.push(vec![Ownership::Owned; entity_count]);
-                global_indices.push((0..entity_count).collect_vec());
+            for dim in 0..self.tdim() {
+                for t in serial_grid.entity_types(dim) {
+                    let entity_count = serial_grid.entity_iter(*t).count();
+                    owners.insert(*t, vec![Ownership::Owned; entity_count]);
+                    global_indices.insert(*t, (0..entity_count).collect_vec());
+                }
             }
 
             return ParallelGridImpl::new(comm, serial_grid, owners, global_indices);
@@ -415,58 +417,68 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             vertex_global_indices_to_owners.insert(*global_index, owner_rank);
         }
 
-        let mut owners = vec![vertex_owners];
-        let mut global_indices = vec![vertex_global_indices.clone()];
+        let point_type = serial_grid.entity_types(0)[0];
+        let mut owners = HashMap::new();
+        owners.insert(point_type, vertex_owners);
+        let mut global_indices = HashMap::new();
+        global_indices.insert(point_type, vertex_global_indices.clone());
         for dim in 1..self.tdim() {
-            // We now iterate through the entities of varying dimensions and assign global indices and ownership.
-            // First we need to get out the vertices assigned with each entity and figure out the ownership of the entity.
-            // Ownership is determined by the minimum process that owns one of the vertices of the entity.
+            for t in serial_grid.entity_types(dim) {
+                // We now iterate through the entities of varying dimensions and assign global indices and ownership.
+                // First we need to get out the vertices assigned with each entity and figure out the ownership of the entity.
+                // Ownership is determined by the minimum process that owns one of the vertices of the entity.
 
-            // We get out the chunk length by probing the first entity. This only works because the grid has a single
-            // element type.
-            let chunk_length = serial_grid
-                .entity(dim, 0)
-                .unwrap()
-                .topology()
-                .sub_entity_iter(0)
-                .count();
-
-            // We have the chunk length. So iterate through to get all the vertices.
-            let number_of_entities = serial_grid.entity_iter(dim).count();
-            let mut entities = Vec::with_capacity(number_of_entities * chunk_length);
-            let mut entity_ranks = Vec::with_capacity(number_of_entities * chunk_length);
-            for entity in serial_grid.entity_iter(dim) {
-                // We iterate through the vertices of the entity and get the global indices of the vertices.
-                // This works because the topology returns positions into the vertex array.
-                // Hence, we can use those indices to map to the global indices.
-                // We also sort everything since later we use the sorted global indices as keys in a hash map
-                // within the `synchronize_entities` function.
-                let vertices = entity
+                // We get out the chunk length by probing the first entity. This only works because the grid has a single
+                // element type.
+                let chunk_length = serial_grid
+                    .entity(*t, 0)
+                    .unwrap()
                     .topology()
-                    .sub_entity_iter(0)
-                    .map(|v| vertex_global_indices[v])
-                    .sorted()
-                    .collect_vec();
-                let owner = *vertices
-                    .iter()
-                    .map(|v| vertex_global_indices_to_owners.get(v).unwrap())
-                    .min()
-                    .unwrap();
-                entities.extend(vertices);
-                entity_ranks.push(owner);
+                    .sub_entity_iter(point_type)
+                    .count();
+
+                // We have the chunk length. So iterate through to get all the vertices.
+                let number_of_entities = serial_grid.entity_iter(*t).count();
+                let mut entities = Vec::with_capacity(number_of_entities * chunk_length);
+                let mut entity_ranks = Vec::with_capacity(number_of_entities * chunk_length);
+                for entity in serial_grid.entity_iter(*t) {
+                    // We iterate through the vertices of the entity and get the global indices of the vertices.
+                    // This works because the topology returns positions into the vertex array.
+                    // Hence, we can use those indices to map to the global indices.
+                    // We also sort everything since later we use the sorted global indices as keys in a hash map
+                    // within the `synchronize_entities` function.
+                    let vertices = entity
+                        .topology()
+                        .sub_entity_iter(point_type)
+                        .map(|v| vertex_global_indices[v])
+                        .sorted()
+                        .collect_vec();
+                    let owner = *vertices
+                        .iter()
+                        .map(|v| vertex_global_indices_to_owners.get(v).unwrap())
+                        .min()
+                        .unwrap();
+                    entities.extend(vertices);
+                    entity_ranks.push(owner);
+                }
+
+                // We now have the entities and their owners. We can synchronize the entities to get the global
+                // indices and ownership information.
+
+                let (entity_global_indices, entity_owners) =
+                    synchronize_entities(comm, chunk_length, &entities, &entity_ranks);
+
+                owners.insert(*t, entity_owners);
+                global_indices.insert(*t, entity_global_indices);
             }
-
-            // We now have the entities and their owners. We can synchronize the entities to get the global
-            // indices and ownership information.
-
-            let (entity_global_indices, entity_owners) =
-                synchronize_entities(comm, chunk_length, &entities, &entity_ranks);
-
-            owners.push(entity_owners);
-            global_indices.push(entity_global_indices);
         }
-        owners.push(cell_owners);
-        global_indices.push(cell_global_indices);
+        for (cell_type, owner, index) in izip!(cell_types, cell_owners, cell_global_indices) {
+            owners.entry(cell_type).or_insert(vec![]).push(owner);
+            global_indices
+                .entry(cell_type)
+                .or_insert(vec![])
+                .push(index);
+        }
 
         ParallelGridImpl::new(comm, serial_grid, owners, global_indices)
     }

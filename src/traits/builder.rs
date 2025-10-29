@@ -10,14 +10,15 @@ use std::hash::Hash;
 pub trait Builder {
     //! Object that can be used to build a mesh
 
+    /// Type used as identifier of different entity types
+    type EntityDescriptor: Debug + PartialEq + Eq + Clone + Copy + Hash;
+
     /// The type of the grid that the builder creates
-    type Grid: Grid;
+    type Grid: Grid<EntityDescriptor = Self::EntityDescriptor>;
     /// The floating point type used for coordinates
     type T: RealScalar;
     /// The type of the data that is input to add a cell
     type CellData<'a>;
-    /// Type used as identifier of different entity types
-    type EntityDescriptor: Debug + PartialEq + Eq + Clone + Copy + Hash;
 
     /// Add a point to the grid
     fn add_point(&mut self, id: usize, data: &[Self::T]);

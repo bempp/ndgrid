@@ -24,11 +24,21 @@ fn main() {
 
     // Print the first 5 cells of each grid
     println!("The first 5 cells of the grids");
-    for (cell, cell2) in izip!(g.cell_iter(), g2.cell_iter()).take(5) {
+    for (cell, cell2) in izip!(
+        g.entity_iter(ReferenceCellType::Triangle),
+        g2.entity_iter(ReferenceCellType::Triangle)
+    )
+    .take(5)
+    {
         println!(
             "{:?} {:?}",
-            cell.topology().sub_entity_iter(0).collect::<Vec<_>>(),
-            cell2.topology().sub_entity_iter(0).collect::<Vec<_>>(),
+            cell.topology()
+                .sub_entity_iter(ReferenceCellType::Point)
+                .collect::<Vec<_>>(),
+            cell2
+                .topology()
+                .sub_entity_iter(ReferenceCellType::Point)
+                .collect::<Vec<_>>(),
         );
     }
 
@@ -46,11 +56,21 @@ fn main() {
 
     // Print the first 5 cells of each grid
     println!("The first 5 cells of the grids");
-    for (cell, cell3) in izip!(g.cell_iter(), g3.cell_iter()).take(5) {
+    for (cell, cell3) in izip!(
+        g.entity_iter(ReferenceCellType::Triangle),
+        g3.entity_iter(ReferenceCellType::Triangle)
+    )
+    .take(5)
+    {
         println!(
             "{:?} {:?}",
-            cell.topology().sub_entity_iter(0).collect::<Vec<_>>(),
-            cell3.topology().sub_entity_iter(0).collect::<Vec<_>>(),
+            cell.topology()
+                .sub_entity_iter(ReferenceCellType::Point)
+                .collect::<Vec<_>>(),
+            cell3
+                .topology()
+                .sub_entity_iter(ReferenceCellType::Point)
+                .collect::<Vec<_>>(),
         );
     }
 }

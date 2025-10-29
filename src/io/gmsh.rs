@@ -129,11 +129,13 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
         let gdim = self.geometry_dim();
 
         let mut points = HashMap::new();
-        for cell in self.cell_iter() {
-            for point in cell.geometry().points() {
-                let mut p = vec![G::T::zero(); gdim];
-                point.coords(&mut p);
-                points.insert(point.index(), p);
+        for cell_type in self.cell_types() {
+            for cell in self.entity_iter(*cell_type) {
+                for point in cell.geometry().points() {
+                    let mut p = vec![G::T::zero(); gdim];
+                    point.coords(&mut p);
+                    points.insert(point.index(), p);
+                }
             }
         }
         let mut points = points.iter().collect::<Vec<_>>();
@@ -170,13 +172,15 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
 
         let mut elements = vec![];
         let mut cells_by_element = vec![];
-        for (i, cell) in self.entity_iter(tdim).enumerate() {
-            let element = (cell.entity_type(), cell.geometry().degree());
-            if !elements.contains(&element) {
-                elements.push(element);
-                cells_by_element.push(vec![]);
+        for t in self.cell_types() {
+            for (i, cell) in self.entity_iter(*t).enumerate() {
+                let element = (cell.entity_type(), cell.geometry().degree());
+                if !elements.contains(&element) {
+                    elements.push(element);
+                    cells_by_element.push(vec![]);
+                }
+                cells_by_element[elements.iter().position(|i| *i == element).unwrap()].push(i);
             }
-            cells_by_element[elements.iter().position(|i| *i == element).unwrap()].push(i);
         }
 
         gmsh_s.push_str(&format!("{} {cell_count} 1 {cell_count}\n", elements.len()));
@@ -192,7 +196,7 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
 
             for (i, index) in cells.iter().enumerate() {
                 gmsh_s.push_str(&format!("{}", i + 1));
-                let entity = self.entity(tdim, *index).unwrap();
+                let entity = self.entity(cell_type, *index).unwrap();
                 let point_indices = entity
                     .geometry()
                     .points()
@@ -818,7 +822,10 @@ mod test {
 
         let mut p1 = [0.0; 3];
         let mut p2 = [0.0; 3];
-        for (v1, v2) in izip!(g.entity_iter(0), g2.entity_iter(0)) {
+        for (v1, v2) in izip!(
+            g.entity_iter(ReferenceCellType::Point),
+            g2.entity_iter(ReferenceCellType::Point)
+        ) {
             for (pt1, pt2) in izip!(v1.geometry().points(), v2.geometry().points()) {
                 pt1.coords(&mut p1);
                 pt2.coords(&mut p2);
@@ -827,10 +834,13 @@ mod test {
                 }
             }
         }
-        for (h1, h2) in izip!(g.entity_iter(3), g2.entity_iter(3)) {
+        for (h1, h2) in izip!(
+            g.entity_iter(ReferenceCellType::Hexahedron),
+            g2.entity_iter(ReferenceCellType::Hexahedron)
+        ) {
             for (v1, v2) in izip!(
-                h1.topology().sub_entity_iter(0),
-                h2.topology().sub_entity_iter(0)
+                h1.topology().sub_entity_iter(ReferenceCellType::Point),
+                h2.topology().sub_entity_iter(ReferenceCellType::Point)
             ) {
                 assert_eq!(v1, v2);
             }
@@ -876,21 +886,30 @@ mod test {
 
         let mut p1 = [0.0; 3];
         let mut p2 = [0.0; 3];
-        for (v1, v2) in izip!(g.entity_iter(0), g2.entity_iter(0)) {
+        for (v1, v2) in izip!(
+            g.entity_iter(ReferenceCellType::Point),
+            g2.entity_iter(ReferenceCellType::Point)
+        ) {
             v1.geometry().points().next().unwrap().coords(&mut p1);
             v2.geometry().points().next().unwrap().coords(&mut p2);
         }
-        for (v1, v2) in izip!(g.entity_iter(0), g2.entity_iter(0)) {
+        for (v1, v2) in izip!(
+            g.entity_iter(ReferenceCellType::Point),
+            g2.entity_iter(ReferenceCellType::Point)
+        ) {
             v1.geometry().points().next().unwrap().coords(&mut p1);
             v2.geometry().points().next().unwrap().coords(&mut p2);
             for (c1, c2) in izip!(&p1, &p2) {
                 assert_relative_eq!(c1, c2, epsilon = 1e-10);
             }
         }
-        for (h1, h2) in izip!(g.entity_iter(2), g2.entity_iter(2)) {
+        for (h1, h2) in izip!(
+            g.entity_iter(ReferenceCellType::Triangle),
+            g2.entity_iter(ReferenceCellType::Triangle)
+        ) {
             for (v1, v2) in izip!(
-                h1.topology().sub_entity_iter(0),
-                h2.topology().sub_entity_iter(0)
+                h1.topology().sub_entity_iter(ReferenceCellType::Point),
+                h2.topology().sub_entity_iter(ReferenceCellType::Point)
             ) {
                 assert_eq!(v1, v2);
             }

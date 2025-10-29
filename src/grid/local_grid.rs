@@ -5,6 +5,8 @@ use crate::{
     traits::{Entity, Grid},
     types::Ownership,
 };
+use itertools::izip;
+use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 mod single_element;
 pub use single_element::{SingleElementGrid, SingleElementGridBuilder};
@@ -93,42 +95,77 @@ impl<E: Entity, EntityIter: Iterator<Item = E>> Iterator for GridEntityIter<'_, 
 #[derive(Debug)]
 pub struct LocalGrid<G: Grid + Sync> {
     serial_grid: G,
-    ownership: Vec<Vec<Ownership>>,
-    global_indices: Vec<Vec<usize>>,
+    ownership: HashMap<G::EntityDescriptor, Vec<Ownership>>,
+    global_indices: HashMap<G::EntityDescriptor, Vec<usize>>,
 }
 
 #[cfg(feature = "serde")]
 #[derive(serde::Serialize, Debug, serde::Deserialize)]
 #[serde(bound = "for<'de2> S: serde::Deserialize<'de2>")]
 /// A serde serializable grid
-pub struct SerializableLocalGrid<S: serde::Serialize>
+pub struct SerializableLocalGrid<EntityDescriptor: serde::Serialize, S: serde::Serialize>
 where
     for<'de2> S: serde::Deserialize<'de2>,
+    for<'de2> EntityDescriptor: serde::Deserialize<'de2>,
 {
     serial_grid: S,
-    ownership: Vec<Vec<Ownership>>,
-    global_indices: Vec<Vec<usize>>,
+    ownership_keys: Vec<EntityDescriptor>,
+    ownership_values: Vec<Vec<Ownership>>,
+    global_indices_keys: Vec<EntityDescriptor>,
+    global_indices_values: Vec<Vec<usize>>,
 }
 
 #[cfg(feature = "serde")]
-impl<S: serde::Serialize, G: Grid + Sync + ConvertToSerializable<SerializableType = S>>
-    ConvertToSerializable for LocalGrid<G>
+impl<
+        S: serde::Serialize,
+        EntityDescriptor: Debug + PartialEq + Eq + Clone + Copy + Hash + serde::Serialize,
+        G: Grid<EntityDescriptor = EntityDescriptor>
+            + Sync
+            + ConvertToSerializable<SerializableType = S>,
+    > ConvertToSerializable for LocalGrid<G>
 where
     for<'de2> S: serde::Deserialize<'de2>,
+    for<'de2> EntityDescriptor: serde::Deserialize<'de2>,
 {
-    type SerializableType = SerializableLocalGrid<S>;
-    fn to_serializable(&self) -> SerializableLocalGrid<S> {
+    type SerializableType = SerializableLocalGrid<G::EntityDescriptor, S>;
+    fn to_serializable(&self) -> SerializableLocalGrid<G::EntityDescriptor, S> {
+        let mut ownership_keys = vec![];
+        let mut ownership_values = vec![];
+        for (i, j) in &self.ownership {
+            ownership_keys.push(*i);
+            ownership_values.push(j.clone());
+        }
+        let mut global_indices_keys = vec![];
+        let mut global_indices_values = vec![];
+        for (i, j) in &self.global_indices {
+            global_indices_keys.push(*i);
+            global_indices_values.push(j.clone());
+        }
         SerializableLocalGrid {
             serial_grid: self.serial_grid.to_serializable(),
-            ownership: self.ownership.clone(),
-            global_indices: self.global_indices.clone(),
+            ownership_keys,
+            ownership_values,
+            global_indices_keys,
+            global_indices_values,
         }
     }
-    fn from_serializable(s: SerializableLocalGrid<S>) -> Self {
+    fn from_serializable(s: SerializableLocalGrid<G::EntityDescriptor, S>) -> Self {
         Self {
             serial_grid: G::from_serializable(s.serial_grid),
-            ownership: s.ownership,
-            global_indices: s.global_indices,
+            ownership: {
+                let mut m = HashMap::new();
+                for (i, j) in izip!(s.ownership_keys, s.ownership_values) {
+                    m.insert(i, j);
+                }
+                m
+            },
+            global_indices: {
+                let mut m = HashMap::new();
+                for (i, j) in izip!(s.global_indices_keys, s.global_indices_values) {
+                    m.insert(i, j);
+                }
+                m
+            },
         }
     }
 }
@@ -137,8 +174,8 @@ impl<G: Grid + Sync> LocalGrid<G> {
     /// Create new
     pub fn new(
         serial_grid: G,
-        ownership: Vec<Vec<Ownership>>,
-        global_indices: Vec<Vec<usize>>,
+        ownership: HashMap<G::EntityDescriptor, Vec<Ownership>>,
+        global_indices: HashMap<G::EntityDescriptor, Vec<usize>>,
     ) -> Self {
         Self {
             serial_grid,
@@ -170,10 +207,18 @@ impl<G: Grid + Sync> Grid for LocalGrid<G> {
         self.serial_grid.topology_dim()
     }
 
-    fn entity(&self, dim: usize, serial_index: usize) -> Option<Self::Entity<'_>> {
-        self.serial_grid
-            .entity(dim, serial_index)
-            .map(|e| GridEntity::new(e, &self.ownership[dim], &self.global_indices[dim]))
+    fn entity(
+        &self,
+        entity_type: Self::EntityDescriptor,
+        serial_index: usize,
+    ) -> Option<Self::Entity<'_>> {
+        self.serial_grid.entity(entity_type, serial_index).map(|e| {
+            GridEntity::new(
+                e,
+                &self.ownership[&entity_type],
+                &self.global_indices[&entity_type],
+            )
+        })
     }
 
     fn entity_types(&self, dim: usize) -> &[Self::EntityDescriptor] {
@@ -184,31 +229,26 @@ impl<G: Grid + Sync> Grid for LocalGrid<G> {
         self.serial_grid.entity_count(entity_type)
     }
 
-    fn entity_iter(&self, dim: usize) -> Self::EntityIter<'_> {
+    fn entity_iter(&self, entity_type: Self::EntityDescriptor) -> Self::EntityIter<'_> {
         GridEntityIter::new(
-            self.serial_grid.entity_iter(dim),
-            &self.ownership[dim],
-            &self.global_indices[dim],
+            self.serial_grid.entity_iter(entity_type),
+            &self.ownership[&entity_type],
+            &self.global_indices[&entity_type],
         )
     }
 
-    fn entity_iter_by_type(
+    fn entity_from_id(
         &self,
-        dim: usize,
         entity_type: Self::EntityDescriptor,
-    ) -> Self::EntityIter<'_> {
-        debug_assert!(self.entity_types(dim).contains(&entity_type));
-        GridEntityIter::new(
-            self.serial_grid.entity_iter_by_type(dim, entity_type),
-            &self.ownership[dim],
-            &self.global_indices[dim],
-        )
-    }
-
-    fn entity_from_id(&self, dim: usize, id: usize) -> Option<Self::Entity<'_>> {
-        self.serial_grid
-            .entity_from_id(dim, id)
-            .map(|e| GridEntity::new(e, &self.ownership[dim], &self.global_indices[dim]))
+        id: usize,
+    ) -> Option<Self::Entity<'_>> {
+        self.serial_grid.entity_from_id(entity_type, id).map(|e| {
+            GridEntity::new(
+                e,
+                &self.ownership[&entity_type],
+                &self.global_indices[&entity_type],
+            )
+        })
     }
 
     fn geometry_map(

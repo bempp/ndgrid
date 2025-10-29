@@ -38,10 +38,14 @@ pub trait Grid {
     fn topology_dim(&self) -> usize;
 
     /// An entity in this grid
-    fn entity(&self, dim: usize, local_index: usize) -> Option<Self::Entity<'_>>;
+    fn entity(
+        &self,
+        entity_type: Self::EntityDescriptor,
+        local_index: usize,
+    ) -> Option<Self::Entity<'_>>;
 
     /// The entity types of topological dimension `dim` contained in this grid
-    fn entity_types(&self, dim: usize) -> &[Self::EntityDescriptor];
+    fn entity_types(&self, tdim: usize) -> &[Self::EntityDescriptor];
 
     /// Number of entities
     fn entity_count(&self, entity_type: Self::EntityDescriptor) -> usize;
@@ -65,44 +69,25 @@ pub trait Grid {
     /// Note. The default implementation iterates through all grid to count the number of owned elements.
     /// Override this method if a more efficient implementation is available.
     fn owned_cell_count(&self) -> usize {
-        self.entity_iter(self.topology_dim())
-            .filter(|e| matches!(e.ownership(), Ownership::Owned))
-            .count()
+        self.cell_types()
+            .iter()
+            .map(|t| {
+                self.entity_iter(*t)
+                    .filter(|e| matches!(e.ownership(), Ownership::Owned))
+                    .count()
+            })
+            .sum()
     }
 
     /// Iterator over entities
-    fn entity_iter(&self, dim: usize) -> Self::EntityIter<'_>;
-
-    /// Iterator over entities by type
-    fn entity_iter_by_type(
-        &self,
-        dim: usize,
-        entity_type: Self::EntityDescriptor,
-    ) -> Self::EntityIter<'_>;
+    fn entity_iter(&self, entity_type: Self::EntityDescriptor) -> Self::EntityIter<'_>;
 
     /// An entity in this grid from an insertion id
-    fn entity_from_id(&self, dim: usize, id: usize) -> Option<Self::Entity<'_>>;
-
-    /// Iterator over all cells
-    ///
-    /// This iterator first iterates through owned cells
-    /// and then through ghosts. The owned cells are sorted
-    /// by global index.
-    fn cell_iter(&self) -> Self::EntityIter<'_> {
-        let tdim = self.topology_dim();
-        self.entity_iter(tdim)
-    }
-
-    /// Iterator over all cells
-    ///
-    /// This iterator first iterates through owned cells
-    /// and then through ghosts. The owned cells are sorted
-    /// by global index.
-    fn cell_iter_by_type(&self, cell_type: Self::EntityDescriptor) -> Self::EntityIter<'_> {
-        debug_assert!(self.cell_types().contains(&cell_type));
-        let tdim = self.topology_dim();
-        self.entity_iter_by_type(tdim, cell_type)
-    }
+    fn entity_from_id(
+        &self,
+        entity_type: Self::EntityDescriptor,
+        id: usize,
+    ) -> Option<Self::Entity<'_>>;
 
     /// Geometry map from reference entity to physical entities at the given points
     ///
