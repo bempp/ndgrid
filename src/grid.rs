@@ -5,6 +5,8 @@ pub mod local_grid;
 pub use local_grid::{SingleElementGrid, SingleElementGridBuilder};
 
 use local_grid::LocalGrid;
+use mpi::traits::Communicator;
+use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 #[cfg(feature = "serde")]
 use crate::traits::{ConvertToSerializable, RONImportParallel};
@@ -12,7 +14,6 @@ use crate::{
     traits::{Grid, ParallelGrid},
     types::{Ownership, RealScalar},
 };
-use mpi::traits::Communicator;
 
 /// Parallel grid
 #[derive(Debug)]
@@ -27,8 +28,8 @@ impl<'a, C: Communicator, G: Grid + Sync> ParallelGridImpl<'a, C, G> {
     pub fn new(
         comm: &'a C,
         serial_grid: G,
-        ownership: Vec<Vec<Ownership>>,
-        global_indices: Vec<Vec<usize>>,
+        ownership: HashMap<G::EntityDescriptor, Vec<Ownership>>,
+        global_indices: HashMap<G::EntityDescriptor, Vec<usize>>,
     ) -> Self {
         let local_grid = LocalGrid::new(serial_grid, ownership, global_indices);
         let owned_cell_count = local_grid.owned_cell_count();
@@ -44,10 +45,15 @@ impl<'a, C: Communicator, G: Grid + Sync> ParallelGridImpl<'a, C, G> {
 }
 
 #[cfg(feature = "serde")]
-impl<'a, C: Communicator + 'a, G: Grid + Sync + ConvertToSerializable> RONImportParallel<'a, C>
-    for ParallelGridImpl<'a, C, G>
+impl<
+        'a,
+        EntityDescriptor: Debug + PartialEq + Eq + Clone + Copy + Hash + serde::Serialize,
+        C: Communicator + 'a,
+        G: Grid<EntityDescriptor = EntityDescriptor> + Sync + ConvertToSerializable,
+    > RONImportParallel<'a, C> for ParallelGridImpl<'a, C, G>
 where
     for<'de2> <G as ConvertToSerializable>::SerializableType: serde::Deserialize<'de2>,
+    for<'de2> EntityDescriptor: serde::Deserialize<'de2>,
     Self: 'a,
 {
     fn create_from_ron_info(comm: &'a C, local_grid: LocalGrid<G>) -> Self {
