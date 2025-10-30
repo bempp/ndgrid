@@ -33,11 +33,11 @@ jobs:
           sudo apt-get install -y libopenblas-dev liblapack-dev libscotch-dev
 
       - name: Run unit tests
-        run: cargo test ${{ matrix.feature-flags }}
+        run: cargo test --no-default-features ${{ matrix.feature-flags }}
       - name: Run unit tests in release mode
-        run: cargo test --release ${{ matrix.feature-flags }}
+        run: cargo test --release --no-default-features ${{ matrix.feature-flags }}
       - name: Run tests
-        run: cargo test --examples --release ${{ matrix.feature-flags }}
+        run: cargo test --examples --release --no-default-features ${{ matrix.feature-flags }}
       - name: Run examples
         run: cargo templated-examples NPROCESSES 2,4
 

@@ -6,9 +6,11 @@ use crate::types::{Array2D, Array2DBorrowed, RealScalar};
 use ndelement::{
     ciarlet::{lagrange, CiarletElement},
     map::IdentityMap,
+    types::Continuity,
+};
+use ndelement::{
     reference_cell,
     traits::{ElementFamily, FiniteElement},
-    types::Continuity,
     types::ReferenceCellType,
 };
 #[cfg(feature = "serde")]

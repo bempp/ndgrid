@@ -4,16 +4,17 @@ pub mod local_grid;
 
 pub use local_grid::{SingleElementGrid, SingleElementGridBuilder};
 
-use local_grid::LocalGrid;
-use mpi::traits::Communicator;
-use std::{collections::HashMap, fmt::Debug, hash::Hash};
-
 #[cfg(feature = "serde")]
 use crate::traits::{ConvertToSerializable, RONImportParallel};
 use crate::{
     traits::{Grid, ParallelGrid},
     types::{Ownership, RealScalar},
 };
+use local_grid::LocalGrid;
+use mpi::traits::Communicator;
+#[cfg(feature = "serde")]
+use std::hash::Hash;
+use std::{collections::HashMap, fmt::Debug};
 
 /// Parallel grid
 #[derive(Debug)]

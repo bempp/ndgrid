@@ -33,18 +33,18 @@ jobs:
           sudo apt-get install -y libopenblas-dev liblapack-dev libscotch-dev
 
       - name: Build rust library
-        run: cargo build --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
+        run: cargo build --no-default-features --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
       - name: Build rust library in release mode
-        run: cargo build --release --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
+        run: cargo build --release --no-default-features --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
 
       - name: Run unit tests
-        run: cargo test --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
+        run: cargo test --no-default-features --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
       - name: Run unit tests in release mode
-        run: cargo test --release --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
+        run: cargo test --release --no-default-features --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
       - name: Run tests
-        run: cargo test --examples --release --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
+        run: cargo test --examples --release --no-default-features --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}"
       - name: Run examples
         run: cargo templated-examples NPROCESSES 2,4
 
       - name: Build docs
-        run: cargo doc --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}" --no-deps
+        run: cargo doc --no-default-features --features "${{matrix.f_strict}}${{matrix.f_serde}}${{matrix.f_coupe}}${{matrix.f_scotch}}" --no-deps
