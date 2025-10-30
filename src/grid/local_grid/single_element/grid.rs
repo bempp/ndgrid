@@ -1,14 +1,14 @@
 //! Single element grid
-#[cfg(feature = "serde")]
 use mpi::traits::Communicator;
 
+#[cfg(feature = "serde")]
 use crate::{
-    geometry::{
-        single_element::SerializableGeometry, GeometryMap, SingleElementEntityGeometry,
-        SingleElementGeometry,
-    },
-    topology::single_type::{SerializableTopology, SingleTypeEntityTopology, SingleTypeTopology},
+    geometry::single_element::SerializableGeometry, topology::single_type::SerializableTopology,
     traits::ConvertToSerializable,
+};
+use crate::{
+    geometry::{GeometryMap, SingleElementEntityGeometry, SingleElementGeometry},
+    topology::single_type::{SingleTypeEntityTopology, SingleTypeTopology},
     traits::{Builder, DistributableGrid, Entity, Grid, ParallelBuilder},
     types::{Array2D, GraphPartitioner, Ownership, RealScalar},
     ParallelGridImpl, SingleElementGridBuilder,

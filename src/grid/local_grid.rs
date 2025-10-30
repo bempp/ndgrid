@@ -5,8 +5,11 @@ use crate::{
     traits::{Entity, Grid},
     types::Ownership,
 };
+#[cfg(feature = "serde")]
 use itertools::izip;
-use std::{collections::HashMap, fmt::Debug, hash::Hash};
+#[cfg(feature = "serde")]
+use std::hash::Hash;
+use std::{collections::HashMap, fmt::Debug};
 
 mod single_element;
 pub use single_element::{SingleElementGrid, SingleElementGridBuilder};
