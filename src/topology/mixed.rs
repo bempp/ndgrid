@@ -1,14 +1,10 @@
 //! Topology for grids where entities of each tdim may be a mixture of types
 
-#[cfg(feature = "serde")]
-use crate::traits::ConvertToSerializable;
 use crate::traits::Topology;
-use crate::types::{Array2D, Array2DBorrowed};
+use crate::types::Array2D;
 use itertools::izip;
 use ndelement::{orientation::compute_orientation, reference_cell, types::ReferenceCellType};
-#[cfg(feature = "serde")]
-use rlst::RawAccessMut;
-use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
+use rlst::{rlst_dynamic_array2, RawAccess, Shape};
 use std::collections::HashMap;
 use std::iter::Copied;
 
@@ -171,7 +167,7 @@ impl MixedTopology {
                         .unwrap()[[i, *entity_index]] = *vertex_index;
                     // We can also fill out the upward connectivity if dim > 0.
                     if reference_cell::dim(*etype) > 0 {
-                        let mut uc = upward_connectivity
+                        let uc = upward_connectivity
                             .get_mut(&ReferenceCellType::Point)
                             .unwrap()
                             .get_mut(etype)
@@ -236,7 +232,7 @@ impl MixedTopology {
                                         .unwrap()
                                         .get_mut(sub_entity_type)
                                         .unwrap()[[*sub_entity_index, *ce_ij]] = ce_k[*rc_ijkl];
-                                    let mut uc = upward_connectivity
+                                    let uc = upward_connectivity
                                         .get_mut(sub_entity_type)
                                         .unwrap()
                                         .get_mut(et_ij)
@@ -280,23 +276,23 @@ impl MixedTopology {
     pub fn dim(&self) -> usize {
         self.dim
     }
+    /// Entity types
+    pub fn entity_types(&self) -> &[Vec<ReferenceCellType>] {
+        &self.entity_types
+    }
+    /// Entity counts
+    pub fn entity_counts(&self) -> &HashMap<ReferenceCellType, usize> {
+        &self.entity_counts
+    }
+    /// Entity counts
+    pub fn entity_count(&self, entity_type: ReferenceCellType) -> usize {
+        if let Some(n) = self.entity_counts.get(&entity_type) {
+            *n
+        } else {
+            0
+        }
+    }
     /*
-        /// Entity types
-        pub fn entity_types(&self) -> &[ReferenceCellType] {
-            &self.entity_types
-        }
-        /// Entity count
-        pub fn entity_counts(&self) -> &[usize] {
-            &self.entity_counts
-        }
-        /// Entity count
-        pub fn entity_count(&self, entity_type: ReferenceCellType) -> usize {
-            if !self.entity_types.contains(&entity_type) {
-                0
-            } else {
-                self.entity_counts[reference_cell::dim(entity_type)]
-            }
-        }
         /// Downward connectivity
         pub fn downward_connectivity(&self) -> &[Vec<Array2D<usize>>] {
             &self.downward_connectivity
@@ -314,11 +310,11 @@ impl MixedTopology {
         ) -> usize {
             self.downward_connectivity[self.dim][entity_dim][[entity_index, cell_index]]
         }
-        /// Entity id
-        pub fn entity_id(&self, entity_dim: usize, entity_index: usize) -> Option<usize> {
-            self.ids[entity_dim].as_ref().map(|a| a[entity_index])
-        }
     */
+    /// Entity id
+    pub fn entity_id(&self, entity_type: ReferenceCellType, entity_index: usize) -> Option<usize> {
+        self.ids.get(&entity_type).map(|a| a[entity_index])
+    }
 }
 
 /// Topology of a cell
@@ -357,30 +353,21 @@ impl Topology for MixedEntityTopology<'_> {
         Self: 'a;
 
     fn connected_entity_iter(&self, entity_type: ReferenceCellType) -> Copied<std::slice::Iter<'_, usize>> {
-        panic!();
-        /*
-        self.topology.upward_connectivity[self.entity_type][dim - self.dim - 1][self.entity_index]
+        self.topology.upward_connectivity[&self.entity_type][&entity_type][self.entity_index]
             .iter()
             .copied()
-        */
     }
 
     fn sub_entity_iter(&self, entity_type: ReferenceCellType) -> Copied<std::slice::Iter<'_, usize>> {
-        panic!();
-        /*
-        let rows = self.topology.downward_connectivity[self.dim][dim].shape()[0];
-        self.topology.downward_connectivity[self.dim][dim].data()
+        let rows = self.topology.downward_connectivity[&self.entity_type][&entity_type].shape()[0];
+        self.topology.downward_connectivity[&self.entity_type][&entity_type].data()
             [rows * self.entity_index..rows * (self.entity_index + 1)]
             .iter()
             .copied()
-        */
     }
 
     fn sub_entity(&self, entity_type: ReferenceCellType, index: usize) -> usize {
-        panic!();
-        /*
-        self.topology.downward_connectivity[self.dim][dim][[index, self.entity_index]]
-        */
+        self.topology.downward_connectivity[&self.entity_type][&entity_type][[index, self.entity_index]]
     }
 
     fn orientation(&self) -> i32 {
@@ -396,12 +383,11 @@ impl Topology for MixedEntityTopology<'_> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use rlst::DefaultIterator;
 
     fn example_topology_triangle_and_quad() -> MixedTopology {
         //! An example topology
         MixedTopology::new(
-            &[0, 1, 2, 3, 1, 4, 3],
+            &[0, 1, 2, 3, 1, 3, 4],
             vec![
                 ReferenceCellType::Quadrilateral,
                 ReferenceCellType::Triangle,
@@ -446,43 +432,47 @@ mod test {
         assert_eq!(cell0.sub_entity(ReferenceCellType::Quadrilateral, 0), 0);
         let cell1 = MixedEntityTopology::new(&t, ReferenceCellType::Triangle, 0);
         assert_eq!(cell1.sub_entity(ReferenceCellType::Point, 0), 1);
-        assert_eq!(cell1.sub_entity(ReferenceCellType::Point, 1), 4);
-        assert_eq!(cell1.sub_entity(ReferenceCellType::Point, 2), 3);
+        assert_eq!(cell1.sub_entity(ReferenceCellType::Point, 1), 3);
+        assert_eq!(cell1.sub_entity(ReferenceCellType::Point, 2), 4);
         assert_eq!(cell1.sub_entity(ReferenceCellType::Interval, 0), 4);
-        assert_eq!(cell1.sub_entity(ReferenceCellType::Interval, 1), 2);
-        assert_eq!(cell1.sub_entity(ReferenceCellType::Interval, 2), 5);
+        assert_eq!(cell1.sub_entity(ReferenceCellType::Interval, 1), 5);
+        assert_eq!(cell1.sub_entity(ReferenceCellType::Interval, 2), 2);
         assert_eq!(cell1.sub_entity(ReferenceCellType::Triangle, 0), 0);
 
-        /*
         let edge0 = MixedEntityTopology::new(&t, ReferenceCellType::Interval, 0);
-        assert_eq!(edge0.sub_entity(0, 0), 1);
-        assert_eq!(edge0.sub_entity(0, 1), 2);
-        assert_eq!(edge0.sub_entity(1, 0), 0);
+        assert_eq!(edge0.sub_entity(ReferenceCellType::Point, 0), 0);
+        assert_eq!(edge0.sub_entity(ReferenceCellType::Point, 1), 1);
+        assert_eq!(edge0.sub_entity(ReferenceCellType::Interval, 0), 0);
         let edge1 = MixedEntityTopology::new(&t, ReferenceCellType::Interval, 1);
-        assert_eq!(edge1.sub_entity(0, 0), 0);
-        assert_eq!(edge1.sub_entity(0, 1), 2);
-        assert_eq!(edge1.sub_entity(1, 0), 1);
+        assert_eq!(edge1.sub_entity(ReferenceCellType::Point, 0), 0);
+        assert_eq!(edge1.sub_entity(ReferenceCellType::Point, 1), 2);
+        assert_eq!(edge1.sub_entity(ReferenceCellType::Interval, 0), 1);
         let edge2 = MixedEntityTopology::new(&t, ReferenceCellType::Interval, 2);
-        assert_eq!(edge2.sub_entity(0, 0), 0);
-        assert_eq!(edge2.sub_entity(0, 1), 1);
-        assert_eq!(edge2.sub_entity(1, 0), 2);
+        assert_eq!(edge2.sub_entity(ReferenceCellType::Point, 0), 1);
+        assert_eq!(edge2.sub_entity(ReferenceCellType::Point, 1), 3);
+        assert_eq!(edge2.sub_entity(ReferenceCellType::Interval, 0), 2);
         let edge3 = MixedEntityTopology::new(&t, ReferenceCellType::Interval, 3);
-        assert_eq!(edge3.sub_entity(0, 0), 1);
-        assert_eq!(edge3.sub_entity(0, 1), 3);
-        assert_eq!(edge3.sub_entity(1, 0), 3);
+        assert_eq!(edge3.sub_entity(ReferenceCellType::Point, 0), 2);
+        assert_eq!(edge3.sub_entity(ReferenceCellType::Point, 1), 3);
+        assert_eq!(edge3.sub_entity(ReferenceCellType::Interval, 0), 3);
         let edge4 = MixedEntityTopology::new(&t, ReferenceCellType::Interval, 4);
-        assert_eq!(edge4.sub_entity(0, 0), 2);
-        assert_eq!(edge4.sub_entity(0, 1), 3);
-        assert_eq!(edge4.sub_entity(1, 0), 4);
+        assert_eq!(edge4.sub_entity(ReferenceCellType::Point, 0), 3);
+        assert_eq!(edge4.sub_entity(ReferenceCellType::Point, 1), 4);
+        assert_eq!(edge4.sub_entity(ReferenceCellType::Interval, 0), 4);
+        let edge5 = MixedEntityTopology::new(&t, ReferenceCellType::Interval, 5);
+        assert_eq!(edge5.sub_entity(ReferenceCellType::Point, 0), 1);
+        assert_eq!(edge5.sub_entity(ReferenceCellType::Point, 1), 4);
+        assert_eq!(edge5.sub_entity(ReferenceCellType::Interval, 0), 5);
 
         let vertex0 = MixedEntityTopology::new(&t, ReferenceCellType::Point, 0);
-        assert_eq!(vertex0.sub_entity(0, 0), 0);
+        assert_eq!(vertex0.sub_entity(ReferenceCellType::Point, 0), 0);
         let vertex1 = MixedEntityTopology::new(&t, ReferenceCellType::Point, 1);
-        assert_eq!(vertex1.sub_entity(0, 0), 1);
+        assert_eq!(vertex1.sub_entity(ReferenceCellType::Point, 0), 1);
         let vertex2 = MixedEntityTopology::new(&t, ReferenceCellType::Point, 2);
-        assert_eq!(vertex2.sub_entity(0, 0), 2);
+        assert_eq!(vertex2.sub_entity(ReferenceCellType::Point, 0), 2);
         let vertex3 = MixedEntityTopology::new(&t, ReferenceCellType::Point, 3);
-        assert_eq!(vertex3.sub_entity(0, 0), 3);
-        */
+        assert_eq!(vertex3.sub_entity(ReferenceCellType::Point, 0), 3);
+        let vertex4 = MixedEntityTopology::new(&t, ReferenceCellType::Point, 4);
+        assert_eq!(vertex4.sub_entity(ReferenceCellType::Point, 0), 4);
     }
 }
