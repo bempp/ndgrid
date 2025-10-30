@@ -352,13 +352,19 @@ impl Topology for MixedEntityTopology<'_> {
     where
         Self: 'a;
 
-    fn connected_entity_iter(&self, entity_type: ReferenceCellType) -> Copied<std::slice::Iter<'_, usize>> {
+    fn connected_entity_iter(
+        &self,
+        entity_type: ReferenceCellType,
+    ) -> Copied<std::slice::Iter<'_, usize>> {
         self.topology.upward_connectivity[&self.entity_type][&entity_type][self.entity_index]
             .iter()
             .copied()
     }
 
-    fn sub_entity_iter(&self, entity_type: ReferenceCellType) -> Copied<std::slice::Iter<'_, usize>> {
+    fn sub_entity_iter(
+        &self,
+        entity_type: ReferenceCellType,
+    ) -> Copied<std::slice::Iter<'_, usize>> {
         let rows = self.topology.downward_connectivity[&self.entity_type][&entity_type].shape()[0];
         self.topology.downward_connectivity[&self.entity_type][&entity_type].data()
             [rows * self.entity_index..rows * (self.entity_index + 1)]
@@ -367,7 +373,8 @@ impl Topology for MixedEntityTopology<'_> {
     }
 
     fn sub_entity(&self, entity_type: ReferenceCellType, index: usize) -> usize {
-        self.topology.downward_connectivity[&self.entity_type][&entity_type][[index, self.entity_index]]
+        self.topology.downward_connectivity[&self.entity_type][&entity_type]
+            [[index, self.entity_index]]
     }
 
     fn orientation(&self) -> i32 {
@@ -376,7 +383,6 @@ impl Topology for MixedEntityTopology<'_> {
         } else {
             self.topology.orientation[&self.entity_type][self.entity_index]
         }
-        
     }
 }
 
