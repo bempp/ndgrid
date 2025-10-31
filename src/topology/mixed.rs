@@ -14,6 +14,7 @@ pub struct MixedTopology {
     dim: usize,
     pub(crate) ids: HashMap<ReferenceCellType, Vec<usize>>,
     pub(crate) ids_to_indices: HashMap<ReferenceCellType, HashMap<usize, usize>>,
+    pub(crate) insertion_indices: HashMap<ReferenceCellType, Vec<usize>>,
     entity_types: Vec<Vec<ReferenceCellType>>,
     entity_counts: HashMap<ReferenceCellType, usize>,
     pub(crate) downward_connectivity:
@@ -29,7 +30,7 @@ impl MixedTopology {
     /// Create a topology
     pub fn new(
         cells: &[usize],
-        cell_types: Vec<ReferenceCellType>,
+        cell_types: &[ReferenceCellType],
         vertex_ids: Option<Vec<usize>>,
         cell_ids: Option<Vec<usize>>,
     ) -> Self {
@@ -37,7 +38,7 @@ impl MixedTopology {
 
         let dim = reference_cell::dim(cell_types[0]);
         // Check that all cells have the same topological dim
-        for ct in &cell_types {
+        for ct in cell_types {
             if reference_cell::dim(*ct) != dim {
                 panic!(
                     "MixedTopology does not support cells of a mixture of topological dimensions"
@@ -62,8 +63,13 @@ impl MixedTopology {
             ids.insert(ReferenceCellType::Point, i);
         }
 
+        let mut insertion_indices = HashMap::new();
         for (cell_index, cell_type) in cell_types.iter().enumerate() {
             let size = reference_cell::entity_counts(*cell_type)[0];
+            insertion_indices
+                .entry(*cell_type)
+                .or_insert(vec![])
+                .push(cell_index);
 
             // Get vertices of cell
             let cell = &cells[start..start + size];
@@ -265,6 +271,7 @@ impl MixedTopology {
             dim,
             ids,
             ids_to_indices,
+            insertion_indices,
             entity_types,
             entity_counts,
             downward_connectivity,
@@ -292,25 +299,16 @@ impl MixedTopology {
             0
         }
     }
-    /*
-        /// Downward connectivity
-        pub fn downward_connectivity(&self) -> &[Vec<Array2D<usize>>] {
-            &self.downward_connectivity
-        }
-        /// Upward connectivity
-        pub fn upward_connectivity(&self) -> &[Vec<Vec<Vec<usize>>>] {
-            &self.upward_connectivity
-        }
-        /// Cell sub-entity index
-        pub fn cell_entity_index(
-            &self,
-            cell_index: usize,
-            entity_dim: usize,
-            entity_index: usize,
-        ) -> usize {
-            self.downward_connectivity[self.dim][entity_dim][[entity_index, cell_index]]
-        }
-    */
+    /// Cell sub-entity index
+    pub fn cell_entity_index(
+        &self,
+        cell_type: ReferenceCellType,
+        cell_index: usize,
+        entity_type: ReferenceCellType,
+        entity_index: usize,
+    ) -> usize {
+        self.downward_connectivity[&cell_type][&entity_type][[entity_index, cell_index]]
+    }
     /// Entity id
     pub fn entity_id(&self, entity_type: ReferenceCellType, entity_index: usize) -> Option<usize> {
         self.ids.get(&entity_type).map(|a| a[entity_index])
@@ -394,7 +392,7 @@ mod test {
         //! An example topology
         MixedTopology::new(
             &[0, 1, 2, 3, 1, 3, 4],
-            vec![
+            &[
                 ReferenceCellType::Quadrilateral,
                 ReferenceCellType::Triangle,
             ],
@@ -405,21 +403,11 @@ mod test {
 
     #[test]
     fn test_prism() {
-        let _ = MixedTopology::new(
-            &[0, 1, 2, 3, 4, 5],
-            vec![ReferenceCellType::Prism],
-            None,
-            None,
-        );
+        let _ = MixedTopology::new(&[0, 1, 2, 3, 4, 5], &[ReferenceCellType::Prism], None, None);
     }
     #[test]
     fn test_pyramid() {
-        let _ = MixedTopology::new(
-            &[0, 1, 2, 3, 4],
-            vec![ReferenceCellType::Pyramid],
-            None,
-            None,
-        );
+        let _ = MixedTopology::new(&[0, 1, 2, 3, 4], &[ReferenceCellType::Pyramid], None, None);
     }
 
     #[test]

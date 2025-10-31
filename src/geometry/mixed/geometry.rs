@@ -17,6 +17,8 @@ pub struct MixedGeometry<T: RealScalar, E: FiniteElement> {
     cell_types: Vec<ReferenceCellType>,
     elements: Vec<HashMap<ReferenceCellType, E>>,
     element_insertion_indices: Vec<Vec<usize>>,
+    pub(crate) insertion_indices_to_element_indices: Vec<usize>,
+    pub(crate) insertion_indices_to_cell_indices: Vec<usize>,
 }
 
 impl<T: RealScalar, E: FiniteElement> Debug for MixedGeometry<T, E> {
@@ -49,6 +51,8 @@ impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
         let mut cell_types = vec![];
         let mut points_per_cell = vec![];
         let mut element_insertion_indices = vec![];
+        let mut insertion_indices_to_element_indices = vec![];
+        let mut insertion_indices_to_cell_indices = vec![];
 
         let mut start = 0;
 
@@ -75,6 +79,8 @@ impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
                 n
             });
 
+            insertion_indices_to_element_indices.push(eindex);
+            insertion_indices_to_cell_indices.push(element_insertion_indices[eindex].len());
             element_insertion_indices[eindex].push(i);
             cell_types.push(*cell_type);
             for i in 0..points_per_cell[eindex] {
@@ -95,6 +101,8 @@ impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
             cell_types,
             elements,
             element_insertion_indices,
+            insertion_indices_to_element_indices,
+            insertion_indices_to_cell_indices,
         }
     }
     /// Geometric dimension

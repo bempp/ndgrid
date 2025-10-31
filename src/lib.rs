@@ -10,4 +10,6 @@ pub mod topology;
 pub mod traits;
 pub mod types;
 
-pub use grid::{ParallelGridImpl, SingleElementGrid, SingleElementGridBuilder};
+pub use grid::{
+    MixedGrid, MixedGridBuilder, ParallelGridImpl, SingleElementGrid, SingleElementGridBuilder,
+};

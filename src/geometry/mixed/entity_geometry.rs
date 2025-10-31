@@ -14,7 +14,7 @@ pub struct MixedEntityGeometry<'a, T: RealScalar, E: FiniteElement> {
     geometry: &'a MixedGeometry<T, E>,
     element_index: usize,
     cell_index: usize,
-    sub_entity_dimension: usize,
+    sub_entity_dim: usize,
     sub_entity_index: usize,
 }
 
@@ -24,14 +24,14 @@ impl<'a, T: RealScalar, E: FiniteElement> MixedEntityGeometry<'a, T, E> {
         geometry: &'a MixedGeometry<T, E>,
         element_index: usize,
         cell_index: usize,
-        sub_entity_dimension: usize,
+        sub_entity_dim: usize,
         sub_entity_index: usize,
     ) -> Self {
         Self {
             geometry,
             element_index,
             cell_index,
-            sub_entity_dimension,
+            sub_entity_dim,
             sub_entity_index,
         }
     }
@@ -54,7 +54,7 @@ impl<T: RealScalar, E: FiniteElement> Geometry for MixedEntityGeometry<'_, T, E>
         for index in self
             .geometry
             .element(self.element_index)
-            .entity_closure_dofs(self.sub_entity_dimension, self.sub_entity_index)
+            .entity_closure_dofs(self.sub_entity_dim, self.sub_entity_index)
             .unwrap()
         {
             let i = self.geometry.cells(self.element_index)[[*index, self.cell_index]];

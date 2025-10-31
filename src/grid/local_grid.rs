@@ -14,6 +14,9 @@ use std::{collections::HashMap, fmt::Debug};
 mod single_element;
 pub use single_element::{SingleElementGrid, SingleElementGridBuilder};
 
+mod mixed;
+pub use mixed::{MixedGrid, MixedGridBuilder};
+
 /// Grid entity
 #[derive(Debug)]
 pub struct GridEntity<E: Entity> {
