@@ -120,7 +120,7 @@ mod test {
         for i in 0..3 {
             let g = regular_sphere::<f64>(i);
             let points = vec![1.0 / 3.0, 1.0 / 3.0];
-            let map = g.geometry_map(ReferenceCellType::Triangle, &points);
+            let map = g.geometry_map(ReferenceCellType::Triangle, 1, &points);
             let mut mapped_pt = vec![0.0; 3];
             let mut j = vec![0.0; 6];
             let mut jdet = vec![0.0];
@@ -143,7 +143,7 @@ mod test {
         for i in 0..3 {
             let g = regular_sphere::<f64>(i);
             let points = vec![1.0 / 3.0, 1.0 / 3.0];
-            let map = g.geometry_map(ReferenceCellType::Triangle, &points);
+            let map = g.geometry_map(ReferenceCellType::Triangle, 1, &points);
             let mut j = vec![0.0; 6];
             let mut jdet = vec![0.0];
             let mut mapped_pt = vec![0.0; 3];

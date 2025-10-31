@@ -11,7 +11,7 @@ use ndelement::{
     ciarlet::{lagrange, CiarletElement, LagrangeElementFamily},
     map::IdentityMap,
     reference_cell,
-    traits::{ElementFamily, FiniteElement},
+    traits::FiniteElement,
     types::{Continuity, ReferenceCellType},
 };
 use rlst::{rlst_dynamic_array2, RawAccessMut};

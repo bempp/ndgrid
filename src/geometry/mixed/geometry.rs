@@ -14,9 +14,7 @@ use std::fmt::{Debug, Formatter};
 pub struct MixedGeometry<T: RealScalar, E: FiniteElement> {
     points: Array2D<T>,
     cells: Vec<Array2D<usize>>,
-    cell_types: Vec<ReferenceCellType>,
     elements: Vec<HashMap<ReferenceCellType, E>>,
-    element_insertion_indices: Vec<Vec<usize>>,
     pub(crate) insertion_indices_to_element_indices: Vec<usize>,
     pub(crate) insertion_indices_to_cell_indices: Vec<usize>,
 }
@@ -48,15 +46,14 @@ impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
         let mut element_info = HashMap::new();
         let mut elements = vec![];
         let mut cells = vec![];
-        let mut cell_types = vec![];
+        let mut cell_counts = vec![];
         let mut points_per_cell = vec![];
-        let mut element_insertion_indices = vec![];
         let mut insertion_indices_to_element_indices = vec![];
         let mut insertion_indices_to_cell_indices = vec![];
 
         let mut start = 0;
 
-        for (i, (findex, cell_type)) in izip!(cell_families, cell_types_in).enumerate() {
+        for (findex, cell_type) in izip!(cell_families, cell_types_in) {
             let eindex = *element_info.entry((findex, cell_type)).or_insert_with(|| {
                 let n = elements.len();
 
@@ -75,22 +72,21 @@ impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
                 points_per_cell.push(new_e[cell_type].dim());
                 elements.push(new_e);
                 cells.push(vec![]);
-                element_insertion_indices.push(vec![]);
+                cell_counts.push(0);
                 n
             });
 
             insertion_indices_to_element_indices.push(eindex);
-            insertion_indices_to_cell_indices.push(element_insertion_indices[eindex].len());
-            element_insertion_indices[eindex].push(i);
-            cell_types.push(*cell_type);
+            insertion_indices_to_cell_indices.push(cell_counts[eindex]);
             for i in 0..points_per_cell[eindex] {
                 cells[eindex].push(cells_input[start + i]);
             }
+            cell_counts[eindex] += 1;
             start += points_per_cell[eindex];
         }
-        let cells = izip!(points_per_cell, cells)
-            .map(|(n, c_in)| {
-                let mut c = rlst_dynamic_array2!(usize, [n, c_in.len() / n]);
+        let cells = izip!(cell_counts, points_per_cell, cells)
+            .map(|(ncells, npts, c_in)| {
+                let mut c = rlst_dynamic_array2!(usize, [npts, ncells]);
                 c.data_mut().copy_from_slice(&c_in);
                 c
             })
@@ -98,9 +94,7 @@ impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
         Self {
             points,
             cells,
-            cell_types,
             elements,
-            element_insertion_indices,
             insertion_indices_to_element_indices,
             insertion_indices_to_cell_indices,
         }
@@ -119,7 +113,12 @@ impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
     }
     /// Element for a cell
     pub fn element(&self, element_index: usize) -> &E {
-        &self.elements[element_index][&self.cell_types[element_index]]
+        for (ct, e) in &self.elements[element_index] {
+            if reference_cell::dim(*ct) == self.dim() {
+                return e;
+            }
+        }
+        panic!("Could not find element");
     }
     /// Number of elments
     pub fn element_count(&self) -> usize {

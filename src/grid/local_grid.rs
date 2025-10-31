@@ -260,8 +260,10 @@ impl<G: Grid + Sync> Grid for LocalGrid<G> {
     fn geometry_map(
         &self,
         entity_type: Self::EntityDescriptor,
+        geometry_degree: usize,
         points: &[Self::T],
     ) -> Self::GeometryMap<'_> {
-        self.serial_grid.geometry_map(entity_type, points)
+        self.serial_grid
+            .geometry_map(entity_type, geometry_degree, points)
     }
 }

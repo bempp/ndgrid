@@ -17,7 +17,7 @@ use ndelement::{
     traits::{ElementFamily, FiniteElement},
     types::{Continuity, ReferenceCellType},
 };
-use rlst::{rlst_dynamic_array2, RawAccess, RawAccessMut, Shape};
+use rlst::{rlst_array_from_slice2, rlst_dynamic_array2, RawAccess, RawAccessMut, Shape};
 use std::collections::HashMap;
 
 /// Mixed grid entity
@@ -165,7 +165,6 @@ impl<T: RealScalar> MixedGrid<T, CiarletElement<T, IdentityMap>> {
         cells: &[usize],
         cell_types: &[ReferenceCellType],
         cell_degrees: &[usize],
-        geometry_degree: usize,
     ) -> Self {
         let npts = coordinates.len() / gdim;
         let mut points = rlst_dynamic_array2!(T, [gdim, npts]);
@@ -174,8 +173,9 @@ impl<T: RealScalar> MixedGrid<T, CiarletElement<T, IdentityMap>> {
         let mut element_families = vec![];
         let mut element_family_indices = HashMap::new();
 
-        let cell_families = izip!(cell_types, cell_degrees)
-            .map(|(t, d)| {
+        let cell_families = cell_degrees
+            .iter()
+            .map(|d| {
                 *element_family_indices.entry(*d).or_insert_with(|| {
                     let index = element_families.len();
                     element_families
@@ -252,7 +252,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
             } else {
                 for t in &self.topology.entity_types()[self.topology_dim()] {
                     if let Some(cell) =
-                        self.topology.upward_connectivity[&entity_type][t][local_index].get(0)
+                        self.topology.upward_connectivity[&entity_type][t][local_index].first()
                     {
                         if let Some(index) = self.topology.downward_connectivity[t][&entity_type]
                             .r()
@@ -297,26 +297,25 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     fn geometry_map(
         &self,
         entity_type: ReferenceCellType,
-        // geometry_degree: usize,
+        geometry_degree: usize,
         points: &[T],
     ) -> GeometryMap<'_, T, Array2D<T>, Array2D<usize>> {
-        unimplemented!(); /*
-                          let entity_dim = reference_cell::dim(entity_type);
-                          let npoints = points.len() / entity_dim;
-                          let rlst_points = rlst_array_from_slice2!(points, [entity_dim, npoints]);
+        let entity_dim = reference_cell::dim(entity_type);
+        let npoints = points.len() / entity_dim;
+        let rlst_points = rlst_array_from_slice2!(points, [entity_dim, npoints]);
 
-                          for t in self.topology.entity_types()[self.topology_dim()] {
-                              if entity_type == t {
-                                  return GeometryMap::new(
-                                      self.geometry.element(self.geometry_element_index),
-                                      &rlst_points,
-                                      self.geometry.points(),
-                                      self.geometry.cells(),
-                                  )
-                              }
-                          }
-                          unimplemented!();
-                          */
+        for i in 0..self.geometry.element_count() {
+            let e = self.geometry.element(i);
+            if e.cell_type() == entity_type && e.embedded_superdegree() == geometry_degree {
+                return GeometryMap::new(
+                    e,
+                    &rlst_points,
+                    self.geometry.points(),
+                    self.geometry.cells(i),
+                );
+            }
+        }
+        unimplemented!();
     }
 }
 
@@ -361,7 +360,8 @@ impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType,
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::traits::Topology;
+    use crate::traits::{GeometryMap, Topology};
+    use approx::*;
     use itertools::izip;
     use ndelement::{
         ciarlet::{CiarletElement, LagrangeElementFamily},
@@ -402,6 +402,52 @@ mod test {
         )
     }
 
+    fn example_grid_mixed() -> MixedGrid<f64, CiarletElement<f64, IdentityMap>> {
+        let mut points = rlst_dynamic_array2!(f64, [2, 8]);
+        *points.get_mut([0, 0]).unwrap() = 0.0;
+        *points.get_mut([1, 0]).unwrap() = 0.0;
+        *points.get_mut([0, 1]).unwrap() = 1.0;
+        *points.get_mut([1, 1]).unwrap() = 0.0;
+        *points.get_mut([0, 2]).unwrap() = 2.0;
+        *points.get_mut([1, 2]).unwrap() = 0.0;
+        *points.get_mut([0, 3]).unwrap() = 4.0;
+        *points.get_mut([1, 3]).unwrap() = 0.0;
+        *points.get_mut([0, 4]).unwrap() = 0.0;
+        *points.get_mut([1, 4]).unwrap() = 1.0;
+        *points.get_mut([0, 5]).unwrap() = 1.0;
+        *points.get_mut([1, 5]).unwrap() = 1.0;
+        *points.get_mut([0, 6]).unwrap() = 2.0;
+        *points.get_mut([1, 6]).unwrap() = 1.0;
+        *points.get_mut([0, 7]).unwrap() = 4.0;
+        *points.get_mut([1, 7]).unwrap() = 1.0;
+        let family = LagrangeElementFamily::<f64>::new(1, Continuity::Standard);
+        MixedGrid::new(
+            MixedTopology::new(
+                &[0, 5, 4, 0, 1, 5, 1, 2, 5, 6, 2, 3, 6, 7],
+                &[
+                    ReferenceCellType::Triangle,
+                    ReferenceCellType::Triangle,
+                    ReferenceCellType::Quadrilateral,
+                    ReferenceCellType::Quadrilateral,
+                ],
+                None,
+                None,
+            ),
+            MixedGeometry::<f64, CiarletElement<f64, IdentityMap>>::new(
+                &[
+                    ReferenceCellType::Triangle,
+                    ReferenceCellType::Triangle,
+                    ReferenceCellType::Quadrilateral,
+                    ReferenceCellType::Quadrilateral,
+                ],
+                points,
+                &[0, 5, 4, 0, 1, 5, 1, 2, 5, 6, 2, 3, 6, 7],
+                &[family],
+                &[0, 0, 0, 0],
+            ),
+        )
+    }
+
     #[test]
     fn test_edges_triangle() {
         let grid = example_grid_triangle();
@@ -417,5 +463,41 @@ mod test {
                 assert_eq!(v, cell.topology().sub_entity(ReferenceCellType::Point, *i));
             }
         }
+    }
+
+    #[test]
+    fn test_geometry_map() {
+        let grid = example_grid_mixed();
+        let mut mapped_pts = vec![0.0; 4];
+
+        let pts = vec![0.0, 0.0, 0.5, 0.5];
+        let map = grid.geometry_map(ReferenceCellType::Triangle, 1, &pts);
+
+        map.points(0, &mut mapped_pts);
+        assert_relative_eq!(mapped_pts[0], 0.0, epsilon = 1e-10);
+        assert_relative_eq!(mapped_pts[1], 0.0, epsilon = 1e-10);
+        assert_relative_eq!(mapped_pts[2], 0.5, epsilon = 1e-10);
+        assert_relative_eq!(mapped_pts[3], 1.0, epsilon = 1e-10);
+
+        map.points(1, &mut mapped_pts);
+        assert_relative_eq!(mapped_pts[0], 0.0, epsilon = 1e-10);
+        assert_relative_eq!(mapped_pts[1], 0.0, epsilon = 1e-10);
+        assert_relative_eq!(mapped_pts[2], 1.0, epsilon = 1e-10);
+        assert_relative_eq!(mapped_pts[3], 0.5, epsilon = 1e-10);
+
+        let pts = vec![0.5, 0.0, 1.0, 1.0];
+        let map = grid.geometry_map(ReferenceCellType::Quadrilateral, 1, &pts);
+
+        map.points(0, &mut mapped_pts);
+        assert_relative_eq!(mapped_pts[0], 1.5, epsilon = 1e-10);
+        assert_relative_eq!(mapped_pts[1], 0.0, epsilon = 1e-10);
+        assert_relative_eq!(mapped_pts[2], 2.0, epsilon = 1e-10);
+        assert_relative_eq!(mapped_pts[3], 1.0, epsilon = 1e-10);
+
+        map.points(1, &mut mapped_pts);
+        assert_relative_eq!(mapped_pts[0], 3.0, epsilon = 1e-10);
+        assert_relative_eq!(mapped_pts[1], 0.0, epsilon = 1e-10);
+        assert_relative_eq!(mapped_pts[2], 4.0, epsilon = 1e-10);
+        assert_relative_eq!(mapped_pts[3], 1.0, epsilon = 1e-10);
     }
 }

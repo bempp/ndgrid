@@ -226,7 +226,7 @@ impl<T: RealScalar> GeometryBuilder for MixedGridBuilder<T> {
         let mut element_families = vec![];
         let mut ef_indices = HashMap::new();
         let mut cell_families = vec![];
-        for (cell_type, degree) in izip!(cell_types, cell_degrees) {
+        for degree in cell_degrees {
             cell_families.push(*ef_indices.entry(*degree).or_insert_with(|| {
                 let n = element_families.len();
                 element_families.push(LagrangeElementFamily::<T>::new(
