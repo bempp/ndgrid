@@ -95,6 +95,7 @@ pub trait Grid {
     fn geometry_map(
         &self,
         entity_type: Self::EntityDescriptor,
+        geometry_degree: usize,
         points: &[Self::T],
     ) -> Self::GeometryMap<'_>;
 }

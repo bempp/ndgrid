@@ -2,7 +2,7 @@
 mod builder;
 pub mod local_grid;
 
-pub use local_grid::{SingleElementGrid, SingleElementGridBuilder};
+pub use local_grid::{MixedGrid, MixedGridBuilder, SingleElementGrid, SingleElementGridBuilder};
 
 #[cfg(feature = "serde")]
 use crate::traits::{ConvertToSerializable, RONImportParallel};
