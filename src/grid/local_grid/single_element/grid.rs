@@ -291,8 +291,13 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     fn geometry_map(
         &self,
         entity_type: ReferenceCellType,
+        geometry_degree: usize,
         points: &[T],
     ) -> GeometryMap<'_, T, Array2D<T>, Array2D<usize>> {
+        assert_eq!(
+            geometry_degree,
+            self.geometry.element().embedded_superdegree()
+        );
         let entity_dim = reference_cell::dim(entity_type);
         let npoints = points.len() / entity_dim;
         let rlst_points = rlst_array_from_slice2!(points, [entity_dim, npoints]);

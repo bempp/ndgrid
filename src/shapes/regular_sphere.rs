@@ -50,9 +50,9 @@ pub fn regular_sphere<T: RealScalar>(
         let mut edge_points = HashMap::new();
         let mut new_cells = Vec::with_capacity(8 * usize::pow(6, level));
         for c in &cells {
-            for i in 0..3 {
-                for j in 0..3 {
-                    v[i][j] = b.points[3 * c[i] + j];
+            for (i, v_i) in v.iter_mut().enumerate() {
+                for (j, v_ij) in v_i.iter_mut().enumerate() {
+                    *v_ij = b.points[3 * c[i] + j];
                 }
             }
             let edges = [[1, 2], [0, 2], [0, 1]]
@@ -120,7 +120,7 @@ mod test {
         for i in 0..3 {
             let g = regular_sphere::<f64>(i);
             let points = vec![1.0 / 3.0, 1.0 / 3.0];
-            let map = g.geometry_map(ReferenceCellType::Triangle, &points);
+            let map = g.geometry_map(ReferenceCellType::Triangle, 1, &points);
             let mut mapped_pt = vec![0.0; 3];
             let mut j = vec![0.0; 6];
             let mut jdet = vec![0.0];
@@ -143,7 +143,7 @@ mod test {
         for i in 0..3 {
             let g = regular_sphere::<f64>(i);
             let points = vec![1.0 / 3.0, 1.0 / 3.0];
-            let map = g.geometry_map(ReferenceCellType::Triangle, &points);
+            let map = g.geometry_map(ReferenceCellType::Triangle, 1, &points);
             let mut j = vec![0.0; 6];
             let mut jdet = vec![0.0];
             let mut mapped_pt = vec![0.0; 3];

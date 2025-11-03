@@ -1,12 +1,13 @@
 //! Grid builder
 
-use super::SingleElementGrid;
+use super::MixedGrid;
 use crate::{
-    geometry::SingleElementGeometry,
-    topology::single_type::SingleTypeTopology,
+    geometry::MixedGeometry,
+    topology::mixed::MixedTopology,
     traits::{Builder, GeometryBuilder, GridBuilder, TopologyBuilder},
     types::RealScalar,
 };
+use itertools::izip;
 use ndelement::{
     ciarlet::{lagrange, CiarletElement, LagrangeElementFamily},
     map::IdentityMap,
@@ -17,15 +18,19 @@ use ndelement::{
 use rlst::{rlst_dynamic_array2, RawAccessMut};
 use std::collections::{HashMap, HashSet};
 
-/// Grid builder for a single element grid
+/// Grid builder for a grid with a mixture of element types
 #[derive(Debug)]
-pub struct SingleElementGridBuilder<T: RealScalar> {
+pub struct MixedGridBuilder<T: RealScalar> {
     gdim: usize,
-    element_data: (ReferenceCellType, usize),
-    element: CiarletElement<T, IdentityMap>,
-    points_per_cell: usize,
+    element_indices: HashMap<(ReferenceCellType, usize), usize>,
+    elements: Vec<CiarletElement<T, IdentityMap>>,
+    points_per_cell: Vec<usize>,
     pub(crate) points: Vec<T>,
     cells: Vec<usize>,
+    cell_starts: Vec<usize>,
+    cell_families: Vec<usize>,
+    cell_degrees: Vec<usize>,
+    cell_types: Vec<ReferenceCellType>,
     point_indices_to_ids: Vec<usize>,
     point_ids_to_indices: HashMap<usize, usize>,
     cell_indices_to_ids: Vec<usize>,
@@ -34,31 +39,23 @@ pub struct SingleElementGridBuilder<T: RealScalar> {
     cell_indices: HashSet<usize>,
 }
 
-impl<T: RealScalar> SingleElementGridBuilder<T> {
+impl<T: RealScalar> MixedGridBuilder<T> {
     /// Create a new grid builder
-    pub fn new(gdim: usize, data: (ReferenceCellType, usize)) -> Self {
-        Self::new_with_capacity(gdim, 0, 0, data)
-    }
-
-    /// Create a new grid builder with capacaty for a given number of points and cells
-    pub fn new_with_capacity(
-        gdim: usize,
-        npoints: usize,
-        ncells: usize,
-        data: (ReferenceCellType, usize),
-    ) -> Self {
-        let element = lagrange::create::<T>(data.0, data.1, Continuity::Standard);
-        let points_per_cell = element.dim();
+    pub fn new(gdim: usize) -> Self {
         Self {
             gdim,
-            element_data: data,
-            element,
-            points_per_cell,
-            points: Vec::with_capacity(npoints * gdim),
-            cells: Vec::with_capacity(ncells * points_per_cell),
-            point_indices_to_ids: Vec::with_capacity(npoints),
+            element_indices: HashMap::new(),
+            elements: vec![],
+            points_per_cell: vec![],
+            points: vec![],
+            cells: vec![],
+            cell_starts: vec![],
+            cell_families: vec![],
+            cell_degrees: vec![],
+            cell_types: vec![],
+            point_indices_to_ids: vec![],
             point_ids_to_indices: HashMap::new(),
-            cell_indices_to_ids: Vec::with_capacity(ncells),
+            cell_indices_to_ids: vec![],
             cell_ids_to_indices: HashMap::new(),
             point_indices: HashSet::new(),
             cell_indices: HashSet::new(),
@@ -66,10 +63,10 @@ impl<T: RealScalar> SingleElementGridBuilder<T> {
     }
 }
 
-impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
-    type Grid = SingleElementGrid<T, CiarletElement<T, IdentityMap>>;
+impl<T: RealScalar> Builder for MixedGridBuilder<T> {
+    type Grid = MixedGrid<T, CiarletElement<T, IdentityMap>>;
     type T = T;
-    type CellData<'a> = &'a [usize];
+    type CellData<'a> = (ReferenceCellType, usize, &'a [usize]);
     type EntityDescriptor = ReferenceCellType;
 
     fn add_point(&mut self, id: usize, data: &[T]) {
@@ -86,16 +83,36 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
         self.points.extend_from_slice(data);
     }
 
-    fn add_cell(&mut self, id: usize, cell_data: &[usize]) {
+    fn add_cell(&mut self, id: usize, cell_data: (ReferenceCellType, usize, &[usize])) {
+        let element_index = *self
+            .element_indices
+            .entry((cell_data.0, cell_data.1))
+            .or_insert_with(|| {
+                let n = self.cell_indices_to_ids.len();
+                self.elements.push(lagrange::create::<T>(
+                    cell_data.0,
+                    cell_data.1,
+                    Continuity::Standard,
+                ));
+                self.points_per_cell.push(self.elements[n].dim());
+                n
+            });
+        self.cell_families.push(element_index);
+        self.cell_starts.push(self.cells.len());
+        self.cell_types.push(cell_data.0);
+        if reference_cell::dim(cell_data.0) != reference_cell::dim(self.cell_types[0]) {
+            panic!("Cannot create grid with cells of different topological dimensions");
+        }
+        self.cell_degrees.push(cell_data.1);
         if self.cell_indices.contains(&id) {
             panic!("Cannot add cell with duplicate id.");
         }
-        assert_eq!(cell_data.len(), self.points_per_cell);
+        assert_eq!(cell_data.2.len(), self.points_per_cell[element_index]);
         self.cell_ids_to_indices
             .insert(id, self.cell_indices_to_ids.len());
         self.cell_indices.insert(id);
         self.cell_indices_to_ids.push(id);
-        for id in cell_data {
+        for id in cell_data.2 {
             self.cells.push(self.point_ids_to_indices[id]);
         }
     }
@@ -107,15 +124,12 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
         cell_type: ReferenceCellType,
         cell_degree: usize,
     ) {
-        if (cell_type, cell_degree) != self.element_data {
-            panic!("Invalid cell type.");
-        }
-        self.add_cell(id, nodes);
+        self.add_cell(id, (cell_type, cell_degree, nodes));
     }
 
-    fn create_grid(&self) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+    fn create_grid(&self) -> MixedGrid<T, CiarletElement<T, IdentityMap>> {
         let cell_vertices =
-            self.extract_vertices(&self.cells, &[self.element_data.0], &[self.element_data.1]);
+            self.extract_vertices(&self.cells, &self.cell_types, &self.cell_degrees);
 
         // Add the vertex ids. But need to make sure that we don't have duplicates.
         // So first generate a set of vertex ids, then convert it to a vector.
@@ -137,15 +151,15 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
             &self.point_indices_to_ids,
             &self.points,
             &self.cells,
-            &[self.element_data.0],
-            &[self.element_data.1],
+            &self.cell_types,
+            &self.cell_degrees,
         );
 
         let topology = self.create_topology(
             vertex_ids,
             (0..self.cell_count()).collect::<Vec<_>>(),
             &cell_vertices,
-            &[self.element_data.0],
+            &self.cell_types,
         );
 
         self.create_grid_from_topology_geometry(topology, geometry)
@@ -161,14 +175,16 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
         &self.point_indices_to_ids
     }
     fn cell_indices_to_ids(&self) -> &[usize] {
-        &self.cell_indices_to_ids
+        unimplemented!();
+        // &self.cell_indices_to_ids
     }
     fn cell_points(&self, index: usize) -> &[usize] {
-        &self.cells[self.points_per_cell * index..self.points_per_cell * (index + 1)]
+        &self.cells[self.cell_starts[index]
+            ..self.cell_starts[index] + self.points_per_cell[self.cell_families[index]]]
     }
     fn cell_vertices(&self, index: usize) -> &[usize] {
-        &self.cells[self.points_per_cell * index
-            ..self.points_per_cell * index + reference_cell::entity_counts(self.element_data.0)[0]]
+        &self.cells[self.cell_starts[index]
+            ..self.cell_starts[index] + reference_cell::entity_counts(self.cell_types[index])[0]]
     }
     fn point(&self, index: usize) -> &[T] {
         &self.points[self.gdim * index..self.gdim * (index + 1)]
@@ -176,58 +192,70 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
     fn points(&self) -> &[T] {
         &self.points
     }
-    fn cell_type(&self, _index: usize) -> ReferenceCellType {
-        self.element_data.0
+    fn cell_type(&self, index: usize) -> ReferenceCellType {
+        self.cell_types[index]
     }
-    fn cell_degree(&self, _index: usize) -> usize {
-        self.element_data.1
+    fn cell_degree(&self, index: usize) -> usize {
+        self.cell_degrees[index]
     }
     fn gdim(&self) -> usize {
         self.gdim
     }
     fn tdim(&self) -> usize {
-        reference_cell::dim(self.element_data.0)
+        reference_cell::dim(self.cell_types[0])
     }
-
-    fn npts(&self, _cell_type: Self::EntityDescriptor, _degree: usize) -> usize {
-        self.points_per_cell
+    fn npts(&self, cell_type: Self::EntityDescriptor, degree: usize) -> usize {
+        self.points_per_cell[self.element_indices[&(cell_type, degree)]]
     }
 }
 
-impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
-    type GridGeometry = SingleElementGeometry<T, CiarletElement<T, IdentityMap>>;
+impl<T: RealScalar> GeometryBuilder for MixedGridBuilder<T> {
+    type GridGeometry = MixedGeometry<T, CiarletElement<T, IdentityMap>>;
     fn create_geometry(
         &self,
         point_ids: &[usize],
         coordinates: &[Self::T],
         cell_points: &[usize],
-        _cell_types: &[ReferenceCellType],
-        _cell_degrees: &[usize],
-    ) -> SingleElementGeometry<T, CiarletElement<T, IdentityMap>> {
+        cell_types: &[ReferenceCellType],
+        cell_degrees: &[usize],
+    ) -> MixedGeometry<T, CiarletElement<T, IdentityMap>> {
         let npts = point_ids.len();
         let mut points = rlst_dynamic_array2!(T, [self.gdim(), npts]);
         points.data_mut().copy_from_slice(coordinates);
 
-        let family = LagrangeElementFamily::<T>::new(self.element_data.1, Continuity::Standard);
+        let mut element_families = vec![];
+        let mut ef_indices = HashMap::new();
+        let mut cell_families = vec![];
+        for degree in cell_degrees {
+            cell_families.push(*ef_indices.entry(*degree).or_insert_with(|| {
+                let n = element_families.len();
+                element_families.push(LagrangeElementFamily::<T>::new(
+                    *degree,
+                    Continuity::Standard,
+                ));
+                n
+            }))
+        }
 
-        SingleElementGeometry::<T, CiarletElement<T, IdentityMap>>::new(
-            self.element_data.0,
+        MixedGeometry::<T, CiarletElement<T, IdentityMap>>::new(
+            cell_types,
             points,
             cell_points,
-            &family,
+            &element_families,
+            &cell_families,
         )
     }
 }
 
-impl<T: RealScalar> TopologyBuilder for SingleElementGridBuilder<T> {
-    type GridTopology = SingleTypeTopology;
+impl<T: RealScalar> TopologyBuilder for MixedGridBuilder<T> {
+    type GridTopology = MixedTopology;
     fn create_topology(
         &self,
         vertex_ids: Vec<usize>,
         cell_ids: Vec<usize>,
         cells: &[usize],
         _cell_types: &[ReferenceCellType],
-    ) -> SingleTypeTopology {
+    ) -> MixedTopology {
         // Create a map from point ids to the corresponding positions in the points array.
         let vertex_ids_to_pos = {
             let mut tmp = HashMap::<usize, usize>::new();
@@ -245,46 +273,37 @@ impl<T: RealScalar> TopologyBuilder for SingleElementGridBuilder<T> {
             new_cells
         };
 
-        SingleTypeTopology::new(
-            &cells,
-            self.element_data.0,
-            Some(vertex_ids),
-            Some(cell_ids),
-        )
+        MixedTopology::new(&cells, &self.cell_types, Some(vertex_ids), Some(cell_ids))
     }
 
     fn extract_vertices(
         &self,
         cell_points: &[usize],
-        _cell_types: &[Self::EntityDescriptor],
-        _cell_degrees: &[usize],
+        cell_types: &[Self::EntityDescriptor],
+        cell_degrees: &[usize],
     ) -> Vec<usize> {
-        let mut vertices = vec![];
-        for v in 0..reference_cell::entity_counts(self.element_data.0)[0] {
-            for d in self.element.entity_dofs(0, v).unwrap() {
-                vertices.push(*d);
-            }
-        }
         let mut cell_vertices = vec![];
         let mut start = 0;
-        let npoints = self.element.dim();
-        while start < cell_points.len() {
-            for v in &vertices {
-                cell_vertices.push(cell_points[start + v])
+        for (t, d) in izip!(cell_types, cell_degrees) {
+            let e = &self.elements[self.element_indices[&(*t, *d)]];
+            for v in 0..reference_cell::entity_counts(*t)[0] {
+                for d in e.entity_dofs(0, v).unwrap() {
+                    cell_vertices.push(cell_points[start + *d])
+                }
             }
-            start += npoints;
+            start += e.dim();
         }
         cell_vertices
     }
 }
 
-impl<T: RealScalar> GridBuilder for SingleElementGridBuilder<T> {
+impl<T: RealScalar> GridBuilder for MixedGridBuilder<T> {
     fn create_grid_from_topology_geometry(
         &self,
         topology: <Self as TopologyBuilder>::GridTopology,
         geometry: <Self as GeometryBuilder>::GridGeometry,
     ) -> <Self as Builder>::Grid {
-        SingleElementGrid::new(topology, geometry)
+        MixedGrid::new(topology, geometry)
     }
 }
 
@@ -295,7 +314,7 @@ mod test {
     #[test]
     #[should_panic]
     fn test_duplicate_point_id() {
-        let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
+        let mut b = MixedGridBuilder::<f64>::new(3);
 
         b.add_point(2, &[0.0, 0.0, 0.0]);
         b.add_point(0, &[1.0, 0.0, 0.0]);
@@ -306,28 +325,28 @@ mod test {
     #[test]
     #[should_panic]
     fn test_duplicate_cell_id() {
-        let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
+        let mut b = MixedGridBuilder::<f64>::new(3);
 
         b.add_point(0, &[0.0, 0.0, 0.0]);
         b.add_point(1, &[1.0, 0.0, 0.0]);
         b.add_point(2, &[0.0, 1.0, 0.0]);
         b.add_point(3, &[1.0, 1.0, 0.0]);
 
-        b.add_cell(0, &[0, 1, 2]);
-        b.add_cell(0, &[1, 2, 3]);
+        b.add_cell(0, (ReferenceCellType::Triangle, 1, &[0, 1, 2]));
+        b.add_cell(0, (ReferenceCellType::Triangle, 1, &[1, 2, 3]));
     }
 
     #[test]
     fn test_non_contiguous_ids() {
-        let mut b = SingleElementGridBuilder::<f64>::new(3, (ReferenceCellType::Triangle, 1));
+        let mut b = MixedGridBuilder::<f64>::new(3);
 
         b.add_point(0, &[0.0, 0.0, 0.0]);
         b.add_point(1, &[1.0, 0.0, 0.0]);
         b.add_point(2, &[0.0, 1.0, 0.0]);
         b.add_point(4, &[1.0, 1.0, 0.0]);
 
-        b.add_cell(0, &[0, 1, 2]);
-        b.add_cell(2, &[1, 2, 4]);
+        b.add_cell(0, (ReferenceCellType::Triangle, 1, &[0, 1, 2]));
+        b.add_cell(2, (ReferenceCellType::Triangle, 1, &[1, 2, 4]));
 
         b.create_grid();
     }

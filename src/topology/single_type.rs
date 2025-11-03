@@ -110,7 +110,7 @@ impl SingleTypeTopology {
         let ncells = cells.len() / size;
         let dim = reference_cell::dim(cell_type);
 
-        //The reference connectivity is a 4-dimensional array.
+        // The reference connectivity is a 4-dimensional array.
         // The first dimension is the topological dimension of the entities for which we want the connectivity.
         // The second dimension is the index of the entity for which we want to enquire connectivity.
         // The third dimension is the dimension of the sub-entities for which we want to enquire connectivity.
@@ -475,7 +475,6 @@ impl SingleTypeTopology {
 #[derive(Debug)]
 pub struct SingleTypeEntityTopology<'a> {
     topology: &'a SingleTypeTopology,
-    //entity_type: ReferenceCellType,
     entity_index: usize,
     dim: usize,
 }
@@ -489,7 +488,6 @@ impl<'t> SingleTypeEntityTopology<'t> {
     ) -> Self {
         Self {
             topology,
-            //entity_type,
             entity_index,
             dim: reference_cell::dim(entity_type),
         }
@@ -722,7 +720,7 @@ mod test {
     #[test]
     #[should_panic]
     fn test_pyramid() {
-        let _ = SingleTypeTopology::new(&[0, 1, 2, 3, 4], ReferenceCellType::Prism, None, None);
+        let _ = SingleTypeTopology::new(&[0, 1, 2, 3, 4], ReferenceCellType::Pyramid, None, None);
     }
 
     #[test]
