@@ -6,7 +6,6 @@ use crate::{
     types::RealScalar,
 };
 use ndelement::traits::FiniteElement;
-use rlst::{RawAccess, Shape};
 
 /// Geometry of an entity
 #[derive(Debug)]

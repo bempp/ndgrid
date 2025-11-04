@@ -15,7 +15,7 @@ use ndelement::{
     traits::FiniteElement,
     types::{Continuity, ReferenceCellType},
 };
-use rlst::{rlst_dynamic_array, RawAccessMut};
+use rlst::rlst_dynamic_array;
 use std::collections::{HashMap, HashSet};
 
 /// Grid builder for a grid with a mixture of element types

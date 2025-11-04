@@ -22,7 +22,7 @@ use ndelement::{
     types::{Continuity, ReferenceCellType},
 };
 use rlst::dense::{base_array::BaseArray, data_container::VectorContainer};
-use rlst::{rlst_dynamic_array, DynArray, RawAccess, RawAccessMut, Shape, SliceArray};
+use rlst::{rlst_dynamic_array, SliceArray};
 
 /// Single element grid entity
 #[derive(Debug)]

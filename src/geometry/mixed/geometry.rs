@@ -6,7 +6,7 @@ use ndelement::{
     traits::{ElementFamily, FiniteElement},
     types::ReferenceCellType,
 };
-use rlst::{rlst_dynamic_array, DynArray, RawAccessMut, Shape};
+use rlst::{rlst_dynamic_array, DynArray};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 

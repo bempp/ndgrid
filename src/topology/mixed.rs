@@ -3,7 +3,7 @@
 use crate::traits::Topology;
 use itertools::izip;
 use ndelement::{orientation::compute_orientation, reference_cell, types::ReferenceCellType};
-use rlst::{rlst_dynamic_array, DynArray, RawAccess, Shape};
+use rlst::{rlst_dynamic_array, DynArray};
 use std::collections::HashMap;
 use std::iter::Copied;
 

@@ -13,9 +13,7 @@ use ndelement::{
     traits::{ElementFamily, FiniteElement},
     types::ReferenceCellType,
 };
-#[cfg(feature = "serde")]
-use rlst::RawAccess;
-use rlst::{rlst_dynamic_array, DynArray, RawAccessMut, Shape};
+use rlst::{rlst_dynamic_array, DynArray};
 use std::fmt::{Debug, Formatter};
 
 /// Single element geometry

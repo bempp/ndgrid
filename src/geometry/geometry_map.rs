@@ -1,11 +1,7 @@
 //! Geometry map
 use crate::{traits::GeometryMap as GeometryMapTrait, types::RealScalar};
 use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType};
-use rlst::{
-    dense::{base_array::BaseArray, data_container::VectorContainer},
-    rlst_dynamic_array, Array, DynArray, RandomAccessByRef, RlstScalar, Shape,
-    UnsafeRandomAccessByRef,
-};
+use rlst::{Array, DynArray, RandomAccessByRef, RlstScalar, Shape, UnsafeRandomAccessByRef};
 
 /// Single element geometry
 #[derive(Debug)]
