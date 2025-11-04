@@ -5,7 +5,7 @@ use crate::types::RealScalar;
 use itertools::izip;
 #[cfg(feature = "serde")]
 use ndelement::{
-    ciarlet::{lagrange, CiarletElement},
+    ciarlet::{CiarletElement, lagrange},
     map::IdentityMap,
     types::Continuity,
 };

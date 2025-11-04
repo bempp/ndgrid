@@ -1,17 +1,17 @@
 //! Mixed grid
 use mpi::traits::Communicator;
 
-#[cfg(feature = "serde")]
-use crate::{
-    geometry::mixed::SerializableGeometry, topology::mixed::SerializableTopology,
-    traits::ConvertToSerializable,
-};
 use crate::{
     MixedGridBuilder, ParallelGridImpl,
     geometry::{GeometryMap, MixedEntityGeometry, MixedGeometry},
     topology::mixed::{MixedEntityTopology, MixedTopology},
     traits::{Builder, DistributableGrid, Entity, Grid, ParallelBuilder},
     types::{GraphPartitioner, Ownership, RealScalar},
+};
+#[cfg(feature = "serde")]
+use crate::{
+    geometry::mixed::SerializableGeometry, topology::mixed::SerializableTopology,
+    traits::ConvertToSerializable,
 };
 use itertools::izip;
 use mpi::traits::Equivalence;
