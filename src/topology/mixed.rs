@@ -1,10 +1,9 @@
 //! Topology for grids where entities of each tdim may be a mixture of types
 
 use crate::traits::Topology;
-use crate::types::Array2D;
 use itertools::izip;
 use ndelement::{orientation::compute_orientation, reference_cell, types::ReferenceCellType};
-use rlst::{rlst_dynamic_array2, RawAccess, Shape};
+use rlst::{rlst_dynamic_array, DynArray, RawAccess, Shape};
 use std::collections::HashMap;
 use std::iter::Copied;
 
@@ -18,7 +17,7 @@ pub struct MixedTopology {
     entity_types: Vec<Vec<ReferenceCellType>>,
     entity_counts: HashMap<ReferenceCellType, usize>,
     pub(crate) downward_connectivity:
-        HashMap<ReferenceCellType, HashMap<ReferenceCellType, Array2D<usize>>>,
+        HashMap<ReferenceCellType, HashMap<ReferenceCellType, DynArray<usize, 2>>>,
     pub(crate) upward_connectivity:
         HashMap<ReferenceCellType, HashMap<ReferenceCellType, Vec<Vec<usize>>>>,
     pub(crate) orientation: HashMap<ReferenceCellType, Vec<i32>>,
@@ -125,7 +124,7 @@ impl MixedTopology {
                 let mut dc = HashMap::new();
                 for sub_etypes in &reference_cell::entity_types(*etype) {
                     for e in sub_etypes {
-                        dc.entry(*e).or_insert(rlst_dynamic_array2!(
+                        dc.entry(*e).or_insert(rlst_dynamic_array!(
                             usize,
                             [sub_etypes.iter().filter(|&i| *i == *e).count(), *ecount]
                         ));
@@ -257,11 +256,16 @@ impl MixedTopology {
         let mut orientation = HashMap::new();
         for types in entity_types.iter().skip(1) {
             for t in types {
+                let dc = &downward_connectivity[t][&ReferenceCellType::Point];
                 orientation.insert(
                     *t,
-                    downward_connectivity[t][&ReferenceCellType::Point]
-                        .col_iter()
-                        .map(|vertices| compute_orientation(*t, vertices.data()))
+                    (0..dc.shape()[1])
+                        .map(|i| {
+                            compute_orientation(
+                                *t,
+                                &dc.data()[i * dc.shape()[0]..(i + 1) * dc.shape()[0]],
+                            )
+                        })
                         .collect::<Vec<_>>(),
                 );
             }

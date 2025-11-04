@@ -1,19 +1,19 @@
 //! Geometry where each entity of a given dimension is represented by the same element
-use crate::types::{Array2D, RealScalar};
+use crate::types::RealScalar;
 use itertools::izip;
 use ndelement::{
     reference_cell,
     traits::{ElementFamily, FiniteElement},
     types::ReferenceCellType,
 };
-use rlst::{rlst_dynamic_array2, RawAccessMut, Shape};
+use rlst::{rlst_dynamic_array, DynArray, RawAccessMut, Shape};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 /// Single element geometry
 pub struct MixedGeometry<T: RealScalar, E: FiniteElement> {
-    points: Array2D<T>,
-    cells: Vec<Array2D<usize>>,
+    points: DynArray<T, 2>,
+    cells: Vec<DynArray<usize, 2>>,
     elements: Vec<HashMap<ReferenceCellType, E>>,
     pub(crate) insertion_indices_to_element_indices: Vec<usize>,
     pub(crate) insertion_indices_to_cell_indices: Vec<usize>,
@@ -34,7 +34,7 @@ impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
     /// Create single element geometry
     pub fn new(
         cell_types_in: &[ReferenceCellType],
-        points: Array2D<T>,
+        points: DynArray<T, 2>,
         cells_input: &[usize],
         element_families: &[impl ElementFamily<
             T = T,
@@ -86,7 +86,7 @@ impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
         }
         let cells = izip!(cell_counts, points_per_cell, cells)
             .map(|(ncells, npts, c_in)| {
-                let mut c = rlst_dynamic_array2!(usize, [npts, ncells]);
+                let mut c = rlst_dynamic_array!(usize, [npts, ncells]);
                 c.data_mut().copy_from_slice(&c_in);
                 c
             })
@@ -104,11 +104,11 @@ impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
         self.points().shape()[0]
     }
     /// Points
-    pub fn points(&self) -> &Array2D<T> {
+    pub fn points(&self) -> &DynArray<T, 2> {
         &self.points
     }
     /// Cells
-    pub fn cells(&self, element_index: usize) -> &Array2D<usize> {
+    pub fn cells(&self, element_index: usize) -> &DynArray<usize, 2> {
         &self.cells[element_index]
     }
     /// Element for a cell

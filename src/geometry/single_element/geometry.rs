@@ -1,7 +1,7 @@
 //! Geometry where each entity of a given dimension is represented by the same element
 #[cfg(feature = "serde")]
 use crate::traits::ConvertToSerializable;
-use crate::types::{Array2D, Array2DBorrowed, RealScalar};
+use crate::types::RealScalar;
 #[cfg(feature = "serde")]
 use ndelement::{
     ciarlet::{lagrange, CiarletElement},
@@ -15,13 +15,13 @@ use ndelement::{
 };
 #[cfg(feature = "serde")]
 use rlst::RawAccess;
-use rlst::{rlst_dynamic_array2, RawAccessMut, Shape};
+use rlst::{rlst_dynamic_array, DynArray, RawAccessMut, Shape};
 use std::fmt::{Debug, Formatter};
 
 /// Single element geometry
 pub struct SingleElementGeometry<T: RealScalar, E: FiniteElement> {
-    points: Array2D<T>,
-    cells: Array2D<usize>,
+    points: DynArray<T, 2>,
+    cells: DynArray<usize, 2>,
     elements: Vec<E>,
 }
 
@@ -68,15 +68,15 @@ where
         Self {
             points: {
                 let (data, shape) = &s.points;
-                let mut p = rlst_dynamic_array2!(T, *shape);
+                let mut p = DynArray::<T, 2>::from_shape(*shape);
                 p.data_mut().copy_from_slice(data.as_slice());
                 p
             },
             cells: {
                 let (data, shape) = &s.cells;
-                let mut p = rlst_dynamic_array2!(usize, *shape);
-                p.data_mut().copy_from_slice(data.as_slice());
-                p
+                let mut c = DynArray::<usize, 2>::from_shape(*shape);
+                c.data_mut().copy_from_slice(data.as_slice());
+                c
             },
             elements: s
                 .elements
@@ -91,7 +91,7 @@ impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
     /// Create single element geometry
     pub fn new(
         cell_type: ReferenceCellType,
-        points: Array2D<T>,
+        points: DynArray<T, 2>,
         cells_input: &[usize],
         element_family: &impl ElementFamily<T = T, CellType = ReferenceCellType, FiniteElement = E>,
     ) -> Self {
@@ -109,7 +109,7 @@ impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
             elements.push(element_family.element(et[0]));
         }
         let points_per_cell = elements[elements.len() - 1].dim();
-        let mut cells = rlst_dynamic_array2!(
+        let mut cells = rlst_dynamic_array!(
             usize,
             [points_per_cell, cells_input.len() / points_per_cell]
         );
@@ -125,63 +125,11 @@ impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
         self.points().shape()[0]
     }
     /// Points
-    pub fn points(&self) -> &Array2D<T> {
+    pub fn points(&self) -> &DynArray<T, 2> {
         &self.points
     }
     /// Cells
-    pub fn cells(&self) -> &Array2D<usize> {
-        &self.cells
-    }
-    /// Element for a sub-entity
-    pub fn entity_element(&self, tdim: usize) -> &E {
-        &self.elements[tdim - 1]
-    }
-    /// Element for a cell
-    pub fn element(&self) -> &E {
-        &self.elements[self.elements.len() - 1]
-    }
-}
-
-/// Single element geometry with borrowed data
-pub struct SingleElementGeometryBorrowed<'a, T: RealScalar, E: FiniteElement> {
-    points: Array2DBorrowed<'a, T>,
-    cells: Array2DBorrowed<'a, usize>,
-    elements: Vec<E>,
-}
-
-impl<T: RealScalar, E: FiniteElement> Debug for SingleElementGeometryBorrowed<'_, T, E> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        f.debug_struct("SingleElementGeometryBorrowed")
-            .field("points", &self.points)
-            .field("cells", &self.cells)
-            .finish()
-    }
-}
-
-impl<'a, T: RealScalar, E: FiniteElement> SingleElementGeometryBorrowed<'a, T, E> {
-    /// Create single element geometry
-    pub fn new(
-        points: Array2DBorrowed<'a, T>,
-        cells: Array2DBorrowed<'a, usize>,
-        elements: Vec<E>,
-    ) -> Self {
-        Self {
-            points,
-            cells,
-            elements,
-        }
-    }
-
-    /// Geometric dimension
-    pub fn dim(&self) -> usize {
-        self.points().shape()[0]
-    }
-    /// Points
-    pub fn points(&self) -> &Array2DBorrowed<'_, T> {
-        &self.points
-    }
-    /// Cells
-    pub fn cells(&self) -> &Array2DBorrowed<'_, usize> {
+    pub fn cells(&self) -> &DynArray<usize, 2> {
         &self.cells
     }
     /// Element for a sub-entity

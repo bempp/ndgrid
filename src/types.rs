@@ -1,24 +1,16 @@
 //! Types
 use mpi::traits::Equivalence;
 use num::Float;
-use rlst::{Array, BaseArray, LinAlg, RlstScalar, SliceContainer, VectorContainer};
+use rlst::{
+    dense::linalg::lapack::interface::{getrf::Getrf, getri::Getri},
+    RlstScalar,
+};
 
 /// A real scalar
-pub trait RealScalar: Float + LinAlg + RlstScalar<Real = Self> {}
+pub trait RealScalar: Float + RlstScalar<Real = Self> + Getrf + Getri {}
 
 impl RealScalar for f32 {}
 impl RealScalar for f64 {}
-
-/// An N-dimensional array
-pub type ArrayND<const N: usize, T> = Array<T, BaseArray<T, VectorContainer<T>, N>, N>;
-/// A 2-dimensional array
-pub type Array2D<T> = ArrayND<2, T>;
-
-/// An N-dimensional array with borrowed data
-pub type ArrayNDBorrowed<'a, const N: usize, T> =
-    Array<T, BaseArray<T, SliceContainer<'a, T>, N>, N>;
-/// A 2-dimensional array with borrowed data
-pub type Array2DBorrowed<'a, T> = ArrayNDBorrowed<'a, 2, T>;
 
 /// A (cell, local index) pair
 ///

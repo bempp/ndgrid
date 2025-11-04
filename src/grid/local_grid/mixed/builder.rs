@@ -15,7 +15,7 @@ use ndelement::{
     traits::FiniteElement,
     types::{Continuity, ReferenceCellType},
 };
-use rlst::{rlst_dynamic_array2, RawAccessMut};
+use rlst::{rlst_dynamic_array, RawAccessMut};
 use std::collections::{HashMap, HashSet};
 
 /// Grid builder for a grid with a mixture of element types
@@ -220,7 +220,7 @@ impl<T: RealScalar> GeometryBuilder for MixedGridBuilder<T> {
         cell_degrees: &[usize],
     ) -> MixedGeometry<T, CiarletElement<T, IdentityMap>> {
         let npts = point_ids.len();
-        let mut points = rlst_dynamic_array2!(T, [self.gdim(), npts]);
+        let mut points = rlst_dynamic_array!(T, [self.gdim(), npts]);
         points.data_mut().copy_from_slice(coordinates);
 
         let mut element_families = vec![];
