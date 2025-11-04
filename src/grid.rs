@@ -47,11 +47,11 @@ impl<'a, C: Communicator, G: Grid + Sync> ParallelGridImpl<'a, C, G> {
 
 #[cfg(feature = "serde")]
 impl<
-        'a,
-        EntityDescriptor: Debug + PartialEq + Eq + Clone + Copy + Hash + serde::Serialize,
-        C: Communicator + 'a,
-        G: Grid<EntityDescriptor = EntityDescriptor> + Sync + ConvertToSerializable,
-    > RONImportParallel<'a, C> for ParallelGridImpl<'a, C, G>
+    'a,
+    EntityDescriptor: Debug + PartialEq + Eq + Clone + Copy + Hash + serde::Serialize,
+    C: Communicator + 'a,
+    G: Grid<EntityDescriptor = EntityDescriptor> + Sync + ConvertToSerializable,
+> RONImportParallel<'a, C> for ParallelGridImpl<'a, C, G>
 where
     for<'de2> <G as ConvertToSerializable>::SerializableType: serde::Deserialize<'de2>,
     for<'de2> EntityDescriptor: serde::Deserialize<'de2>,

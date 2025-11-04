@@ -2,11 +2,11 @@
 use mpi::traits::Communicator;
 
 use crate::{
+    MixedGridBuilder, ParallelGridImpl,
     geometry::{GeometryMap, MixedEntityGeometry, MixedGeometry},
     topology::mixed::{MixedEntityTopology, MixedTopology},
     traits::{Builder, DistributableGrid, Entity, Grid, ParallelBuilder},
     types::{GraphPartitioner, Ownership, RealScalar},
-    MixedGridBuilder, ParallelGridImpl,
 };
 use itertools::izip;
 use mpi::traits::Equivalence;
@@ -18,7 +18,7 @@ use ndelement::{
     types::{Continuity, ReferenceCellType},
 };
 use rlst::dense::{base_array::BaseArray, data_container::VectorContainer};
-use rlst::{rlst_dynamic_array, SliceArray};
+use rlst::{SliceArray, rlst_dynamic_array};
 use std::collections::HashMap;
 
 /// Mixed grid entity

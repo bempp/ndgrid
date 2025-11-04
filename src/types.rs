@@ -2,8 +2,8 @@
 use mpi::traits::Equivalence;
 use num::Float;
 use rlst::{
-    dense::linalg::lapack::interface::{getrf::Getrf, getri::Getri},
     RlstScalar,
+    dense::linalg::lapack::interface::{getrf::Getrf, getri::Getri},
 };
 
 /// A real scalar

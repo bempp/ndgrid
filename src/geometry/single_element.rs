@@ -23,8 +23,8 @@ mod test {
     };
     use rlst::rlst_dynamic_array;
 
-    fn example_geometry_linear_interval1d(
-    ) -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
+    fn example_geometry_linear_interval1d()
+    -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
         let mut points = rlst_dynamic_array!(f64, [1, 3]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([0, 1]).unwrap() = 1.0;
@@ -38,8 +38,8 @@ mod test {
         )
     }
 
-    fn example_geometry_linear_interval2d(
-    ) -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
+    fn example_geometry_linear_interval2d()
+    -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
         let mut points = rlst_dynamic_array!(f64, [2, 3]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;
@@ -56,8 +56,8 @@ mod test {
         )
     }
 
-    fn example_geometry_linear_interval3d(
-    ) -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
+    fn example_geometry_linear_interval3d()
+    -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
         let mut points = rlst_dynamic_array!(f64, [3, 3]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;
@@ -77,8 +77,8 @@ mod test {
         )
     }
 
-    fn example_geometry_quadratic_interval2d(
-    ) -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
+    fn example_geometry_quadratic_interval2d()
+    -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
         let mut points = rlst_dynamic_array!(f64, [2, 5]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;
@@ -99,8 +99,8 @@ mod test {
         )
     }
 
-    fn example_geometry_flat_triangle2d(
-    ) -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
+    fn example_geometry_flat_triangle2d()
+    -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
         let mut points = rlst_dynamic_array!(f64, [2, 4]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;
@@ -119,8 +119,8 @@ mod test {
         )
     }
 
-    fn example_geometry_flat_triangle3d(
-    ) -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
+    fn example_geometry_flat_triangle3d()
+    -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
         let mut points = rlst_dynamic_array!(f64, [3, 4]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;
@@ -143,8 +143,8 @@ mod test {
         )
     }
 
-    fn example_geometry_quadratic_triangle2d(
-    ) -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
+    fn example_geometry_quadratic_triangle2d()
+    -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
         let mut points = rlst_dynamic_array!(f64, [2, 9]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;
@@ -173,8 +173,8 @@ mod test {
         )
     }
 
-    fn example_geometry_quadrilateral2d(
-    ) -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
+    fn example_geometry_quadrilateral2d()
+    -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {
         let mut points = rlst_dynamic_array!(f64, [2, 6]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;

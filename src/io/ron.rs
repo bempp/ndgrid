@@ -29,9 +29,9 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::SingleElementGrid;
     use crate::shapes::regular_sphere;
     use crate::traits::Grid;
-    use crate::SingleElementGrid;
     use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
 
     #[test]

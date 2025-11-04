@@ -50,11 +50,11 @@ fn cross<T: RlstScalar>(mat: &[T], result: &mut [T]) {
 }
 
 impl<
-        'a,
-        T: RealScalar,
-        B2D: RandomAccessByRef<2, Item = T> + Shape<2>,
-        C2D: RandomAccessByRef<2, Item = usize> + Shape<2>,
-    > GeometryMap<'a, T, B2D, C2D>
+    'a,
+    T: RealScalar,
+    B2D: RandomAccessByRef<2, Item = T> + Shape<2>,
+    C2D: RandomAccessByRef<2, Item = usize> + Shape<2>,
+> GeometryMap<'a, T, B2D, C2D>
 {
     /// Create new
     pub fn new<A2D: RandomAccessByRef<2, Item = T> + Shape<2>>(
@@ -82,10 +82,10 @@ impl<
 }
 
 impl<
-        T: RealScalar,
-        B2D: RandomAccessByRef<2, Item = T> + UnsafeRandomAccessByRef<2, Item = T> + Shape<2>,
-        C2D: RandomAccessByRef<2, Item = usize> + UnsafeRandomAccessByRef<2, Item = usize> + Shape<2>,
-    > GeometryMapTrait for GeometryMap<'_, T, B2D, C2D>
+    T: RealScalar,
+    B2D: RandomAccessByRef<2, Item = T> + UnsafeRandomAccessByRef<2, Item = T> + Shape<2>,
+    C2D: RandomAccessByRef<2, Item = usize> + UnsafeRandomAccessByRef<2, Item = usize> + Shape<2>,
+> GeometryMapTrait for GeometryMap<'_, T, B2D, C2D>
 {
     type T = T;
 

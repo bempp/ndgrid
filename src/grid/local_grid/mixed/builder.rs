@@ -9,7 +9,7 @@ use crate::{
 };
 use itertools::izip;
 use ndelement::{
-    ciarlet::{lagrange, CiarletElement, LagrangeElementFamily},
+    ciarlet::{CiarletElement, LagrangeElementFamily, lagrange},
     map::IdentityMap,
     reference_cell,
     traits::FiniteElement,

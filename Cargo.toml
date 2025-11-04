@@ -8,7 +8,7 @@ scotch = ["dep:scotch"]
 [package]
 name = "ndgrid"
 version = "0.1.5-dev"
-edition = "2021"
+edition = "2024"
 authors = [
     "Timo Betcke <timo.betcke@gmail.com>",
     "Srinath Kailasa <srinathkailasa@gmail.com>",
