@@ -1,5 +1,7 @@
 //! Topology for grids where entities of each tdim may be a mixture of types
 
+#[cfg(feature = "serde")]
+use crate::traits::ConvertToSerializable;
 use crate::traits::Topology;
 use itertools::izip;
 use ndelement::{orientation::compute_orientation, reference_cell, types::ReferenceCellType};
@@ -23,7 +25,73 @@ pub struct MixedTopology {
     pub(crate) orientation: HashMap<ReferenceCellType, Vec<i32>>,
 }
 
-// TODO: serializable
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, Debug, serde::Deserialize)]
+/// Serde serializable topology
+pub struct SerializableTopology {
+    dim: usize,
+    ids: HashMap<ReferenceCellType, Vec<usize>>,
+    ids_to_indices: HashMap<ReferenceCellType, HashMap<usize, usize>>,
+    insertion_indices: HashMap<ReferenceCellType, Vec<usize>>,
+    entity_types: Vec<Vec<ReferenceCellType>>,
+    entity_counts: HashMap<ReferenceCellType, usize>,
+    downward_connectivity:
+        HashMap<ReferenceCellType, HashMap<ReferenceCellType, (Vec<usize>, [usize; 2])>>,
+    upward_connectivity:
+        HashMap<ReferenceCellType, HashMap<ReferenceCellType, Vec<Vec<usize>>>>,
+    orientation: HashMap<ReferenceCellType, Vec<i32>>,
+}
+
+#[cfg(feature = "serde")]
+impl ConvertToSerializable for MixedTopology {
+    type SerializableType = SerializableTopology;
+    fn to_serializable(&self) -> SerializableTopology {
+        SerializableTopology {
+            dim: self.dim,
+            ids: self.ids.clone(),
+            ids_to_indices: self.ids_to_indices.clone(),
+            insertion_indices: self.insertion_indices.clone(),
+            entity_types: self.entity_types.clone(),
+            entity_counts: self.entity_counts.clone(),
+            downward_connectivity: self
+                .downward_connectivity
+                .iter()
+                .map(|(a, b)| {
+                    (*a, b.iter()
+                        .map(|(c, d)| (*c, (d.data().to_vec(), d.shape())))
+                        .collect::<HashMap<_, _>>())
+                })
+                .collect::<HashMap<_, _>>(),
+            upward_connectivity: self.upward_connectivity.clone(),
+            orientation: self.orientation.clone(),
+        }
+    }
+    fn from_serializable(s: SerializableTopology) -> Self {
+        Self {
+            dim: s.dim,
+            ids: s.ids,
+            ids_to_indices: s.ids_to_indices,
+            insertion_indices: s.insertion_indices,
+            entity_types: s.entity_types,
+            entity_counts: s.entity_counts,
+            downward_connectivity: s
+                .downward_connectivity
+                .iter()
+                .map(|(a, b)| {
+                    (*a, b.iter()
+                        .map(|(c, (data, shape))| (*c, {
+                            let mut d = DynArray::<usize, 2>::from_shape(*shape);
+                            d.data_mut().copy_from_slice(data);
+                            d
+                        }))
+                        .collect::<HashMap<_, _>>())
+                })
+                .collect::<HashMap<_, _>>(),
+            upward_connectivity: s.upward_connectivity,
+            orientation: s.orientation,
+        }
+    }
+}
 
 impl MixedTopology {
     /// Create a topology
