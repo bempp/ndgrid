@@ -35,10 +35,10 @@ pub struct SerializableTopology {
     insertion_indices: HashMap<ReferenceCellType, Vec<usize>>,
     entity_types: Vec<Vec<ReferenceCellType>>,
     entity_counts: HashMap<ReferenceCellType, usize>,
+    #[allow(clippy::type_complexity)]
     downward_connectivity:
         HashMap<ReferenceCellType, HashMap<ReferenceCellType, (Vec<usize>, [usize; 2])>>,
-    upward_connectivity:
-        HashMap<ReferenceCellType, HashMap<ReferenceCellType, Vec<Vec<usize>>>>,
+    upward_connectivity: HashMap<ReferenceCellType, HashMap<ReferenceCellType, Vec<Vec<usize>>>>,
     orientation: HashMap<ReferenceCellType, Vec<i32>>,
 }
 
@@ -57,9 +57,12 @@ impl ConvertToSerializable for MixedTopology {
                 .downward_connectivity
                 .iter()
                 .map(|(a, b)| {
-                    (*a, b.iter()
-                        .map(|(c, d)| (*c, (d.data().to_vec(), d.shape())))
-                        .collect::<HashMap<_, _>>())
+                    (
+                        *a,
+                        b.iter()
+                            .map(|(c, d)| (*c, (d.data().to_vec(), d.shape())))
+                            .collect::<HashMap<_, _>>(),
+                    )
                 })
                 .collect::<HashMap<_, _>>(),
             upward_connectivity: self.upward_connectivity.clone(),
@@ -78,13 +81,18 @@ impl ConvertToSerializable for MixedTopology {
                 .downward_connectivity
                 .iter()
                 .map(|(a, b)| {
-                    (*a, b.iter()
-                        .map(|(c, (data, shape))| (*c, {
-                            let mut d = DynArray::<usize, 2>::from_shape(*shape);
-                            d.data_mut().copy_from_slice(data);
-                            d
-                        }))
-                        .collect::<HashMap<_, _>>())
+                    (
+                        *a,
+                        b.iter()
+                            .map(|(c, (data, shape))| {
+                                (*c, {
+                                    let mut d = DynArray::<usize, 2>::from_shape(*shape);
+                                    d.data_mut().copy_from_slice(data);
+                                    d
+                                })
+                            })
+                            .collect::<HashMap<_, _>>(),
+                    )
                 })
                 .collect::<HashMap<_, _>>(),
             upward_connectivity: s.upward_connectivity,

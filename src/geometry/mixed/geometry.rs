@@ -1,14 +1,14 @@
 //! Geometry where each entity of a given dimension is represented by the same element
 #[cfg(feature = "serde")]
 use crate::traits::ConvertToSerializable;
+use crate::types::RealScalar;
+use itertools::izip;
 #[cfg(feature = "serde")]
 use ndelement::{
     ciarlet::{lagrange, CiarletElement},
     map::IdentityMap,
     types::Continuity,
 };
-use crate::types::RealScalar;
-use itertools::izip;
 use ndelement::{
     reference_cell,
     traits::{ElementFamily, FiniteElement},
@@ -60,11 +60,19 @@ where
     fn to_serializable(&self) -> SerializableGeometry<T> {
         SerializableGeometry {
             points: (self.points.data().to_vec(), self.points.shape()),
-            cells: self.cells.iter().map(|c| (c.data().to_vec(), c.shape())).collect::<Vec<_>>(),
+            cells: self
+                .cells
+                .iter()
+                .map(|c| (c.data().to_vec(), c.shape()))
+                .collect::<Vec<_>>(),
             elements: self
                 .elements
                 .iter()
-                .map(|a| a.iter().map(|(b, c)| (*b, c.embedded_superdegree())).collect::<HashMap<_, _>>())
+                .map(|a| {
+                    a.iter()
+                        .map(|(b, c)| (*b, c.embedded_superdegree()))
+                        .collect::<HashMap<_, _>>()
+                })
                 .collect::<Vec<_>>(),
             insertion_indices_to_element_indices: self.insertion_indices_to_element_indices.clone(),
             insertion_indices_to_cell_indices: self.insertion_indices_to_cell_indices.clone(),
@@ -78,17 +86,29 @@ where
                 p.data_mut().copy_from_slice(data.as_slice());
                 p
             },
-            cells: s.cells.iter().map(|(data, shape)| {
-                let mut c = DynArray::<usize, 2>::from_shape(*shape);
-                c.data_mut().copy_from_slice(data.as_slice());
-                c
-            }).collect::<Vec<_>>(),
+            cells: s
+                .cells
+                .iter()
+                .map(|(data, shape)| {
+                    let mut c = DynArray::<usize, 2>::from_shape(*shape);
+                    c.data_mut().copy_from_slice(data.as_slice());
+                    c
+                })
+                .collect::<Vec<_>>(),
             elements: s
-                .elements.iter().map(|a|
+                .elements
+                .iter()
+                .map(|a| {
                     a.iter()
-                    .map(|(cell, degree)| (*cell, lagrange::create(*cell, *degree, Continuity::Standard)))
-                    .collect::<HashMap<_, _>>(),
-                ).collect::<Vec<_>>(),
+                        .map(|(cell, degree)| {
+                            (
+                                *cell,
+                                lagrange::create(*cell, *degree, Continuity::Standard),
+                            )
+                        })
+                        .collect::<HashMap<_, _>>()
+                })
+                .collect::<Vec<_>>(),
             insertion_indices_to_element_indices: s.insertion_indices_to_element_indices,
             insertion_indices_to_cell_indices: s.insertion_indices_to_cell_indices,
         }

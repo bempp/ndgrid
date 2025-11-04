@@ -29,7 +29,11 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{shapes::regular_sphere, traits::{Grid, Builder}, SingleElementGrid, MixedGrid, MixedGridBuilder};
+    use crate::{
+        shapes::regular_sphere,
+        traits::{Builder, Grid},
+        MixedGrid, MixedGridBuilder, SingleElementGrid,
+    };
     use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
 
     #[test]
