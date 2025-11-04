@@ -28,6 +28,7 @@ pub struct SingleTypeTopology {
 pub struct SerializableTopology {
     dim: usize,
     ids: Vec<Option<Vec<usize>>>,
+    ids_to_indices: Vec<Vec<(usize, usize)>>,
     entity_types: Vec<ReferenceCellType>,
     entity_counts: Vec<usize>,
     downward_connectivity: Vec<Vec<(Vec<usize>, [usize; 2])>>,
@@ -42,6 +43,10 @@ impl ConvertToSerializable for SingleTypeTopology {
         SerializableTopology {
             dim: self.dim,
             ids: self.ids.clone(),
+            ids_to_indices: self.ids_to_indices.iter().map(
+                |a|
+                a.iter().map(|(b, c)| (*b, *c)).collect::<Vec<_>>()
+            ).collect::<Vec<_>>(),
             entity_types: self.entity_types.clone(),
             entity_counts: self.entity_counts.clone(),
             downward_connectivity: self
@@ -60,20 +65,17 @@ impl ConvertToSerializable for SingleTypeTopology {
     fn from_serializable(s: SerializableTopology) -> Self {
         Self {
             dim: s.dim,
-            ids_to_indices: s
-                .ids
+            ids: s.ids,
+            ids_to_indices: s.ids_to_indices
                 .iter()
-                .map(|ids_option| {
+                .map(|a| {
                     let mut ie = HashMap::new();
-                    if let Some(ids) = ids_option {
-                        for (i, j) in ids.iter().enumerate() {
-                            ie.insert(*j, i);
-                        }
+                    for (b, c) in a {
+                        ie.insert(*b, *c);
                     }
                     ie
                 })
                 .collect::<Vec<_>>(),
-            ids: s.ids,
             entity_types: s.entity_types,
             entity_counts: s.entity_counts,
             downward_connectivity: s
