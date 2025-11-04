@@ -21,8 +21,7 @@ mod test {
         types::Continuity,
         types::ReferenceCellType,
     };
-    use rlst::RandomAccessMut;
-    use rlst::{rlst_dynamic_array, Shape};
+    use rlst::rlst_dynamic_array;
 
     fn example_geometry_linear_interval1d(
     ) -> SingleElementGeometry<f64, CiarletElement<f64, IdentityMap>> {

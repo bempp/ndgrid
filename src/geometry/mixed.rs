@@ -19,8 +19,7 @@ mod test {
         types::Continuity,
         types::ReferenceCellType,
     };
-    use rlst::RandomAccessMut;
-    use rlst::{rlst_dynamic_array, Shape};
+    use rlst::rlst_dynamic_array;
 
     fn example_geometry_triangles() -> MixedGeometry<f64, CiarletElement<f64, IdentityMap>> {
         let mut points = rlst_dynamic_array!(f64, [2, 7]);

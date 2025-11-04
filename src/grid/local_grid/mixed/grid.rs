@@ -367,7 +367,7 @@ mod test {
         reference_cell,
         types::Continuity,
     };
-    use rlst::{rlst_dynamic_array, RandomAccessMut};
+    use rlst::rlst_dynamic_array;
 
     fn example_grid_triangle() -> MixedGrid<f64, CiarletElement<f64, IdentityMap>> {
         let mut points = rlst_dynamic_array!(f64, [3, 4]);
