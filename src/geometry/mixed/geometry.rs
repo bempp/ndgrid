@@ -1,6 +1,14 @@
 //! Geometry where each entity of a given dimension is represented by the same element
+#[cfg(feature = "serde")]
+use crate::traits::ConvertToSerializable;
 use crate::types::RealScalar;
 use itertools::izip;
+#[cfg(feature = "serde")]
+use ndelement::{
+    ciarlet::{lagrange, CiarletElement},
+    map::IdentityMap,
+    types::Continuity,
+};
 use ndelement::{
     reference_cell,
     traits::{ElementFamily, FiniteElement},
@@ -28,7 +36,84 @@ impl<T: RealScalar, E: FiniteElement> Debug for MixedGeometry<T, E> {
     }
 }
 
-// TODO: Serializable
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, Debug, serde::Deserialize)]
+#[serde(bound = "for<'de2> T: serde::Deserialize<'de2>")]
+pub struct SerializableGeometry<T: RealScalar + serde::Serialize>
+where
+    for<'de2> T: serde::Deserialize<'de2>,
+{
+    points: (Vec<T>, [usize; 2]),
+    cells: Vec<(Vec<usize>, [usize; 2])>,
+    elements: Vec<HashMap<ReferenceCellType, usize>>,
+    insertion_indices_to_element_indices: Vec<usize>,
+    insertion_indices_to_cell_indices: Vec<usize>,
+}
+
+#[cfg(feature = "serde")]
+impl<T: RealScalar + serde::Serialize> ConvertToSerializable
+    for MixedGeometry<T, CiarletElement<T, IdentityMap>>
+where
+    for<'de2> T: serde::Deserialize<'de2>,
+{
+    type SerializableType = SerializableGeometry<T>;
+    fn to_serializable(&self) -> SerializableGeometry<T> {
+        SerializableGeometry {
+            points: (self.points.data().to_vec(), self.points.shape()),
+            cells: self
+                .cells
+                .iter()
+                .map(|c| (c.data().to_vec(), c.shape()))
+                .collect::<Vec<_>>(),
+            elements: self
+                .elements
+                .iter()
+                .map(|a| {
+                    a.iter()
+                        .map(|(b, c)| (*b, c.embedded_superdegree()))
+                        .collect::<HashMap<_, _>>()
+                })
+                .collect::<Vec<_>>(),
+            insertion_indices_to_element_indices: self.insertion_indices_to_element_indices.clone(),
+            insertion_indices_to_cell_indices: self.insertion_indices_to_cell_indices.clone(),
+        }
+    }
+    fn from_serializable(s: SerializableGeometry<T>) -> Self {
+        Self {
+            points: {
+                let (data, shape) = &s.points;
+                let mut p = DynArray::<T, 2>::from_shape(*shape);
+                p.data_mut().copy_from_slice(data.as_slice());
+                p
+            },
+            cells: s
+                .cells
+                .iter()
+                .map(|(data, shape)| {
+                    let mut c = DynArray::<usize, 2>::from_shape(*shape);
+                    c.data_mut().copy_from_slice(data.as_slice());
+                    c
+                })
+                .collect::<Vec<_>>(),
+            elements: s
+                .elements
+                .iter()
+                .map(|a| {
+                    a.iter()
+                        .map(|(cell, degree)| {
+                            (
+                                *cell,
+                                lagrange::create(*cell, *degree, Continuity::Standard),
+                            )
+                        })
+                        .collect::<HashMap<_, _>>()
+                })
+                .collect::<Vec<_>>(),
+            insertion_indices_to_element_indices: s.insertion_indices_to_element_indices,
+            insertion_indices_to_cell_indices: s.insertion_indices_to_cell_indices,
+        }
+    }
+}
 
 impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
     /// Create single element geometry
