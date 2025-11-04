@@ -153,11 +153,18 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
             gmsh_s.push_str(&format!("{}\n", *i + 1));
         }
         for (_, coords) in &points {
-            for (n, c) in coords.iter().enumerate() {
+            for n in 0..3 {
                 if n != 0 {
                     gmsh_s.push(' ');
                 }
-                gmsh_s.push_str(&format!("{c}"));
+                gmsh_s.push_str(&format!(
+                    "{}",
+                    if let Some(c) = coords.get(n) {
+                        *c
+                    } else {
+                        G::T::zero()
+                    }
+                ));
             }
             gmsh_s.push('\n');
         }
@@ -173,18 +180,19 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
         let mut elements = vec![];
         let mut cells_by_element = vec![];
         for t in self.cell_types() {
-            for (i, cell) in self.entity_iter(*t).enumerate() {
+            for (index, cell) in self.entity_iter(*t).enumerate() {
                 let element = (cell.entity_type(), cell.geometry().degree());
                 if !elements.contains(&element) {
                     elements.push(element);
                     cells_by_element.push(vec![]);
                 }
-                cells_by_element[elements.iter().position(|i| *i == element).unwrap()].push(i);
+                cells_by_element[elements.iter().position(|i| *i == element).unwrap()].push(index);
             }
         }
 
         gmsh_s.push_str(&format!("{} {cell_count} 1 {cell_count}\n", elements.len()));
 
+        let mut next_index = 1;
         for ((cell_type, degree), cells) in izip!(elements, cells_by_element) {
             let gmsh_perm = get_permutation_to_gmsh(cell_type, degree);
 
@@ -194,8 +202,12 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
                 cells.len()
             ));
 
-            for (i, index) in cells.iter().enumerate() {
-                gmsh_s.push_str(&format!("{}", i + 1));
+            for index in cells.iter() {
+                gmsh_s.push_str(&format!("{}", {
+                    let idx = next_index;
+                    next_index += 1;
+                    idx
+                },));
                 let entity = self.entity(cell_type, *index).unwrap();
                 let point_indices = entity
                     .geometry()
@@ -226,7 +238,7 @@ fn gmsh_section(s: &str, section: &str) -> String {
 
 impl<T, B> GmshImport for B
 where
-    T: FromStr + FromBytes,
+    T: FromStr + FromBytes + std::fmt::Debug,
     <T as FromBytes>::Bytes: Sized,
     B: Builder<T = T, EntityDescriptor = ReferenceCellType>,
 {
@@ -261,7 +273,9 @@ where
                 })
                 .collect::<Vec<_>>();
 
-            self.add_point(tag, &coords);
+            println!("{coords:?}");
+            self.add_point(tag, &coords[..self.gdim()]);
+            println!("ADDED");
         }
 
         // Load elements
@@ -343,7 +357,7 @@ where
                 })
                 .collect::<Vec<_>>();
 
-            self.add_point(tag, &coords);
+            self.add_point(tag, &coords[..self.gdim()]);
         }
 
         // Load elements
@@ -445,7 +459,7 @@ where
                             .map(|i| parse::<T>(i, data_size, is_le))
                             .collect::<Vec<_>>();
 
-                        self.add_point(tag, &coords);
+                        self.add_point(tag, &coords[..self.gdim()]);
                     }
 
                     line.clear();
@@ -536,19 +550,18 @@ where
             let tags = &nodes[line_n..line_n + num_nodes_in_block];
             let coords = &nodes[line_n + num_nodes_in_block..line_n + 2 * num_nodes_in_block];
             for (t, c) in izip!(tags, coords) {
-                self.add_point(
-                    t.parse::<usize>().unwrap(),
-                    &c.trim()
-                        .split(" ")
-                        .map(|i| {
-                            if let Ok(j) = T::from_str(i) {
-                                j
-                            } else {
-                                panic!("Could not parse coordinate");
-                            }
-                        })
-                        .collect::<Vec<_>>(),
-                );
+                let pt = c
+                    .trim()
+                    .split(" ")
+                    .map(|i| {
+                        if let Ok(j) = T::from_str(i) {
+                            j
+                        } else {
+                            panic!("Could not parse coordinate");
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                self.add_point(t.parse::<usize>().unwrap(), &pt[..self.gdim()]);
             }
             line_n += num_nodes_in_block * 2;
         }
@@ -674,7 +687,7 @@ where
                             .collect::<Vec<_>>();
 
                         for (t, c) in izip!(tags, coords) {
-                            self.add_point(t, &c);
+                            self.add_point(t, &c[..self.gdim()]);
                         }
                     }
 
@@ -744,7 +757,7 @@ mod test {
     use crate::{
         shapes::regular_sphere,
         traits::{Builder, Topology},
-        SingleElementGridBuilder,
+        MixedGridBuilder, SingleElementGridBuilder,
     };
     use approx::*;
 
@@ -914,6 +927,41 @@ mod test {
                 assert_eq!(v1, v2);
             }
         }
+    }
+
+    #[test]
+    fn test_export_mixed() {
+        let mut b = MixedGridBuilder::<f64>::new(2);
+        b.add_point(0, &[0.0, 0.0]);
+        b.add_point(1, &[1.0, 0.0]);
+        b.add_point(2, &[0.0, 1.0]);
+        b.add_point(3, &[1.0, 1.0]);
+        b.add_point(4, &[2.0, 0.5]);
+        b.add_point(5, &[1.6, 0.9]);
+        b.add_point(6, &[1.0, 0.5]);
+        b.add_point(7, &[1.6, 0.1]);
+
+        b.add_cell(0, (ReferenceCellType::Quadrilateral, 1, &[0, 1, 2, 3]));
+        b.add_cell(1, (ReferenceCellType::Triangle, 2, &[1, 4, 3, 5, 6, 7]));
+        let g = b.create_grid();
+        g.export_as_gmsh("_test_io_mixed.msh");
+
+        let mut b = MixedGridBuilder::<f64>::new(2);
+        b.import_from_gmsh("_test_io_mixed.msh");
+        let _g = b.create_grid();
+    }
+
+    #[test]
+    fn test_import_mixed() {
+        let mut b = MixedGridBuilder::<f64>::new(2);
+        b.import_from_gmsh("meshes/mixed.msh");
+        let _g = b.create_grid();
+    }
+    #[test]
+    fn test_import_mixed_triangle() {
+        let mut b = MixedGridBuilder::<f64>::new(3);
+        b.import_from_gmsh("meshes/sphere_triangle.msh");
+        let _g = b.create_grid();
     }
 
     #[test]
