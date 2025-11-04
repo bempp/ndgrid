@@ -6,7 +6,7 @@ use ndgrid::traits::{
     RONImportParallel, Topology,
 };
 use ndgrid::{
-    shapes, types::GraphPartitioner, ParallelGridImpl, SingleElementGrid, SingleElementGridBuilder,
+    ParallelGridImpl, SingleElementGrid, SingleElementGridBuilder, shapes, types::GraphPartitioner,
 };
 
 /// Grid I/O

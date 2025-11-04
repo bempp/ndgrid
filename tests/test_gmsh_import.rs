@@ -1,7 +1,7 @@
 use ndelement::types::ReferenceCellType;
 use ndgrid::{
-    traits::{Builder, GmshImport},
     SingleElementGridBuilder,
+    traits::{Builder, GmshImport},
 };
 use std::path::PathBuf;
 

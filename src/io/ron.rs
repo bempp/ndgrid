@@ -30,9 +30,9 @@ where
 mod test {
     use super::*;
     use crate::{
+        MixedGrid, MixedGridBuilder, SingleElementGrid,
         shapes::regular_sphere,
         traits::{Builder, Grid},
-        MixedGrid, MixedGridBuilder, SingleElementGrid,
     };
     use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
 

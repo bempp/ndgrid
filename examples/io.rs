@@ -3,7 +3,7 @@ use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellT
 use ndgrid::traits::{
     Builder, Entity, GmshExport, GmshImport, Grid, RONExport, RONImport, Topology,
 };
-use ndgrid::{shapes, SingleElementGrid, SingleElementGridBuilder};
+use ndgrid::{SingleElementGrid, SingleElementGridBuilder, shapes};
 
 /// Grid I/O
 ///

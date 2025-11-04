@@ -123,12 +123,10 @@ where
 
 #[cfg(feature = "serde")]
 impl<
-        S: serde::Serialize,
-        EntityDescriptor: Debug + PartialEq + Eq + Clone + Copy + Hash + serde::Serialize,
-        G: Grid<EntityDescriptor = EntityDescriptor>
-            + Sync
-            + ConvertToSerializable<SerializableType = S>,
-    > ConvertToSerializable for LocalGrid<G>
+    S: serde::Serialize,
+    EntityDescriptor: Debug + PartialEq + Eq + Clone + Copy + Hash + serde::Serialize,
+    G: Grid<EntityDescriptor = EntityDescriptor> + Sync + ConvertToSerializable<SerializableType = S>,
+> ConvertToSerializable for LocalGrid<G>
 where
     for<'de2> S: serde::Deserialize<'de2>,
     for<'de2> EntityDescriptor: serde::Deserialize<'de2>,

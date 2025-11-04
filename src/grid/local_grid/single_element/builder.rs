@@ -8,7 +8,7 @@ use crate::{
     types::RealScalar,
 };
 use ndelement::{
-    ciarlet::{lagrange, CiarletElement, LagrangeElementFamily},
+    ciarlet::{CiarletElement, LagrangeElementFamily, lagrange},
     map::IdentityMap,
     reference_cell,
     traits::FiniteElement,

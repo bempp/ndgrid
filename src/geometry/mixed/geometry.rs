@@ -5,7 +5,7 @@ use crate::types::RealScalar;
 use itertools::izip;
 #[cfg(feature = "serde")]
 use ndelement::{
-    ciarlet::{lagrange, CiarletElement},
+    ciarlet::{CiarletElement, lagrange},
     map::IdentityMap,
     types::Continuity,
 };
@@ -14,7 +14,7 @@ use ndelement::{
     traits::{ElementFamily, FiniteElement},
     types::ReferenceCellType,
 };
-use rlst::{rlst_dynamic_array, DynArray};
+use rlst::{DynArray, rlst_dynamic_array};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 

@@ -8,7 +8,7 @@ use crate::{
     },
     types::{GraphPartitioner, Ownership},
 };
-use itertools::{izip, Itertools};
+use itertools::{Itertools, izip};
 use mpi::{
     collective::SystemOperation,
     traits::{Buffer, Communicator, CommunicatorCollectives, Equivalence, Root},
@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet};
 use coupe::{KMeans, Partition, Point3D};
 
 #[cfg(feature = "scotch")]
-use scotch::{graph, Architecture, Graph, Strategy};
+use scotch::{Architecture, Graph, Strategy, graph};
 
 // A simple struct to hold chunked data. The data is a long
 // array and `idx_bounds` is a vector sunch that `chunks[idx_bounds[i]..idx_bounds[i+1]]`
@@ -300,12 +300,12 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
             let mut new_indices = Vec::<usize>::with_capacity(vertex_indices.len());
             let mut new_owners = Vec::<usize>::with_capacity(vertex_owners.len());
 
-            for (&v, &o) in izip!(&vertex_indices, &vertex_owners).filter(|(_, &o)| o == rank) {
+            for (&v, &o) in izip!(&vertex_indices, &vertex_owners).filter(|&(_, &o)| o == rank) {
                 new_indices.push(v);
                 new_owners.push(o);
             }
 
-            for (&v, &o) in izip!(&vertex_indices, &vertex_owners).filter(|(_, &o)| o != rank) {
+            for (&v, &o) in izip!(&vertex_indices, &vertex_owners).filter(|&(_, &o)| o != rank) {
                 new_indices.push(v);
                 new_owners.push(o);
             }
@@ -338,7 +338,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
 
             for (cell_index, cell_type, cell_degree, cell_owner) in
                 izip!(&cell_indices, &cell_types, &cell_degrees, &cell_owners,)
-                    .filter(|(_, _, _, &o)| o == rank)
+                    .filter(|&(_, _, _, &o)| o == rank)
             {
                 new_indices.push(*cell_index);
                 new_types.push(*cell_type);
@@ -348,7 +348,7 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
 
             for (cell_index, cell_type, cell_degree, cell_owner) in
                 izip!(&cell_indices, &cell_types, &cell_degrees, &cell_owners,)
-                    .filter(|(_, _, _, &o)| o != rank)
+                    .filter(|&(_, _, _, &o)| o != rank)
             {
                 new_indices.push(*cell_index);
                 new_types.push(*cell_type);
@@ -363,14 +363,14 @@ trait ParallelBuilderFunctions: Builder + GeometryBuilder + TopologyBuilder + Gr
         let cell_points = {
             let mut new_points = Vec::<usize>::with_capacity(cell_points.len());
             for &p in izip!(&cell_points, &cell_point_owners)
-                .filter(|(_, &o)| o == rank)
+                .filter(|&(_, &o)| o == rank)
                 .map(|(p, _)| p)
             {
                 new_points.push(p);
             }
 
             for &p in izip!(&cell_points, &cell_point_owners)
-                .filter(|(_, &o)| o != rank)
+                .filter(|&(_, &o)| o != rank)
                 .map(|(p, _)| p)
             {
                 new_points.push(p);

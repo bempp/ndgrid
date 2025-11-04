@@ -7,7 +7,7 @@ use crate::{
 };
 use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
 use num::Float;
-use std::collections::{hash_map::Entry::Vacant, HashMap};
+use std::collections::{HashMap, hash_map::Entry::Vacant};
 
 /// Create a surface grid of a regular sphere
 ///

@@ -1,17 +1,17 @@
 //! Single element grid
 use mpi::traits::Communicator;
 
-#[cfg(feature = "serde")]
 use crate::{
-    geometry::single_element::SerializableGeometry, topology::single_type::SerializableTopology,
-    traits::ConvertToSerializable,
-};
-use crate::{
+    ParallelGridImpl, SingleElementGridBuilder,
     geometry::{GeometryMap, SingleElementEntityGeometry, SingleElementGeometry},
     topology::single_type::{SingleTypeEntityTopology, SingleTypeTopology},
     traits::{Builder, DistributableGrid, Entity, Grid, ParallelBuilder},
     types::{GraphPartitioner, Ownership, RealScalar},
-    ParallelGridImpl, SingleElementGridBuilder,
+};
+#[cfg(feature = "serde")]
+use crate::{
+    geometry::single_element::SerializableGeometry, topology::single_type::SerializableTopology,
+    traits::ConvertToSerializable,
 };
 use mpi::traits::Equivalence;
 use ndelement::{
@@ -22,7 +22,7 @@ use ndelement::{
     types::{Continuity, ReferenceCellType},
 };
 use rlst::dense::{base_array::BaseArray, data_container::VectorContainer};
-use rlst::{rlst_dynamic_array, SliceArray};
+use rlst::{SliceArray, rlst_dynamic_array};
 
 /// Single element grid entity
 #[derive(Debug)]

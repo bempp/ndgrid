@@ -1,9 +1,9 @@
 use mpi::{environment::Universe, traits::Communicator};
 use ndelement::types::ReferenceCellType;
 use ndgrid::{
+    SingleElementGridBuilder,
     traits::{Builder, Grid, ParallelBuilder, ParallelGrid},
     types::GraphPartitioner,
-    SingleElementGridBuilder,
 };
 
 /// Test that using non-contiguous numbering does not cause panic

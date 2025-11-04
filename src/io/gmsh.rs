@@ -3,8 +3,8 @@
 use crate::traits::{Builder, Entity, Geometry, GmshExport, GmshImport, Grid, Point};
 use itertools::izip;
 use ndelement::types::ReferenceCellType;
-use num::traits::FromBytes;
 use num::Zero;
+use num::traits::FromBytes;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
@@ -570,7 +570,12 @@ where
         let elements = gmsh_section(&s, "Elements");
         let elements = elements.lines().collect::<Vec<_>>();
 
-        let [num_entity_blocks, _num_elements, _min_element_tag, _max_element_tag] = elements[0]
+        let [
+            num_entity_blocks,
+            _num_elements,
+            _min_element_tag,
+            _max_element_tag,
+        ] = elements[0]
             .trim()
             .split(" ")
             .map(|i| i.parse::<usize>().unwrap())
@@ -581,7 +586,12 @@ where
 
         let mut line_n = 1;
         for _ in 0..num_entity_blocks {
-            let [_entity_dim, _entity_tag, element_type, num_elements_in_block] = elements[line_n]
+            let [
+                _entity_dim,
+                _entity_tag,
+                element_type,
+                num_elements_in_block,
+            ] = elements[line_n]
                 .trim()
                 .split(" ")
                 .map(|i| i.parse::<usize>().unwrap())
@@ -696,10 +706,15 @@ where
                 // Load all elements.
                 "$Elements" => {
                     read_exact!(4 * data_size, "Unable to read element section info");
-                    let [num_entity_blocks, _num_elements, _min_element_tag, _max_element_tag] =
-                        buf.chunks(data_size)
-                            .map(|i| parse::<usize>(i, data_size, is_le))
-                            .collect::<Vec<_>>()[..]
+                    let [
+                        num_entity_blocks,
+                        _num_elements,
+                        _min_element_tag,
+                        _max_element_tag,
+                    ] = buf
+                        .chunks(data_size)
+                        .map(|i| parse::<usize>(i, data_size, is_le))
+                        .collect::<Vec<_>>()[..]
                     else {
                         panic!("Could not parse element section info")
                     };
@@ -755,9 +770,9 @@ where
 mod test {
     use super::*;
     use crate::{
+        MixedGridBuilder, SingleElementGridBuilder,
         shapes::regular_sphere,
         traits::{Builder, Topology},
-        MixedGridBuilder, SingleElementGridBuilder,
     };
     use approx::*;
 

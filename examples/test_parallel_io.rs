@@ -1,10 +1,10 @@
 use mpi::{collective::CommunicatorCollectives, environment::Universe, traits::Communicator};
 use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
 use ndgrid::{
+    SingleElementGrid, SingleElementGridBuilder,
     grid::ParallelGridImpl,
     traits::{Builder, Grid, ParallelBuilder, RONExportParallel, RONImportParallel},
     types::GraphPartitioner,
-    SingleElementGrid, SingleElementGridBuilder,
 };
 
 fn create_single_element_grid_data(b: &mut SingleElementGridBuilder<f64>, n: usize) {
