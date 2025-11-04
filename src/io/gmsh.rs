@@ -180,14 +180,13 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
         let mut elements = vec![];
         let mut cells_by_element = vec![];
         for t in self.cell_types() {
-            for cell in self.entity_iter(*t) {
+            for (index, cell) in self.entity_iter(*t).enumerate() {
                 let element = (cell.entity_type(), cell.geometry().degree());
                 if !elements.contains(&element) {
                     elements.push(element);
                     cells_by_element.push(vec![]);
                 }
-                cells_by_element[elements.iter().position(|i| *i == element).unwrap()]
-                    .push(cell.id());
+                cells_by_element[elements.iter().position(|i| *i == element).unwrap()].push(index);
             }
         }
 
@@ -203,23 +202,13 @@ impl<G: Grid<EntityDescriptor = ReferenceCellType>> GmshExport for G {
                 cells.len()
             ));
 
-            for (i, id) in cells.iter().enumerate() {
-                gmsh_s.push_str(&format!("{}", i + 1));
-                let entity = self
-                    .entity(
-                        cell_type,
-                        if let Some(a) = id {
-                            if next_index <= *a {
-                                next_index = a + 1;
-                            }
-                            *a
-                        } else {
-                            let idx = next_index;
-                            next_index += 1;
-                            idx
-                        },
-                    )
-                    .unwrap();
+            for index in cells.iter() {
+                gmsh_s.push_str(&format!("{}", {
+                    let idx = next_index;
+                    next_index += 1;
+                    idx
+                },));
+                let entity = self.entity(cell_type, *index).unwrap();
                 let point_indices = entity
                     .geometry()
                     .points()
