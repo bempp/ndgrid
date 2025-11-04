@@ -19,11 +19,10 @@ mod test {
         types::Continuity,
         types::ReferenceCellType,
     };
-    use rlst::{rlst_dynamic_array2, Shape};
-    use rlst::{DefaultIterator, RandomAccessMut};
+    use rlst::rlst_dynamic_array;
 
     fn example_geometry_triangles() -> MixedGeometry<f64, CiarletElement<f64, IdentityMap>> {
-        let mut points = rlst_dynamic_array2!(f64, [2, 7]);
+        let mut points = rlst_dynamic_array!(f64, [2, 7]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;
         *points.get_mut([0, 1]).unwrap() = 2.0;
@@ -64,10 +63,10 @@ mod test {
                         let mut cell_vertices = vec![];
                         for cell in g.cells(n).col_iter() {
                             let mut pts = vec![];
-                            for i in cell.iter() {
+                            for i in cell.iter_ref() {
                                 let mut pt = vec![];
                                 for j in 0..gdim {
-                                    pt.push(g.points()[[j, i]]);
+                                    pt.push(g.points()[[j, *i]]);
                                 }
                                 pts.push(pt)
                             }

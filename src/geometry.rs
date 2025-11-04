@@ -6,7 +6,4 @@ pub(crate) mod single_element;
 pub use geometry_map::GeometryMap;
 pub use mixed::{MixedEntityGeometry, MixedGeometry};
 pub use point::{Point, PointIter};
-pub use single_element::{
-    SingleElementEntityGeometry, SingleElementEntityGeometryBorrowed, SingleElementGeometry,
-    SingleElementGeometryBorrowed,
-};
+pub use single_element::{SingleElementEntityGeometry, SingleElementGeometry};

@@ -5,7 +5,7 @@ use crate::{
     geometry::{GeometryMap, MixedEntityGeometry, MixedGeometry},
     topology::mixed::{MixedEntityTopology, MixedTopology},
     traits::{Builder, DistributableGrid, Entity, Grid, ParallelBuilder},
-    types::{Array2D, GraphPartitioner, Ownership, RealScalar},
+    types::{GraphPartitioner, Ownership, RealScalar},
     MixedGridBuilder, ParallelGridImpl,
 };
 use itertools::izip;
@@ -17,7 +17,8 @@ use ndelement::{
     traits::{ElementFamily, FiniteElement},
     types::{Continuity, ReferenceCellType},
 };
-use rlst::{rlst_array_from_slice2, rlst_dynamic_array2, RawAccess, RawAccessMut, Shape};
+use rlst::dense::{base_array::BaseArray, data_container::VectorContainer};
+use rlst::{rlst_dynamic_array, SliceArray};
 use std::collections::HashMap;
 
 /// Mixed grid entity
@@ -167,7 +168,7 @@ impl<T: RealScalar> MixedGrid<T, CiarletElement<T, IdentityMap>> {
         cell_degrees: &[usize],
     ) -> Self {
         let npts = coordinates.len() / gdim;
-        let mut points = rlst_dynamic_array2!(T, [gdim, npts]);
+        let mut points = rlst_dynamic_array!(T, [gdim, npts]);
         points.data_mut().copy_from_slice(coordinates);
 
         let mut element_families = vec![];
@@ -218,7 +219,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     where
         Self: 'a;
     type GeometryMap<'a>
-        = GeometryMap<'a, T, Array2D<T>, Array2D<usize>>
+        = GeometryMap<'a, T, BaseArray<VectorContainer<T>, 2>, BaseArray<VectorContainer<usize>, 2>>
     where
         Self: 'a;
     type EntityDescriptor = ReferenceCellType;
@@ -254,12 +255,9 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
                     if let Some(cell) =
                         self.topology.upward_connectivity[&entity_type][t][local_index].first()
                     {
-                        if let Some(index) = self.topology.downward_connectivity[t][&entity_type]
-                            .r()
-                            .slice(1, *cell)
-                            .data()
-                            .iter()
-                            .position(|&i| i == local_index)
+                        let dc = &self.topology.downward_connectivity[t][&entity_type];
+                        if let Some(index) =
+                            (0..dc.shape()[0]).position(|i| dc[[i, *cell]] == local_index)
                         {
                             return Some(MixedGridEntity::new(self, *t, *cell, entity_type, index));
                         }
@@ -299,10 +297,11 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
         entity_type: ReferenceCellType,
         geometry_degree: usize,
         points: &[T],
-    ) -> GeometryMap<'_, T, Array2D<T>, Array2D<usize>> {
+    ) -> GeometryMap<'_, T, BaseArray<VectorContainer<T>, 2>, BaseArray<VectorContainer<usize>, 2>>
+    {
         let entity_dim = reference_cell::dim(entity_type);
         let npoints = points.len() / entity_dim;
-        let rlst_points = rlst_array_from_slice2!(points, [entity_dim, npoints]);
+        let rlst_points = SliceArray::<T, 2>::from_shape(points, [entity_dim, npoints]);
 
         for i in 0..self.geometry.element_count() {
             let e = self.geometry.element(i);
@@ -333,7 +332,7 @@ impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType,
         let mut b = MixedGridBuilder::<T>::new(self.geometry.dim());
         let pts = self.geometry.points();
         for p in 0..pts.shape()[1] {
-            b.add_point(p, pts.r().slice(1, p).data());
+            b.add_point(p, &pts.data()[p * pts.shape()[0]..(p + 1) * pts.shape()[0]]);
         }
 
         for (c, (element_i, cell_i)) in izip!(
@@ -349,7 +348,7 @@ impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType,
                 (
                     e.cell_type(),
                     e.embedded_superdegree(),
-                    cells.r().slice(1, *cell_i).data(),
+                    &cells.data()[cell_i * cells.shape()[0]..(cell_i + 1) * cells.shape()[0]],
                 ),
             );
         }
@@ -368,10 +367,10 @@ mod test {
         reference_cell,
         types::Continuity,
     };
-    use rlst::{rlst_dynamic_array2, RandomAccessMut};
+    use rlst::rlst_dynamic_array;
 
     fn example_grid_triangle() -> MixedGrid<f64, CiarletElement<f64, IdentityMap>> {
-        let mut points = rlst_dynamic_array2!(f64, [3, 4]);
+        let mut points = rlst_dynamic_array!(f64, [3, 4]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;
         *points.get_mut([2, 0]).unwrap() = 1.0;
@@ -403,7 +402,7 @@ mod test {
     }
 
     fn example_grid_mixed() -> MixedGrid<f64, CiarletElement<f64, IdentityMap>> {
-        let mut points = rlst_dynamic_array2!(f64, [2, 8]);
+        let mut points = rlst_dynamic_array!(f64, [2, 8]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;
         *points.get_mut([0, 1]).unwrap() = 1.0;

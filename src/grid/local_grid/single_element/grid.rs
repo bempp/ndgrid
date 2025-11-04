@@ -10,7 +10,7 @@ use crate::{
     geometry::{GeometryMap, SingleElementEntityGeometry, SingleElementGeometry},
     topology::single_type::{SingleTypeEntityTopology, SingleTypeTopology},
     traits::{Builder, DistributableGrid, Entity, Grid, ParallelBuilder},
-    types::{Array2D, GraphPartitioner, Ownership, RealScalar},
+    types::{GraphPartitioner, Ownership, RealScalar},
     ParallelGridImpl, SingleElementGridBuilder,
 };
 use mpi::traits::Equivalence;
@@ -21,7 +21,8 @@ use ndelement::{
     traits::{ElementFamily, FiniteElement},
     types::{Continuity, ReferenceCellType},
 };
-use rlst::{rlst_array_from_slice2, rlst_dynamic_array2, RawAccess, RawAccessMut, Shape};
+use rlst::dense::{base_array::BaseArray, data_container::VectorContainer};
+use rlst::{rlst_dynamic_array, SliceArray};
 
 /// Single element grid entity
 #[derive(Debug)]
@@ -188,7 +189,7 @@ impl<T: RealScalar> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
         geometry_degree: usize,
     ) -> Self {
         let npts = coordinates.len() / gdim;
-        let mut points = rlst_dynamic_array2!(T, [gdim, npts]);
+        let mut points = rlst_dynamic_array!(T, [gdim, npts]);
         points.data_mut().copy_from_slice(coordinates);
 
         let family = LagrangeElementFamily::<T>::new(geometry_degree, Continuity::Standard);
@@ -223,7 +224,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     where
         Self: 'a;
     type GeometryMap<'a>
-        = GeometryMap<'a, T, Array2D<T>, Array2D<usize>>
+        = GeometryMap<'a, T, BaseArray<VectorContainer<T>, 2>, BaseArray<VectorContainer<usize>, 2>>
     where
         Self: 'a;
     type EntityDescriptor = ReferenceCellType;
@@ -251,12 +252,9 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
             } else {
                 let cell = self.topology.upward_connectivity[dim][self.topology_dim() - dim - 1]
                     [local_index][0];
-                let index = self.topology.downward_connectivity[self.topology_dim()][dim]
-                    .r()
-                    .slice(1, cell)
-                    .data()
-                    .iter()
-                    .position(|&i| i == local_index)
+                let dc = &self.topology.downward_connectivity[self.topology_dim()][dim];
+                let index = (0..dc.shape()[0])
+                    .position(|i| dc[[i, cell]] == local_index)
                     .unwrap();
                 Some(SingleElementGridEntity::new(self, cell, dim, index))
             }
@@ -293,14 +291,15 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
         entity_type: ReferenceCellType,
         geometry_degree: usize,
         points: &[T],
-    ) -> GeometryMap<'_, T, Array2D<T>, Array2D<usize>> {
+    ) -> GeometryMap<'_, T, BaseArray<VectorContainer<T>, 2>, BaseArray<VectorContainer<usize>, 2>>
+    {
         assert_eq!(
             geometry_degree,
             self.geometry.element().embedded_superdegree()
         );
         let entity_dim = reference_cell::dim(entity_type);
         let npoints = points.len() / entity_dim;
-        let rlst_points = rlst_array_from_slice2!(points, [entity_dim, npoints]);
+        let rlst_points = SliceArray::<T, 2>::from_shape(points, [entity_dim, npoints]);
         if entity_type == self.topology.entity_types()[self.topology_dim()] {
             GeometryMap::new(
                 self.geometry.element(),
@@ -335,10 +334,13 @@ impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType,
             (e.cell_type(), e.embedded_superdegree()),
         );
         for p in 0..pts.shape()[1] {
-            b.add_point(p, pts.r().slice(1, p).data());
+            b.add_point(p, &pts.data()[p * pts.shape()[0]..(p + 1) * pts.shape()[0]]);
         }
         for c in 0..cells.shape()[1] {
-            b.add_cell(c, cells.r().slice(1, c).data());
+            b.add_cell(
+                c,
+                &cells.data()[c * cells.shape()[0]..(c + 1) * cells.shape()[0]],
+            );
         }
         b.create_parallel_grid_root(comm, partitioner)
     }
@@ -354,10 +356,10 @@ mod test {
         reference_cell,
         types::Continuity,
     };
-    use rlst::{rlst_dynamic_array2, RandomAccessMut};
+    use rlst::rlst_dynamic_array;
 
     fn example_grid_triangle() -> SingleElementGrid<f64, CiarletElement<f64, IdentityMap>> {
-        let mut points = rlst_dynamic_array2!(f64, [3, 4]);
+        let mut points = rlst_dynamic_array!(f64, [3, 4]);
         *points.get_mut([0, 0]).unwrap() = 0.0;
         *points.get_mut([1, 0]).unwrap() = 0.0;
         *points.get_mut([2, 0]).unwrap() = 1.0;

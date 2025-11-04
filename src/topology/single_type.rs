@@ -3,12 +3,9 @@
 #[cfg(feature = "serde")]
 use crate::traits::ConvertToSerializable;
 use crate::traits::Topology;
-use crate::types::{Array2D, Array2DBorrowed};
 use itertools::izip;
 use ndelement::{orientation::compute_orientation, reference_cell, types::ReferenceCellType};
-#[cfg(feature = "serde")]
-use rlst::RawAccessMut;
-use rlst::{rlst_dynamic_array2, DefaultIteratorMut, RawAccess, Shape};
+use rlst::{rlst_dynamic_array, DynArray};
 use std::collections::HashMap;
 use std::iter::Copied;
 
@@ -20,7 +17,7 @@ pub struct SingleTypeTopology {
     pub(crate) ids_to_indices: Vec<HashMap<usize, usize>>,
     entity_types: Vec<ReferenceCellType>,
     entity_counts: Vec<usize>,
-    pub(crate) downward_connectivity: Vec<Vec<Array2D<usize>>>,
+    pub(crate) downward_connectivity: Vec<Vec<DynArray<usize, 2>>>,
     pub(crate) upward_connectivity: Vec<Vec<Vec<Vec<usize>>>>,
     pub(crate) orientation: Vec<Vec<i32>>,
 }
@@ -85,7 +82,7 @@ impl ConvertToSerializable for SingleTypeTopology {
                 .map(|a| {
                     a.iter()
                         .map(|(data, shape)| {
-                            let mut c = rlst_dynamic_array2!(usize, *shape);
+                            let mut c = DynArray::<usize, 2>::from_shape(*shape);
                             c.data_mut().copy_from_slice(data);
                             c
                         })
@@ -233,7 +230,7 @@ impl SingleTypeTopology {
                     // of i = 2, the dimensions 0, 1, 2. These are in r.
                     // r.len() is the number of these entities connected to our i-dim entity.
                     // and j is the actual number of i-dimensional entities.
-                    .map(|r| rlst_dynamic_array2!(usize, [r.len(), *j]))
+                    .map(|r| rlst_dynamic_array!(usize, [r.len(), *j]))
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -280,7 +277,7 @@ impl SingleTypeTopology {
             for es_ij in es_i.iter() {
                 let entity_vertices = es_ij.0;
                 let entity_index = es_ij.1;
-                let mut dc_i0j = dc_i[0].r_mut().slice(1, *entity_index);
+                let mut dc_i0j = dc_i[0].r_mut().slice::<1>(1, *entity_index);
                 for (vertex, dc_i0jk) in izip!(entity_vertices.iter(), dc_i0j.iter_mut()) {
                     *dc_i0jk = *vertex;
                     if !upward_connectivity[0][i][*vertex].contains(entity_index) {
@@ -409,10 +406,15 @@ impl SingleTypeTopology {
         let mut orientation = vec![];
 
         for d in 1..dim + 1 {
+            let dc = &downward_connectivity[d][0];
             orientation.push(
-                downward_connectivity[d][0]
-                    .col_iter()
-                    .map(|vertices| compute_orientation(entity_types[d], vertices.data()))
+                (0..dc.shape()[1])
+                    .map(|i| {
+                        compute_orientation(
+                            entity_types[d],
+                            &dc.data()[i * dc.shape()[0]..(i + 1) * dc.shape()[0]],
+                        )
+                    })
                     .collect::<Vec<_>>(),
             );
         }
@@ -449,7 +451,7 @@ impl SingleTypeTopology {
         }
     }
     /// Downward connectivity
-    pub fn downward_connectivity(&self) -> &[Vec<Array2D<usize>>] {
+    pub fn downward_connectivity(&self) -> &[Vec<DynArray<usize, 2>>] {
         &self.downward_connectivity
     }
     /// Upward connectivity
@@ -552,140 +554,9 @@ impl Topology for SingleTypeEntityTopology<'_> {
     }
 }
 
-/// Topology of a single element grid with borrowed data
-#[derive(Debug)]
-pub struct SingleTypeTopologyBorrowed<'a> {
-    dim: usize,
-    pub(crate) ids: Vec<Option<&'a [usize]>>,
-    entity_types: &'a [ReferenceCellType],
-    entity_counts: &'a [usize],
-    pub(crate) downward_connectivity: Vec<Vec<Array2DBorrowed<'a, usize>>>,
-    pub(crate) upward_connectivity: Vec<Vec<Vec<&'a [usize]>>>,
-    pub(crate) orientation: Vec<&'a [i32]>,
-}
-
-impl<'a> SingleTypeTopologyBorrowed<'a> {
-    /// Create new
-    pub fn new(
-        dim: usize,
-        ids: Vec<Option<&'a [usize]>>,
-        entity_types: &'a [ReferenceCellType],
-        entity_counts: &'a [usize],
-        downward_connectivity: Vec<Vec<Array2DBorrowed<'a, usize>>>,
-        upward_connectivity: Vec<Vec<Vec<&'a [usize]>>>,
-        orientation: Vec<&'a [i32]>,
-    ) -> Self {
-        Self {
-            dim,
-            ids,
-            entity_types,
-            entity_counts,
-            downward_connectivity,
-            upward_connectivity,
-            orientation,
-        }
-    }
-    /// Topological dimension
-    pub fn dim(&self) -> usize {
-        self.dim
-    }
-    /// Entity types
-    pub fn entity_types(&self) -> &[ReferenceCellType] {
-        self.entity_types
-    }
-    /// Entity counts
-    pub fn entity_count(&self, entity_type: ReferenceCellType) -> usize {
-        if !self.entity_types.contains(&entity_type) {
-            0
-        } else {
-            self.entity_counts[reference_cell::dim(entity_type)]
-        }
-    }
-    /// Cell sub-entity index
-    pub fn cell_entity_index(
-        &self,
-        cell_index: usize,
-        entity_dim: usize,
-        entity_index: usize,
-    ) -> usize {
-        self.downward_connectivity[self.dim][entity_dim][[entity_index, cell_index]]
-    }
-    /// Entity id
-    pub fn entity_id(&self, entity_dim: usize, entity_index: usize) -> Option<usize> {
-        self.ids[entity_dim].as_ref().map(|a| a[entity_index])
-    }
-}
-
-/// Topology of a cell
-#[derive(Debug)]
-pub struct SingleTypeEntityTopologyBorrowed<'a> {
-    topology: &'a SingleTypeTopologyBorrowed<'a>,
-    entity_index: usize,
-    dim: usize,
-}
-
-impl<'t> SingleTypeEntityTopologyBorrowed<'t> {
-    /// Create new
-    pub fn new(
-        topology: &'t SingleTypeTopologyBorrowed<'t>,
-        entity_type: ReferenceCellType,
-        entity_index: usize,
-    ) -> Self {
-        Self {
-            topology,
-            entity_index,
-            dim: reference_cell::dim(entity_type),
-        }
-    }
-}
-impl Topology for SingleTypeEntityTopologyBorrowed<'_> {
-    type EntityDescriptor = ReferenceCellType;
-    type EntityIndexIter<'a>
-        = Copied<std::slice::Iter<'a, usize>>
-    where
-        Self: 'a;
-
-    type ConnectedEntityIndexIter<'a>
-        = Copied<std::slice::Iter<'a, usize>>
-    where
-        Self: 'a;
-
-    fn connected_entity_iter(
-        &self,
-        entity_type: ReferenceCellType,
-    ) -> Copied<std::slice::Iter<'_, usize>> {
-        let dim = reference_cell::dim(entity_type);
-        self.topology.upward_connectivity[self.dim][dim - self.dim - 1][self.entity_index]
-            .iter()
-            .copied()
-    }
-
-    fn sub_entity_iter(
-        &self,
-        entity_type: ReferenceCellType,
-    ) -> Copied<std::slice::Iter<'_, usize>> {
-        let dim = reference_cell::dim(entity_type);
-        let rows = self.topology.downward_connectivity[self.dim][dim].shape()[0];
-        self.topology.downward_connectivity[self.dim][dim].data()
-            [rows * self.entity_index..rows * (self.entity_index + 1)]
-            .iter()
-            .copied()
-    }
-
-    fn sub_entity(&self, entity_type: ReferenceCellType, index: usize) -> usize {
-        let dim = reference_cell::dim(entity_type);
-        self.topology.downward_connectivity[self.dim][dim][[index, self.entity_index]]
-    }
-
-    fn orientation(&self) -> i32 {
-        self.topology.orientation[self.dim][self.entity_index]
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
-    use rlst::DefaultIterator;
 
     fn example_topology_point() -> SingleTypeTopology {
         //! An example topology
@@ -962,13 +833,14 @@ mod test {
                             if i != j {
                                 let uc_ji = &t.upward_connectivity[j][i - j - 1];
                                 for (c, col) in dc_ij.col_iter().enumerate() {
-                                    for value in col.iter() {
-                                        assert!(uc_ji[value].contains(&c));
+                                    for value in col.iter_ref() {
+                                        assert!(uc_ji[*value].contains(&c));
                                     }
                                 }
                                 for (k, uc_jik) in uc_ji.iter().enumerate() {
                                     for value in uc_jik {
-                                        assert!(dc_ij.r().slice(1, *value).data().contains(&k));
+                                        assert!(dc_ij.r().slice::<1>(1, *value).iter_ref()
+                                            .position(|&i| i == k).is_some());
                                     }
                                 }
                             }

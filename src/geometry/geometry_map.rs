@@ -1,11 +1,7 @@
 //! Geometry map
-use crate::{
-    traits::GeometryMap as GeometryMapTrait,
-    types::{ArrayND, RealScalar},
-};
+use crate::{traits::GeometryMap as GeometryMapTrait, types::RealScalar};
 use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType};
-use rlst::UnsafeRandomAccessByRef;
-use rlst::{rlst_dynamic_array4, RandomAccessByRef, RlstScalar, Shape};
+use rlst::{Array, DynArray, RandomAccessByRef, RlstScalar, Shape, UnsafeRandomAccessByRef};
 
 /// Single element geometry
 #[derive(Debug)]
@@ -15,11 +11,11 @@ pub struct GeometryMap<
     B2D: RandomAccessByRef<2, Item = T> + Shape<2>,
     C2D: RandomAccessByRef<2, Item = usize> + Shape<2>,
 > {
-    geometry_points: &'a B2D,
-    entities: &'a C2D,
+    geometry_points: &'a Array<B2D, 2>,
+    entities: &'a Array<C2D, 2>,
     tdim: usize,
     gdim: usize,
-    table: ArrayND<4, T>,
+    table: DynArray<T, 4>,
 }
 
 fn norm<T: RlstScalar>(vector: &[T]) -> T {
@@ -63,16 +59,16 @@ impl<
     /// Create new
     pub fn new<A2D: RandomAccessByRef<2, Item = T> + Shape<2>>(
         element: &impl FiniteElement<CellType = ReferenceCellType, T = T>,
-        points: &A2D,
-        geometry_points: &'a B2D,
-        entities: &'a C2D,
+        points: &Array<A2D, 2>,
+        geometry_points: &'a Array<B2D, 2>,
+        entities: &'a Array<C2D, 2>,
     ) -> Self {
         let tdim = reference_cell::dim(element.cell_type());
         debug_assert!(points.shape()[0] == tdim);
         let gdim = geometry_points.shape()[0];
         let npoints = points.shape()[1];
 
-        let mut table = rlst_dynamic_array4!(T, element.tabulate_array_shape(1, npoints));
+        let mut table = DynArray::<T, 4>::from_shape(element.tabulate_array_shape(1, npoints));
         element.tabulate(points, 1, &mut table);
 
         Self {
@@ -87,8 +83,8 @@ impl<
 
 impl<
         T: RealScalar,
-        B2D: RandomAccessByRef<2, Item = T> + Shape<2>,
-        C2D: RandomAccessByRef<2, Item = usize> + Shape<2>,
+        B2D: RandomAccessByRef<2, Item = T> + UnsafeRandomAccessByRef<2, Item = T> + Shape<2>,
+        C2D: RandomAccessByRef<2, Item = usize> + UnsafeRandomAccessByRef<2, Item = usize> + Shape<2>,
     > GeometryMapTrait for GeometryMap<'_, T, B2D, C2D>
 {
     type T = T;
