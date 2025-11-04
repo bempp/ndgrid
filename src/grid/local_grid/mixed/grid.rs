@@ -1,6 +1,11 @@
 //! Mixed grid
 use mpi::traits::Communicator;
 
+#[cfg(feature = "serde")]
+use crate::{
+    geometry::mixed::SerializableGeometry, topology::mixed::SerializableTopology,
+    traits::ConvertToSerializable,
+};
 use crate::{
     geometry::{GeometryMap, MixedEntityGeometry, MixedGeometry},
     topology::mixed::{MixedEntityTopology, MixedTopology},
@@ -149,7 +154,35 @@ pub struct MixedGrid<T: RealScalar, E: FiniteElement<CellType = ReferenceCellTyp
     geometry: MixedGeometry<T, E>,
 }
 
-// TODO: serializable
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, Debug, serde::Deserialize)]
+#[serde(bound = "for<'de2> T: serde::Deserialize<'de2>")]
+pub struct SerializableGrid<T: RealScalar + serde::Serialize>
+where
+    for<'de2> T: serde::Deserialize<'de2>,
+{
+    topology: SerializableTopology,
+    geometry: SerializableGeometry<T>,
+}
+
+#[cfg(feature = "serde")]
+impl<T: RealScalar + serde::Serialize> ConvertToSerializable
+    for MixedGrid<T, CiarletElement<T, IdentityMap>>
+{
+    type SerializableType = SerializableGrid<T>;
+    fn to_serializable(&self) -> SerializableGrid<T> {
+        SerializableGrid {
+            topology: self.topology.to_serializable(),
+            geometry: self.geometry.to_serializable(),
+        }
+    }
+    fn from_serializable(s: SerializableGrid<T>) -> Self {
+        Self {
+            topology: MixedTopology::from_serializable(s.topology),
+            geometry: MixedGeometry::from_serializable(s.geometry),
+        }
+    }
+}
 
 impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> MixedGrid<T, E> {
     /// Create new
