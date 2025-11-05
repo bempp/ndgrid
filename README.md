@@ -1,5 +1,6 @@
 # ndgrid
 [![crates.io](https://img.shields.io/crates/v/ndgrid?color=blue)](https://crates.io/crates/ndgrid)
+[![docs.rs](https://img.shields.io/docsrs/ndgrid?label=docs.rs)](https://docs.rs/ndgrid/latest/ndgrid/)
 
 ndgrid is an open-source library written in Rust for n-dimensional grids/meshes.
 
