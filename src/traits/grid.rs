@@ -1,8 +1,8 @@
 //! Traits for a mesh entity
 use super::{Entity, GeometryMap};
 use crate::types::{GraphPartitioner, Ownership, RealScalar};
-use bempp_distributed_tools::IndexLayout;
 use mpi::traits::Communicator;
+use rlst::distributed_tools::IndexLayout;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter::Iterator;

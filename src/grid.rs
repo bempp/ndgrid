@@ -3,6 +3,7 @@ mod builder;
 pub mod local_grid;
 
 pub use local_grid::{MixedGrid, MixedGridBuilder, SingleElementGrid, SingleElementGridBuilder};
+use rlst::distributed_tools::IndexLayout;
 
 #[cfg(feature = "serde")]
 use crate::traits::{ConvertToSerializable, RONImportParallel};
@@ -21,7 +22,7 @@ use std::{collections::HashMap, fmt::Debug};
 pub struct ParallelGridImpl<'a, C: Communicator, G: Grid + Sync> {
     comm: &'a C,
     local_grid: LocalGrid<G>,
-    cell_layout: std::rc::Rc<bempp_distributed_tools::IndexLayout<'a, C>>,
+    cell_layout: std::rc::Rc<IndexLayout<'a, C>>,
 }
 
 impl<'a, C: Communicator, G: Grid + Sync> ParallelGridImpl<'a, C, G> {
@@ -37,10 +38,7 @@ impl<'a, C: Communicator, G: Grid + Sync> ParallelGridImpl<'a, C, G> {
         Self {
             comm,
             local_grid,
-            cell_layout: std::rc::Rc::new(bempp_distributed_tools::IndexLayout::from_local_counts(
-                owned_cell_count,
-                comm,
-            )),
+            cell_layout: std::rc::Rc::new(IndexLayout::from_local_counts(owned_cell_count, comm)),
         }
     }
 }
@@ -62,10 +60,7 @@ where
         Self {
             comm,
             local_grid,
-            cell_layout: std::rc::Rc::new(bempp_distributed_tools::IndexLayout::from_local_counts(
-                owned_cell_count,
-                comm,
-            )),
+            cell_layout: std::rc::Rc::new(IndexLayout::from_local_counts(owned_cell_count, comm)),
         }
     }
 }
@@ -85,7 +80,7 @@ impl<T: RealScalar, C: Communicator, G: Grid<T = T> + Sync> ParallelGrid
         &self.local_grid
     }
 
-    fn cell_layout(&self) -> std::rc::Rc<bempp_distributed_tools::IndexLayout<'_, C>> {
+    fn cell_layout(&self) -> std::rc::Rc<IndexLayout<'_, C>> {
         self.cell_layout.clone()
     }
 }
