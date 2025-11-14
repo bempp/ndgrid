@@ -4,7 +4,6 @@ strict = []
 default = ["serde"]
 coupe = ["dep:coupe"]
 scotch = ["dep:scotch"]
-mpi = ["dep:mpi", "dep:mpi-sys", "rlst/mpi"]
 
 [package]
 name = "ndgrid"
@@ -30,13 +29,13 @@ crate-type = ["lib", "cdylib"]
 [dependencies]
 coupe = { git = "https://github.com/LIHPC-Computational-Geometry/coupe.git", optional = true }
 itertools = "0.14.*"
-mpi = { git = "https://github.com/rsmpi/rsmpi.git", optional = true }
-mpi-sys = { git = "https://github.com/rsmpi/rsmpi.git", optional = true }
+mpi = { git = "https://github.com/rsmpi/rsmpi.git" }
+mpi-sys = { git = "https://github.com/rsmpi/rsmpi.git" }
 ndelement = { git = "https://github.com/bempp/ndelement", features = ["mpi"] }
 num = "0.4"
-rlst = { git = "https://github.com/linalg-rs/rlst.git" }
+rlst = { git = "https://github.com/linalg-rs/rlst.git", features = ["mpi"] }
 serde = { version = "1", features = ["derive"], optional = true }
-ron = { version = "0.11", optional = true }
+ron = { version = "0.12", optional = true }
 scotch = { version = "0.2.1", optional = true }
 
 [patch.crates-io]
