@@ -43,22 +43,16 @@ fn cross<T: RlstScalar>(mat: &[T], result: &mut [T]) {
     }
 }
 
-impl<'a, T, B2D, C2D> GeometryMap<'a, T, B2D, C2D>
-where
-    T: RealScalar,
-    B2D: ValueArrayImpl<T, 2>,
-    C2D: ValueArrayImpl<usize, 2>,
+impl<'a, T: RealScalar, B2D: ValueArrayImpl<T, 2>, C2D: ValueArrayImpl<usize, 2>>
+    GeometryMap<'a, T, B2D, C2D>
 {
     /// Create new
-    pub fn new<A2D>(
+    pub fn new<A2D: ValueArrayImpl<T, 2>>(
         element: &impl FiniteElement<CellType = ReferenceCellType, T = T>,
         points: &Array<A2D, 2>,
         geometry_points: &'a Array<B2D, 2>,
         entities: &'a Array<C2D, 2>,
-    ) -> Self
-    where
-        A2D: ValueArrayImpl<T, 2>,
-    {
+    ) -> Self {
         let tdim = reference_cell::dim(element.cell_type());
         debug_assert!(points.shape()[0] == tdim);
         let gdim = geometry_points.shape()[0];
@@ -77,11 +71,8 @@ where
     }
 }
 
-impl<T, B2D, C2D> GeometryMapTrait for GeometryMap<'_, T, B2D, C2D>
-where
-    T: RealScalar,
-    B2D: ValueArrayImpl<T, 2>,
-    C2D: ValueArrayImpl<usize, 2>,
+impl<T: RealScalar, B2D: ValueArrayImpl<T, 2>, C2D: ValueArrayImpl<usize, 2>> GeometryMapTrait
+    for GeometryMap<'_, T, B2D, C2D>
 {
     type T = T;
 
