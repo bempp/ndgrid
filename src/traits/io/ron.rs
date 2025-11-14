@@ -1,5 +1,8 @@
 //! RON I/O
-use crate::traits::{Grid, ParallelGrid};
+use crate::traits::Grid;
+#[cfg(feature = "mpi")]
+use crate::traits::ParallelGrid;
+#[cfg(feature = "mpi")]
 use mpi::traits::Communicator;
 use std::fs;
 
@@ -38,12 +41,14 @@ pub trait RONImport: Sized + Grid {
     }
 }
 
+#[cfg(feature = "mpi")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 /// Summary I/O data for a parallel grid
 pub struct ParallelGridSummaryData {
     mpi_ranks: i32,
 }
 
+#[cfg(feature = "mpi")]
 pub trait RONExportParallel<'a, C: Communicator + 'a>: ParallelGrid<C = C>
 where
     Self::LocalGrid: RONExport,
@@ -72,6 +77,7 @@ where
     }
 }
 
+#[cfg(feature = "mpi")]
 pub trait RONImportParallel<'a, C: Communicator + 'a>: Sized + ParallelGrid<C = C>
 where
     Self::LocalGrid: RONImport,

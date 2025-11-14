@@ -1,11 +1,16 @@
 //! Traits for a mesh entity
 use super::{Entity, GeometryMap};
-use crate::types::{GraphPartitioner, Ownership, RealScalar};
+#[cfg(feature = "mpi")]
+use crate::types::GraphPartitioner;
+use crate::types::{Ownership, RealScalar};
+#[cfg(feature = "mpi")]
 use mpi::traits::Communicator;
+#[cfg(feature = "mpi")]
 use rlst::distributed_tools::IndexLayout;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter::Iterator;
+#[cfg(feature = "mpi")]
 use std::rc::Rc;
 
 /// A grid
@@ -100,6 +105,7 @@ pub trait Grid {
     ) -> Self::GeometryMap<'_>;
 }
 
+#[cfg(feature = "mpi")]
 pub trait ParallelGrid {
     //! MPI parallel grid
 
@@ -126,6 +132,7 @@ pub trait ParallelGrid {
     }
 }
 
+#[cfg(feature = "mpi")]
 /// A grid that can be be distributed across processes
 pub trait DistributableGrid {
     /// Parallel grid type when distrubuted

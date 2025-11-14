@@ -1,19 +1,25 @@
 //! Single element grid
-use mpi::traits::Communicator;
-
+#[cfg(feature = "mpi")]
+use crate::ParallelGridImpl;
+#[cfg(feature = "mpi")]
 use crate::{
-    ParallelGridImpl, SingleElementGridBuilder,
-    geometry::{GeometryMap, SingleElementEntityGeometry, SingleElementGeometry},
-    topology::single_type::{SingleTypeEntityTopology, SingleTypeTopology},
-    traits::{Builder, DistributableGrid, Entity, Grid, ParallelBuilder},
-    types::{GraphPartitioner, Ownership, RealScalar},
+    SingleElementGridBuilder,
+    traits::{Builder, DistributableGrid, ParallelBuilder},
+    types::GraphPartitioner,
 };
 #[cfg(feature = "serde")]
 use crate::{
     geometry::single_element::SerializableGeometry, topology::single_type::SerializableTopology,
     traits::ConvertToSerializable,
 };
-use mpi::traits::Equivalence;
+use crate::{
+    geometry::{GeometryMap, SingleElementEntityGeometry, SingleElementGeometry},
+    topology::single_type::{SingleTypeEntityTopology, SingleTypeTopology},
+    traits::{Entity, Grid},
+    types::{Ownership, RealScalar},
+};
+#[cfg(feature = "mpi")]
+use mpi::traits::{Communicator, Equivalence};
 use ndelement::{
     ciarlet::{CiarletElement, LagrangeElementFamily},
     map::IdentityMap,
@@ -313,6 +319,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     }
 }
 
+#[cfg(feature = "mpi")]
 impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType, T = T>>
     DistributableGrid for SingleElementGrid<T, E>
 {

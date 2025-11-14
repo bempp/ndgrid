@@ -752,7 +752,7 @@ fn scatterv_root<T: Equivalence + Copy>(
     recvbuf
 }
 
-// Receiev the scattered data from `root`.
+// Receive the scattered data from `root`.
 fn scatterv<T: Equivalence + Copy>(comm: &impl Communicator, root: usize) -> Vec<T> {
     let mut recv_count: i32 = 0;
 

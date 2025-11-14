@@ -1,20 +1,26 @@
 //! Mixed grid
-use mpi::traits::Communicator;
-
+#[cfg(feature = "mpi")]
+use crate::ParallelGridImpl;
+#[cfg(feature = "mpi")]
 use crate::{
-    MixedGridBuilder, ParallelGridImpl,
-    geometry::{GeometryMap, MixedEntityGeometry, MixedGeometry},
-    topology::mixed::{MixedEntityTopology, MixedTopology},
-    traits::{Builder, DistributableGrid, Entity, Grid, ParallelBuilder},
-    types::{GraphPartitioner, Ownership, RealScalar},
+    MixedGridBuilder,
+    traits::{Builder, DistributableGrid, ParallelBuilder},
+    types::GraphPartitioner,
 };
 #[cfg(feature = "serde")]
 use crate::{
     geometry::mixed::SerializableGeometry, topology::mixed::SerializableTopology,
     traits::ConvertToSerializable,
 };
+use crate::{
+    geometry::{GeometryMap, MixedEntityGeometry, MixedGeometry},
+    topology::mixed::{MixedEntityTopology, MixedTopology},
+    traits::{Entity, Grid},
+    types::{Ownership, RealScalar},
+};
 use itertools::izip;
-use mpi::traits::Equivalence;
+#[cfg(feature = "mpi")]
+use mpi::traits::{Communicator, Equivalence};
 use ndelement::{
     ciarlet::{CiarletElement, LagrangeElementFamily},
     map::IdentityMap,
@@ -351,6 +357,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     }
 }
 
+#[cfg(feature = "mpi")]
 impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType, T = T>>
     DistributableGrid for MixedGrid<T, E>
 {
