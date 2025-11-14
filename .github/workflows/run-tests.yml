@@ -14,8 +14,32 @@ jobs:
     strategy:
       matrix:
         rust-version: ["stable"]
-        mpi: ['openmpi']
-        feature-flags: ['--features "strict"', '--features "serde,strict"', '--features "serde,strict,mpi"']
+        feature-flags: ['--features "strict"', '--features "serde,strict"']
+    steps:
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust-version }}
+      - uses: actions/checkout@v4
+      - name: Install LAPACK, OpenBLAS, SCOTCH
+        run:
+          sudo apt-get install -y libopenblas-dev liblapack-dev
+
+      - name: Run unit tests
+        run: cargo test --no-default-features ${{ matrix.feature-flags }}
+      - name: Run unit tests in release mode
+        run: cargo test --release --no-default-features ${{ matrix.feature-flags }}
+      - name: Run tests
+        run: cargo test --examples --release --no-default-features ${{ matrix.feature-flags }}
+
+  run-tests-rust-mpi:
+    name: Run Rust tests with MPI
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust-version: ["stable"]
+        mpi: ['openmpi', 'mpich']
+        feature-flags: ['--features "strict,mpi"', '--features "serde,strict,mpi,scotch,coupe"']
     steps:
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
