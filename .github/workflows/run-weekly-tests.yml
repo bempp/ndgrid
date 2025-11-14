@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         rust-version: ["stable", "beta", "nightly"]
-        mpi: [ 'openmpi']
+        mpi: ['openmpi','mpich']
         f_strict: ["", "strict,"]
         f_serde: ["", "serde,"]
         f_coupe: ["", "coupe,"]

@@ -38,7 +38,7 @@ jobs:
     strategy:
       matrix:
         rust-version: ["stable"]
-        mpi: ['openmpi', 'mpich']
+        mpi: ['openmpi']
         feature-flags: ['--features "strict,mpi"', '--features "serde,strict,mpi,scotch,coupe"']
     steps:
       - name: Set up Rust
