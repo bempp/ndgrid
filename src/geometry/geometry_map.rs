@@ -1,16 +1,10 @@
 //! Geometry map
 use crate::{traits::GeometryMap as GeometryMapTrait, types::RealScalar};
 use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType};
-use rlst::{Array, DynArray, RandomAccessByRef, RlstScalar, Shape, UnsafeRandomAccessByRef};
+use rlst::{Array, DynArray, RlstScalar, ValueArrayImpl};
 
 /// Single element geometry
-#[derive(Debug)]
-pub struct GeometryMap<
-    'a,
-    T: RealScalar,
-    B2D: RandomAccessByRef<2, Item = T> + Shape<2>,
-    C2D: RandomAccessByRef<2, Item = usize> + Shape<2>,
-> {
+pub struct GeometryMap<'a, T, B2D, C2D> {
     geometry_points: &'a Array<B2D, 2>,
     entities: &'a Array<C2D, 2>,
     tdim: usize,
@@ -49,15 +43,11 @@ fn cross<T: RlstScalar>(mat: &[T], result: &mut [T]) {
     }
 }
 
-impl<
-    'a,
-    T: RealScalar,
-    B2D: RandomAccessByRef<2, Item = T> + Shape<2>,
-    C2D: RandomAccessByRef<2, Item = usize> + Shape<2>,
-> GeometryMap<'a, T, B2D, C2D>
+impl<'a, T: RealScalar, B2D: ValueArrayImpl<T, 2>, C2D: ValueArrayImpl<usize, 2>>
+    GeometryMap<'a, T, B2D, C2D>
 {
     /// Create new
-    pub fn new<A2D: RandomAccessByRef<2, Item = T> + Shape<2>>(
+    pub fn new<A2D: ValueArrayImpl<T, 2>>(
         element: &impl FiniteElement<CellType = ReferenceCellType, T = T>,
         points: &Array<A2D, 2>,
         geometry_points: &'a Array<B2D, 2>,
@@ -81,11 +71,8 @@ impl<
     }
 }
 
-impl<
-    T: RealScalar,
-    B2D: RandomAccessByRef<2, Item = T> + UnsafeRandomAccessByRef<2, Item = T> + Shape<2>,
-    C2D: RandomAccessByRef<2, Item = usize> + UnsafeRandomAccessByRef<2, Item = usize> + Shape<2>,
-> GeometryMapTrait for GeometryMap<'_, T, B2D, C2D>
+impl<T: RealScalar, B2D: ValueArrayImpl<T, 2>, C2D: ValueArrayImpl<usize, 2>> GeometryMapTrait
+    for GeometryMap<'_, T, B2D, C2D>
 {
     type T = T;
 
@@ -102,15 +89,15 @@ impl<
         let npts = self.table.shape()[1];
         debug_assert!(points.len() == self.gdim * npts);
 
-        points.fill(T::zero());
+        points.fill(T::default());
         for i in 0..self.entities.shape()[0] {
-            let v = unsafe { *self.entities.get_unchecked([i, entity_index]) };
+            let v = unsafe { self.entities.get_value_unchecked([i, entity_index]) };
             for point_index in 0..npts {
                 let t = unsafe { *self.table.get_unchecked([0, point_index, i, 0]) };
                 for gd in 0..self.gdim {
                     unsafe {
                         *points.get_unchecked_mut(gd + self.gdim * point_index) +=
-                            *self.geometry_points.get_unchecked([gd, v]) * t
+                            self.geometry_points.get_value_unchecked([gd, v]) * t
                     };
                 }
             }
@@ -122,15 +109,15 @@ impl<
 
         jacobians.fill(T::zero());
         for i in 0..self.entities.shape()[0] {
-            let v = unsafe { *self.entities.get_unchecked([i, entity_index]) };
+            let v = unsafe { self.entities.get_value_unchecked([i, entity_index]) };
             for point_index in 0..npts {
                 for td in 0..self.tdim {
-                    let t = unsafe { *self.table.get_unchecked([1 + td, point_index, i, 0]) };
+                    let t = unsafe { self.table.get_value_unchecked([1 + td, point_index, i, 0]) };
                     for gd in 0..self.gdim {
                         unsafe {
                             *jacobians.get_unchecked_mut(
                                 gd + self.gdim * td + self.gdim * self.tdim * point_index,
-                            ) += *self.geometry_points.get_unchecked([gd, v]) * t
+                            ) += self.geometry_points.get_value_unchecked([gd, v]) * t
                         };
                     }
                 }
