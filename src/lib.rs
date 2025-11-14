@@ -10,6 +10,6 @@ pub mod topology;
 pub mod traits;
 pub mod types;
 
-pub use grid::{
-    MixedGrid, MixedGridBuilder, ParallelGridImpl, SingleElementGrid, SingleElementGridBuilder,
-};
+#[cfg(feature = "mpi")]
+pub use grid::ParallelGridImpl;
+pub use grid::{MixedGrid, MixedGridBuilder, SingleElementGrid, SingleElementGridBuilder};

@@ -1,8 +1,8 @@
 //! Grid builder
-use crate::{
-    traits::{Grid, ParallelGrid},
-    types::{GraphPartitioner, RealScalar},
-};
+use crate::{traits::Grid, types::RealScalar};
+#[cfg(feature = "mpi")]
+use crate::{traits::ParallelGrid, types::GraphPartitioner};
+#[cfg(feature = "mpi")]
 use mpi::traits::Communicator;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -130,6 +130,7 @@ pub trait GridBuilder: Builder + GeometryBuilder + TopologyBuilder {
     ) -> <Self as Builder>::Grid;
 }
 
+#[cfg(feature = "mpi")]
 pub trait ParallelBuilder: Builder {
     //! MPI parallel grid builder
 
