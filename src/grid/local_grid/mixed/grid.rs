@@ -344,7 +344,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
 
         for i in 0..self.geometry.element_count() {
             let e = self.geometry.element(i);
-            if e.cell_type() == entity_type && e.embedded_superdegree() == geometry_degree {
+            if e.cell_type() == entity_type && e.lagrange_superdegree() == geometry_degree {
                 return GeometryMap::new(
                     e,
                     &rlst_points,
@@ -387,7 +387,7 @@ impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType,
                 c,
                 (
                     e.cell_type(),
-                    e.embedded_superdegree(),
+                    e.lagrange_superdegree(),
                     &cells.data()[cell_i * cells.shape()[0]..(cell_i + 1) * cells.shape()[0]],
                 ),
             );

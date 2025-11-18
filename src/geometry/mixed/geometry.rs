@@ -70,7 +70,7 @@ where
                 .iter()
                 .map(|a| {
                     a.iter()
-                        .map(|(b, c)| (*b, c.embedded_superdegree()))
+                        .map(|(b, c)| (*b, c.lagrange_superdegree()))
                         .collect::<HashMap<_, _>>()
                 })
                 .collect::<Vec<_>>(),

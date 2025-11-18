@@ -64,6 +64,6 @@ impl<T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeometry<'
         self.geometry.cells().shape()[0]
     }
     fn degree(&self) -> usize {
-        self.geometry.element().embedded_superdegree()
+        self.geometry.element().lagrange_superdegree()
     }
 }

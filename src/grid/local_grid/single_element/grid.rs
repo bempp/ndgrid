@@ -301,7 +301,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     {
         assert_eq!(
             geometry_degree,
-            self.geometry.element().embedded_superdegree()
+            self.geometry.element().lagrange_superdegree()
         );
         let entity_dim = reference_cell::dim(entity_type);
         let npoints = points.len() / entity_dim;
@@ -338,7 +338,7 @@ impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType,
             self.geometry.dim(),
             pts.shape()[1],
             cells.shape()[1],
-            (e.cell_type(), e.embedded_superdegree()),
+            (e.cell_type(), e.lagrange_superdegree()),
         );
         for p in 0..pts.shape()[1] {
             b.add_point(p, &pts.data()[p * pts.shape()[0]..(p + 1) * pts.shape()[0]]);
