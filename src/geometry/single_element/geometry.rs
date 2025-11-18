@@ -58,7 +58,7 @@ where
             elements: self
                 .elements
                 .iter()
-                .map(|e| (e.cell_type(), e.embedded_superdegree()))
+                .map(|e| (e.cell_type(), e.lagrange_superdegree()))
                 .collect::<Vec<_>>(),
         }
     }

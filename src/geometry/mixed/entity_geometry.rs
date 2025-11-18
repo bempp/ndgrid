@@ -69,6 +69,6 @@ impl<T: RealScalar, E: FiniteElement> Geometry for MixedEntityGeometry<'_, T, E>
     fn degree(&self) -> usize {
         self.geometry
             .element(self.element_index)
-            .embedded_superdegree()
+            .lagrange_superdegree()
     }
 }
