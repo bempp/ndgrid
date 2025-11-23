@@ -51,7 +51,7 @@ impl ConvertToSerializable for SingleTypeTopology {
                 .iter()
                 .map(|a| {
                     a.iter()
-                        .map(|b| (b.data().to_vec(), b.shape()))
+                        .map(|b| (b.data().unwrap().to_vec(), b.shape()))
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
@@ -73,7 +73,7 @@ impl ConvertToSerializable for SingleTypeTopology {
                     a.iter()
                         .map(|(data, shape)| {
                             let mut c = DynArray::<usize, 2>::from_shape(*shape);
-                            c.data_mut().copy_from_slice(data);
+                            c.data_mut().unwrap().copy_from_slice(data);
                             c
                         })
                         .collect::<Vec<_>>()
@@ -402,7 +402,7 @@ impl SingleTypeTopology {
                     .map(|i| {
                         compute_orientation(
                             entity_types[d],
-                            &dc.data()[i * dc.shape()[0]..(i + 1) * dc.shape()[0]],
+                            &dc.data().unwrap()[i * dc.shape()[0]..(i + 1) * dc.shape()[0]],
                         )
                     })
                     .collect::<Vec<_>>(),
@@ -518,8 +518,9 @@ impl Topology for SingleTypeEntityTopology<'_> {
         let dim = reference_cell::dim(entity_type);
         if entity_type == self.topology.entity_types()[dim] {
             let rows = self.topology.downward_connectivity[self.dim][dim].shape()[0];
-            self.topology.downward_connectivity[self.dim][dim].data()
-                [rows * self.entity_index..rows * (self.entity_index + 1)]
+            self.topology.downward_connectivity[self.dim][dim]
+                .data()
+                .unwrap()[rows * self.entity_index..rows * (self.entity_index + 1)]
                 .iter()
                 .copied()
         } else {

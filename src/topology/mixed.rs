@@ -60,7 +60,7 @@ impl ConvertToSerializable for MixedTopology {
                     (
                         *a,
                         b.iter()
-                            .map(|(c, d)| (*c, (d.data().to_vec(), d.shape())))
+                            .map(|(c, d)| (*c, (d.data().unwrap().to_vec(), d.shape())))
                             .collect::<HashMap<_, _>>(),
                     )
                 })
@@ -87,7 +87,7 @@ impl ConvertToSerializable for MixedTopology {
                             .map(|(c, (data, shape))| {
                                 (*c, {
                                     let mut d = DynArray::<usize, 2>::from_shape(*shape);
-                                    d.data_mut().copy_from_slice(data);
+                                    d.data_mut().unwrap().copy_from_slice(data);
                                     d
                                 })
                             })
@@ -339,7 +339,7 @@ impl MixedTopology {
                         .map(|i| {
                             compute_orientation(
                                 *t,
-                                &dc.data()[i * dc.shape()[0]..(i + 1) * dc.shape()[0]],
+                                &dc.data().unwrap()[i * dc.shape()[0]..(i + 1) * dc.shape()[0]],
                             )
                         })
                         .collect::<Vec<_>>(),
@@ -444,8 +444,9 @@ impl Topology for MixedEntityTopology<'_> {
         entity_type: ReferenceCellType,
     ) -> Copied<std::slice::Iter<'_, usize>> {
         let rows = self.topology.downward_connectivity[&self.entity_type][&entity_type].shape()[0];
-        self.topology.downward_connectivity[&self.entity_type][&entity_type].data()
-            [rows * self.entity_index..rows * (self.entity_index + 1)]
+        self.topology.downward_connectivity[&self.entity_type][&entity_type]
+            .data()
+            .unwrap()[rows * self.entity_index..rows * (self.entity_index + 1)]
             .iter()
             .copied()
     }

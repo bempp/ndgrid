@@ -53,8 +53,8 @@ where
     type SerializableType = SerializableGeometry<T>;
     fn to_serializable(&self) -> SerializableGeometry<T> {
         SerializableGeometry {
-            points: (self.points.data().to_vec(), self.points.shape()),
-            cells: (self.cells.data().to_vec(), self.cells.shape()),
+            points: (self.points.data().unwrap().to_vec(), self.points.shape()),
+            cells: (self.cells.data().unwrap().to_vec(), self.cells.shape()),
             elements: self
                 .elements
                 .iter()
@@ -67,13 +67,13 @@ where
             points: {
                 let (data, shape) = &s.points;
                 let mut p = DynArray::<T, 2>::from_shape(*shape);
-                p.data_mut().copy_from_slice(data.as_slice());
+                p.data_mut().unwrap().copy_from_slice(data.as_slice());
                 p
             },
             cells: {
                 let (data, shape) = &s.cells;
                 let mut c = DynArray::<usize, 2>::from_shape(*shape);
-                c.data_mut().copy_from_slice(data.as_slice());
+                c.data_mut().unwrap().copy_from_slice(data.as_slice());
                 c
             },
             elements: s
@@ -111,7 +111,7 @@ impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
             usize,
             [points_per_cell, cells_input.len() / points_per_cell]
         );
-        cells.data_mut().copy_from_slice(cells_input);
+        cells.data_mut().unwrap().copy_from_slice(cells_input);
         Self {
             points,
             cells,

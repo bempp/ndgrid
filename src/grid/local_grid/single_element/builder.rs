@@ -206,7 +206,7 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
     ) -> SingleElementGeometry<T, CiarletElement<T, IdentityMap>> {
         let npts = point_ids.len();
         let mut points = rlst_dynamic_array!(T, [self.gdim(), npts]);
-        points.data_mut().copy_from_slice(coordinates);
+        points.data_mut().unwrap().copy_from_slice(coordinates);
 
         let family = LagrangeElementFamily::<T>::new(self.element_data.1, Continuity::Standard);
 
@@ -237,6 +237,7 @@ impl<T: RealScalar> TopologyBuilder for SingleElementGridBuilder<T> {
             tmp
         };
 
+        // Remap the cell definitions to use internal indices instead of ids.
         let cells = {
             let mut new_cells = Vec::<usize>::with_capacity(cells.len());
             for id in cells {

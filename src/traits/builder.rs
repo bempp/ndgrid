@@ -7,9 +7,33 @@ use mpi::traits::Communicator;
 use std::fmt::Debug;
 use std::hash::Hash;
 
+/// A builder is a factory that creates meshes.
+///
+/// After instantiation points and cells can be added.
+/// To build the actual grid call [Builder::create_grid].
+///
+/// The following gives an example of creating a new grid consisting
+/// of a single triangle.
+///
+/// ```
+/// use ndgrid::traits::Builder;
+/// use ndgrid::SingleElementGridBuilder;
+/// use ndelement::types::ReferenceCellType;
+///
+/// // The geometric dimension of our space is 3.
+/// let gdim = 3;
+///
+/// // We are building a two dimensional surface triangle grid within a three dimensional space.
+/// // Our grid will have three points and one `Triangle` cell of order 1.
+/// let mut builder = SingleElementGridBuilder::new_with_capacity(gdim, 3, 1, (ReferenceCellType::Triangle, 1));
+/// builder.add_point(0, &[0.0, 0.0, 0.0]);
+/// builder.add_point(1, &[1.0, 0.0, 0.0]);
+/// builder.add_point(2, &[0.0, 1.0, 0.0]);
+/// builder.add_cell(0, &[0, 1, 2]);
+///
+/// let grid = builder.create_grid();
+/// ```
 pub trait Builder {
-    //! Object that can be used to build a mesh
-
     /// Type used as identifier of different entity types
     type EntityDescriptor: Debug + PartialEq + Eq + Clone + Copy + Hash;
 
@@ -78,9 +102,11 @@ pub trait Builder {
     fn npts(&self, cell_type: Self::EntityDescriptor, degree: usize) -> usize;
 }
 
-pub trait GeometryBuilder: Builder {
-    //! Trait for building grid geometry
-
+/// Trait for building a geometry
+///
+/// This trait is usually not called by the user. It provides
+/// an interface to building the geometry information of the grid.
+pub(crate) trait GeometryBuilder: Builder {
     /// Grid geometry type
     type GridGeometry;
 
@@ -95,9 +121,11 @@ pub trait GeometryBuilder: Builder {
     ) -> Self::GridGeometry;
 }
 
-pub trait TopologyBuilder: Builder {
-    //! Trait for building grid topology
-
+/// Trait for building a topology
+///
+/// This trait is usually not called by the user. It provides
+/// an interface to building the topology information of the grid.
+pub(crate) trait TopologyBuilder: Builder {
     /// Grid topology type
     type GridTopology;
 
@@ -119,9 +147,11 @@ pub trait TopologyBuilder: Builder {
     ) -> Vec<usize>;
 }
 
-pub trait GridBuilder: Builder + GeometryBuilder + TopologyBuilder {
-    //! Trait for building a grid from topology and geometry
-
+/// Trait for building a grid from topology and geometry
+///
+/// This trait is usually not called by the user. It provides
+/// an interface to building the grid from a given topology and Geometry.
+pub(crate) trait GridBuilder: Builder + GeometryBuilder + TopologyBuilder {
     /// Create topology
     fn create_grid_from_topology_geometry(
         &self,
@@ -130,10 +160,9 @@ pub trait GridBuilder: Builder + GeometryBuilder + TopologyBuilder {
     ) -> <Self as Builder>::Grid;
 }
 
+/// MPI parallelized grid builder
 #[cfg(feature = "mpi")]
 pub trait ParallelBuilder: Builder {
-    //! MPI parallel grid builder
-
     /// Parallel grid type
     type ParallelGrid<'a, C: Communicator + 'a>: ParallelGrid<C = C>
     where

@@ -8,9 +8,10 @@ mod grid;
 mod io;
 mod topology;
 
+pub use builder::Builder;
 #[cfg(feature = "mpi")]
 pub use builder::ParallelBuilder;
-pub use builder::{Builder, GeometryBuilder, GridBuilder, TopologyBuilder};
+pub(crate) use builder::{GeometryBuilder, GridBuilder, TopologyBuilder};
 pub use entity::Entity;
 pub use geometry::{Geometry, Point};
 pub use geometry_map::GeometryMap;

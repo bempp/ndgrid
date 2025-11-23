@@ -59,11 +59,11 @@ where
     type SerializableType = SerializableGeometry<T>;
     fn to_serializable(&self) -> SerializableGeometry<T> {
         SerializableGeometry {
-            points: (self.points.data().to_vec(), self.points.shape()),
+            points: (self.points.data().unwrap().to_vec(), self.points.shape()),
             cells: self
                 .cells
                 .iter()
-                .map(|c| (c.data().to_vec(), c.shape()))
+                .map(|c| (c.data().unwrap().to_vec(), c.shape()))
                 .collect::<Vec<_>>(),
             elements: self
                 .elements
@@ -83,7 +83,7 @@ where
             points: {
                 let (data, shape) = &s.points;
                 let mut p = DynArray::<T, 2>::from_shape(*shape);
-                p.data_mut().copy_from_slice(data.as_slice());
+                p.data_mut().unwrap().copy_from_slice(data.as_slice());
                 p
             },
             cells: s
@@ -91,7 +91,7 @@ where
                 .iter()
                 .map(|(data, shape)| {
                     let mut c = DynArray::<usize, 2>::from_shape(*shape);
-                    c.data_mut().copy_from_slice(data.as_slice());
+                    c.data_mut().unwrap().copy_from_slice(data.as_slice());
                     c
                 })
                 .collect::<Vec<_>>(),
@@ -172,7 +172,7 @@ impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
         let cells = izip!(cell_counts, points_per_cell, cells)
             .map(|(ncells, npts, c_in)| {
                 let mut c = rlst_dynamic_array!(usize, [npts, ncells]);
-                c.data_mut().copy_from_slice(&c_in);
+                c.data_mut().unwrap().copy_from_slice(&c_in);
                 c
             })
             .collect::<Vec<_>>();
