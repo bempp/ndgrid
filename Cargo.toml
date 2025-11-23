@@ -1,7 +1,7 @@
 [features]
 serde = ["dep:serde", "ndelement/serde", "dep:ron"]
 strict = []
-default = ["serde"]
+default = ["serde", "mpi"]
 coupe = ["dep:coupe"]
 scotch = ["dep:scotch"]
 mpi = ["dep:mpi", "rlst/mpi", "ndelement/mpi"]

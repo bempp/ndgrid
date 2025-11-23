@@ -13,7 +13,7 @@ use std::iter::Iterator;
 #[cfg(feature = "mpi")]
 use std::rc::Rc;
 
-/// A grid
+/// A grid provides access to entities, their geometrical and their topological properties.
 pub trait Grid {
     /// Scalar type
     type T: RealScalar;
@@ -52,10 +52,10 @@ pub trait Grid {
     /// The entity types of topological dimension `dim` contained in this grid
     fn entity_types(&self, tdim: usize) -> &[Self::EntityDescriptor];
 
-    /// Number of entities
+    /// Number of entities of type `entity_type`
     fn entity_count(&self, entity_type: Self::EntityDescriptor) -> usize;
 
-    /// Number of cells
+    /// Number of cells in the grid
     fn cell_count(&self) -> usize {
         self.entity_types(self.topology_dim())
             .iter()
@@ -105,10 +105,9 @@ pub trait Grid {
     ) -> Self::GeometryMap<'_>;
 }
 
+/// Definition of an MPI parallel grid
 #[cfg(feature = "mpi")]
 pub trait ParallelGrid {
-    //! MPI parallel grid
-
     /// Type of the Grid
     type T: RealScalar;
 
@@ -132,8 +131,8 @@ pub trait ParallelGrid {
     }
 }
 
-#[cfg(feature = "mpi")]
 /// A grid that can be be distributed across processes
+#[cfg(feature = "mpi")]
 pub trait DistributableGrid {
     /// Parallel grid type when distrubuted
     type ParallelGrid<'a, C: Communicator + 'a>: ParallelGrid<C = C>;

@@ -208,7 +208,7 @@ impl<T: RealScalar> MixedGrid<T, CiarletElement<T, IdentityMap>> {
     ) -> Self {
         let npts = coordinates.len() / gdim;
         let mut points = rlst_dynamic_array!(T, [gdim, npts]);
-        points.data_mut().copy_from_slice(coordinates);
+        points.data_mut().unwrap().copy_from_slice(coordinates);
 
         let mut element_families = vec![];
         let mut element_family_indices = HashMap::new();
@@ -344,7 +344,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
 
         for i in 0..self.geometry.element_count() {
             let e = self.geometry.element(i);
-            if e.cell_type() == entity_type && e.embedded_superdegree() == geometry_degree {
+            if e.cell_type() == entity_type && e.lagrange_superdegree() == geometry_degree {
                 return GeometryMap::new(
                     e,
                     &rlst_points,
@@ -372,7 +372,10 @@ impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType,
         let mut b = MixedGridBuilder::<T>::new(self.geometry.dim());
         let pts = self.geometry.points();
         for p in 0..pts.shape()[1] {
-            b.add_point(p, &pts.data()[p * pts.shape()[0]..(p + 1) * pts.shape()[0]]);
+            b.add_point(
+                p,
+                &pts.data().unwrap()[p * pts.shape()[0]..(p + 1) * pts.shape()[0]],
+            );
         }
 
         for (c, (element_i, cell_i)) in izip!(
@@ -387,8 +390,9 @@ impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType,
                 c,
                 (
                     e.cell_type(),
-                    e.embedded_superdegree(),
-                    &cells.data()[cell_i * cells.shape()[0]..(cell_i + 1) * cells.shape()[0]],
+                    e.lagrange_superdegree(),
+                    &cells.data().unwrap()
+                        [cell_i * cells.shape()[0]..(cell_i + 1) * cells.shape()[0]],
                 ),
             );
         }
@@ -512,13 +516,13 @@ mod test {
         let pts = vec![0.0, 0.0, 0.5, 0.5];
         let map = grid.geometry_map(ReferenceCellType::Triangle, 1, &pts);
 
-        map.points(0, &mut mapped_pts);
+        map.physical_points(0, &mut mapped_pts);
         assert_relative_eq!(mapped_pts[0], 0.0, epsilon = 1e-10);
         assert_relative_eq!(mapped_pts[1], 0.0, epsilon = 1e-10);
         assert_relative_eq!(mapped_pts[2], 0.5, epsilon = 1e-10);
         assert_relative_eq!(mapped_pts[3], 1.0, epsilon = 1e-10);
 
-        map.points(1, &mut mapped_pts);
+        map.physical_points(1, &mut mapped_pts);
         assert_relative_eq!(mapped_pts[0], 0.0, epsilon = 1e-10);
         assert_relative_eq!(mapped_pts[1], 0.0, epsilon = 1e-10);
         assert_relative_eq!(mapped_pts[2], 1.0, epsilon = 1e-10);
@@ -527,13 +531,13 @@ mod test {
         let pts = vec![0.5, 0.0, 1.0, 1.0];
         let map = grid.geometry_map(ReferenceCellType::Quadrilateral, 1, &pts);
 
-        map.points(0, &mut mapped_pts);
+        map.physical_points(0, &mut mapped_pts);
         assert_relative_eq!(mapped_pts[0], 1.5, epsilon = 1e-10);
         assert_relative_eq!(mapped_pts[1], 0.0, epsilon = 1e-10);
         assert_relative_eq!(mapped_pts[2], 2.0, epsilon = 1e-10);
         assert_relative_eq!(mapped_pts[3], 1.0, epsilon = 1e-10);
 
-        map.points(1, &mut mapped_pts);
+        map.physical_points(1, &mut mapped_pts);
         assert_relative_eq!(mapped_pts[0], 3.0, epsilon = 1e-10);
         assert_relative_eq!(mapped_pts[1], 0.0, epsilon = 1e-10);
         assert_relative_eq!(mapped_pts[2], 4.0, epsilon = 1e-10);

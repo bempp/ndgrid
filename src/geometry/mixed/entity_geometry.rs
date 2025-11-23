@@ -57,7 +57,10 @@ impl<T: RealScalar, E: FiniteElement> Geometry for MixedEntityGeometry<'_, T, E>
             .unwrap()
         {
             let i = self.geometry.cells(self.element_index)[[*index, self.cell_index]];
-            pts.push((i, &self.geometry.points().data()[i * gdim..(i + 1) * gdim]))
+            pts.push((
+                i,
+                &self.geometry.points().data().unwrap()[i * gdim..(i + 1) * gdim],
+            ))
         }
 
         PointIter::new(pts)
@@ -69,6 +72,6 @@ impl<T: RealScalar, E: FiniteElement> Geometry for MixedEntityGeometry<'_, T, E>
     fn degree(&self) -> usize {
         self.geometry
             .element(self.element_index)
-            .embedded_superdegree()
+            .lagrange_superdegree()
     }
 }

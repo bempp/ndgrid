@@ -196,7 +196,7 @@ impl<T: RealScalar> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
     ) -> Self {
         let npts = coordinates.len() / gdim;
         let mut points = rlst_dynamic_array!(T, [gdim, npts]);
-        points.data_mut().copy_from_slice(coordinates);
+        points.data_mut().unwrap().copy_from_slice(coordinates);
 
         let family = LagrangeElementFamily::<T>::new(geometry_degree, Continuity::Standard);
 
@@ -301,7 +301,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
     {
         assert_eq!(
             geometry_degree,
-            self.geometry.element().embedded_superdegree()
+            self.geometry.element().lagrange_superdegree()
         );
         let entity_dim = reference_cell::dim(entity_type);
         let npoints = points.len() / entity_dim;
@@ -338,15 +338,18 @@ impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType,
             self.geometry.dim(),
             pts.shape()[1],
             cells.shape()[1],
-            (e.cell_type(), e.embedded_superdegree()),
+            (e.cell_type(), e.lagrange_superdegree()),
         );
         for p in 0..pts.shape()[1] {
-            b.add_point(p, &pts.data()[p * pts.shape()[0]..(p + 1) * pts.shape()[0]]);
+            b.add_point(
+                p,
+                &pts.data().unwrap()[p * pts.shape()[0]..(p + 1) * pts.shape()[0]],
+            );
         }
         for c in 0..cells.shape()[1] {
             b.add_cell(
                 c,
-                &cells.data()[c * cells.shape()[0]..(c + 1) * cells.shape()[0]],
+                &cells.data().unwrap()[c * cells.shape()[0]..(c + 1) * cells.shape()[0]],
             );
         }
         b.create_parallel_grid_root(comm, partitioner)

@@ -17,6 +17,8 @@ pub trait Point {
 }
 
 /// The geometry of an entity
+///
+/// The geometry contains information about all points that make up the entity.
 pub trait Geometry {
     /// Scalar type
     type T: RealScalar;

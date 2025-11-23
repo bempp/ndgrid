@@ -221,7 +221,7 @@ impl<T: RealScalar> GeometryBuilder for MixedGridBuilder<T> {
     ) -> MixedGeometry<T, CiarletElement<T, IdentityMap>> {
         let npts = point_ids.len();
         let mut points = rlst_dynamic_array!(T, [self.gdim(), npts]);
-        points.data_mut().copy_from_slice(coordinates);
+        points.data_mut().unwrap().copy_from_slice(coordinates);
 
         let mut element_families = vec![];
         let mut ef_indices = HashMap::new();

@@ -85,7 +85,7 @@ impl<T: RealScalar, B2D: ValueArrayImpl<T, 2>, C2D: ValueArrayImpl<usize, 2>> Ge
     fn point_count(&self) -> usize {
         self.table.shape()[1]
     }
-    fn points(&self, entity_index: usize, points: &mut [T]) {
+    fn physical_points(&self, entity_index: usize, points: &mut [T]) {
         let npts = self.table.shape()[1];
         debug_assert!(points.len() == self.gdim * npts);
 
