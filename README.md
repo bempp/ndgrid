@@ -1,6 +1,5 @@
 # ndgrid
 [![crates.io](https://img.shields.io/crates/v/ndgrid?color=blue)](https://crates.io/crates/ndgrid)
-[![docs.rs](https://img.shields.io/docsrs/ndgrid?label=docs.rs)](https://docs.rs/ndgrid/latest/ndgrid/)
 
 ndgrid is an open-source library written in Rust for n-dimensional grids/meshes.
 
@@ -25,7 +24,6 @@ cargo test
 Examples of use can be found in the [examples folder](examples/).
 
 ## Getting help
-Documentation of the latest release of ndgrid can be found on [docs.rs](https://docs.rs/ndgrid/latest/ndgrid/).
 Documentation of the latest development version of ndgrid can be found at [bempp.github.io/ndgrid/ndgrid](https://bempp.github.io/ndgrid/ndgrid).
 
 Errors in the library should be added to the [GitHub issue tracker](https://github.com/bempp/ndgrid/issues).
