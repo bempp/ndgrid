@@ -18,6 +18,28 @@ use rlst::rlst_dynamic_array;
 use std::collections::{HashMap, HashSet};
 
 /// Grid builder for a single element grid
+///
+/// The following gives an example of creating a new grid consisting
+/// of a single triangle.
+///
+/// ```
+/// use ndgrid::traits::Builder;
+/// use ndgrid::SingleElementGridBuilder;
+/// use ndelement::types::ReferenceCellType;
+///
+/// // The geometric dimension of our space is 3.
+/// let gdim = 3;
+///
+/// // We are building a two dimensional surface triangle grid within a three dimensional space.
+/// // Our grid will have three points and one `Triangle` cell of order 1.
+/// let mut builder = SingleElementGridBuilder::new_with_capacity(gdim, 3, 1, (ReferenceCellType::Triangle, 1));
+/// builder.add_point(0, &[0.0, 0.0, 0.0]);
+/// builder.add_point(1, &[1.0, 0.0, 0.0]);
+/// builder.add_point(2, &[0.0, 1.0, 0.0]);
+/// builder.add_cell(0, &[0, 1, 2]);
+///
+/// let grid = builder.create_grid();
+/// ```
 #[derive(Debug)]
 pub struct SingleElementGridBuilder<T: RealScalar> {
     gdim: usize,
