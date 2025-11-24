@@ -100,7 +100,7 @@
 //! ```
 //!
 //! ## Querying the grid
-//! 
+//!
 //! A grid is a hierarchy of entities. We follow the standard name conventions for entities of a given topological dimension:
 //! 0-, 1-, 2- and 3-dimensional entities and called vertices, edges, faces and volumes (respectively).
 //! The highest dimensional entities are called cells. If $d$ the (topological) dimension of the cells,
