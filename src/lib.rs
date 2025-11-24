@@ -190,3 +190,11 @@ pub mod types;
 pub use grid::ParallelGridImpl;
 pub use grid::{MixedGrid, MixedGridBuilder, SingleElementGrid, SingleElementGridBuilder};
 pub use ndelement;
+
+// Hack to avoid unused dependency errors if partitioner features are used without the mpi feature
+#[cfg(not(feature = "mpi"))]
+#[cfg(feature = "coupe")]
+use coupe as _;
+#[cfg(not(feature = "mpi"))]
+#[cfg(feature = "scotch")]
+use coupe as _;
