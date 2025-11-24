@@ -50,6 +50,7 @@ cbindgen = "0.29.2"
 
 [package.metadata.docs.rs]
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
+rustdoc-args = [ "--html-in-header", "katex-header.html" ]
 
 [lints.clippy]
 wildcard_imports = "forbid"
