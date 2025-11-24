@@ -24,6 +24,13 @@ jobs:
           mpi: "mpich"
       - uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.14
+      - name: Insert doc links
+        run: python .github/scripts/insert_doc_links.py
+
       - name: Build docs
         run: cargo +nightly doc --no-deps -Zunstable-options -Zrustdoc-scrape-examples --all-features
 
