@@ -6,11 +6,12 @@ use crate::types::RealScalar;
 use ndelement::{
     ciarlet::{CiarletElement, lagrange},
     map::IdentityMap,
+    traits::FiniteElement,
     types::Continuity,
 };
 use ndelement::{
     reference_cell,
-    traits::{ElementFamily, FiniteElement, MappedFiniteElement},
+    traits::{ElementFamily, MappedFiniteElement},
     types::ReferenceCellType,
 };
 use rlst::{DynArray, rlst_dynamic_array};
