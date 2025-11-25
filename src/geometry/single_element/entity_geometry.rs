@@ -5,18 +5,18 @@ use crate::{
     traits::Geometry,
     types::RealScalar,
 };
-use ndelement::traits::FiniteElement;
+use ndelement::traits::MappedFiniteElement;
 
 /// Geometry of an entity
 #[derive(Debug)]
-pub struct SingleElementEntityGeometry<'a, T: RealScalar, E: FiniteElement> {
+pub struct SingleElementEntityGeometry<'a, T: RealScalar, E: MappedFiniteElement> {
     geometry: &'a SingleElementGeometry<T, E>,
     cell_index: usize,
     sub_entity_dimension: usize,
     sub_entity_index: usize,
 }
 
-impl<'a, T: RealScalar, E: FiniteElement> SingleElementEntityGeometry<'a, T, E> {
+impl<'a, T: RealScalar, E: MappedFiniteElement> SingleElementEntityGeometry<'a, T, E> {
     /// Create new
     pub fn new(
         geometry: &'a SingleElementGeometry<T, E>,
@@ -33,7 +33,7 @@ impl<'a, T: RealScalar, E: FiniteElement> SingleElementEntityGeometry<'a, T, E> 
     }
 }
 
-impl<T: RealScalar, E: FiniteElement> Geometry for SingleElementEntityGeometry<'_, T, E> {
+impl<T: RealScalar, E: MappedFiniteElement> Geometry for SingleElementEntityGeometry<'_, T, E> {
     type T = T;
     type Point<'a>
         = Point<'a, T>

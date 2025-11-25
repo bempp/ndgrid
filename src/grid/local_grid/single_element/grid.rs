@@ -24,7 +24,7 @@ use ndelement::{
     ciarlet::{CiarletElement, LagrangeElementFamily},
     map::IdentityMap,
     reference_cell,
-    traits::{ElementFamily, FiniteElement},
+    traits::{ElementFamily, FiniteElement, MappedFiniteElement},
     types::{Continuity, ReferenceCellType},
 };
 use rlst::dense::{base_array::BaseArray, data_container::VectorContainer};
@@ -35,7 +35,7 @@ use rlst::{SliceArray, rlst_dynamic_array};
 pub struct SingleElementGridEntity<
     'a,
     T: RealScalar,
-    E: FiniteElement<CellType = ReferenceCellType, T = T>,
+    E: MappedFiniteElement<CellType = ReferenceCellType, T = T>,
 > {
     grid: &'a SingleElementGrid<T, E>,
     cell_index: usize,
@@ -43,7 +43,7 @@ pub struct SingleElementGridEntity<
     entity_index: usize,
 }
 
-impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
+impl<'e, T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>>
     SingleElementGridEntity<'e, T, E>
 {
     /// Create new
@@ -61,7 +61,7 @@ impl<'e, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
         }
     }
 }
-impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Entity
+impl<T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> Entity
     for SingleElementGridEntity<'_, T, E>
 {
     type T = T;
@@ -111,14 +111,14 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Entit
 pub struct SingleElementGridEntityIter<
     'a,
     T: RealScalar,
-    E: FiniteElement<CellType = ReferenceCellType, T = T>,
+    E: MappedFiniteElement<CellType = ReferenceCellType, T = T>,
 > {
     grid: &'a SingleElementGrid<T, E>,
     entity_type: ReferenceCellType,
     index: usize,
 }
 
-impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
+impl<'a, T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>>
     SingleElementGridEntityIter<'a, T, E>
 {
     /// Create new
@@ -130,7 +130,7 @@ impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>>
         }
     }
 }
-impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Iterator
+impl<'a, T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> Iterator
     for SingleElementGridEntityIter<'a, T, E>
 {
     type Item = SingleElementGridEntity<'a, T, E>;
@@ -143,7 +143,10 @@ impl<'a, T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> I
 
 /// Serial single element grid
 #[derive(Debug)]
-pub struct SingleElementGrid<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> {
+pub struct SingleElementGrid<
+    T: RealScalar,
+    E: MappedFiniteElement<CellType = ReferenceCellType, T = T>,
+> {
     topology: SingleTypeTopology,
     geometry: SingleElementGeometry<T, E>,
 }
@@ -178,7 +181,9 @@ impl<T: RealScalar + serde::Serialize> ConvertToSerializable
     }
 }
 
-impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> SingleElementGrid<T, E> {
+impl<T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>>
+    SingleElementGrid<T, E>
+{
     /// Create new
     pub fn new(topology: SingleTypeTopology, geometry: SingleElementGeometry<T, E>) -> Self {
         Self { topology, geometry }
@@ -221,7 +226,7 @@ impl<T: RealScalar> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
     }
 }
 
-impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
+impl<T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> Grid
     for SingleElementGrid<T, E>
 {
     type T = T;
@@ -320,7 +325,7 @@ impl<T: RealScalar, E: FiniteElement<CellType = ReferenceCellType, T = T>> Grid
 }
 
 #[cfg(feature = "mpi")]
-impl<T: RealScalar + Equivalence, E: FiniteElement<CellType = ReferenceCellType, T = T>>
+impl<T: RealScalar + Equivalence, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>>
     DistributableGrid for SingleElementGrid<T, E>
 {
     type ParallelGrid<'a, C: Communicator + 'a> =

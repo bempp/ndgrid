@@ -1,6 +1,6 @@
 //! Geometry map
 use crate::{traits::GeometryMap as GeometryMapTrait, types::RealScalar};
-use ndelement::{reference_cell, traits::FiniteElement, types::ReferenceCellType};
+use ndelement::{reference_cell, traits::MappedFiniteElement, types::ReferenceCellType};
 use rlst::{Array, DynArray, RlstScalar, ValueArrayImpl};
 
 /// Single element geometry
@@ -48,7 +48,7 @@ impl<'a, T: RealScalar, B2D: ValueArrayImpl<T, 2>, C2D: ValueArrayImpl<usize, 2>
 {
     /// Create new
     pub fn new<A2D: ValueArrayImpl<T, 2>>(
-        element: &impl FiniteElement<CellType = ReferenceCellType, T = T>,
+        element: &impl MappedFiniteElement<CellType = ReferenceCellType, T = T>,
         points: &Array<A2D, 2>,
         geometry_points: &'a Array<B2D, 2>,
         entities: &'a Array<C2D, 2>,

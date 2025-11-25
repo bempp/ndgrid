@@ -6,24 +6,25 @@ use crate::types::RealScalar;
 use ndelement::{
     ciarlet::{CiarletElement, lagrange},
     map::IdentityMap,
+    traits::FiniteElement,
     types::Continuity,
 };
 use ndelement::{
     reference_cell,
-    traits::{ElementFamily, FiniteElement},
+    traits::{ElementFamily, MappedFiniteElement},
     types::ReferenceCellType,
 };
 use rlst::{DynArray, rlst_dynamic_array};
 use std::fmt::{Debug, Formatter};
 
 /// Single element geometry
-pub struct SingleElementGeometry<T: RealScalar, E: FiniteElement> {
+pub struct SingleElementGeometry<T: RealScalar, E: MappedFiniteElement> {
     points: DynArray<T, 2>,
     cells: DynArray<usize, 2>,
     elements: Vec<E>,
 }
 
-impl<T: RealScalar, E: FiniteElement> Debug for SingleElementGeometry<T, E> {
+impl<T: RealScalar, E: MappedFiniteElement> Debug for SingleElementGeometry<T, E> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.debug_struct("SingleElementGeometry")
             .field("points", &self.points)
@@ -85,7 +86,7 @@ where
     }
 }
 
-impl<T: RealScalar, E: FiniteElement> SingleElementGeometry<T, E> {
+impl<T: RealScalar, E: MappedFiniteElement> SingleElementGeometry<T, E> {
     /// Create single element geometry
     pub fn new(
         cell_type: ReferenceCellType,

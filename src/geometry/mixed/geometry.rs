@@ -11,7 +11,7 @@ use ndelement::{
 };
 use ndelement::{
     reference_cell,
-    traits::{ElementFamily, FiniteElement},
+    traits::{ElementFamily, MappedFiniteElement},
     types::ReferenceCellType,
 };
 use rlst::{DynArray, rlst_dynamic_array};
@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 /// Single element geometry
-pub struct MixedGeometry<T: RealScalar, E: FiniteElement> {
+pub struct MixedGeometry<T: RealScalar, E: MappedFiniteElement> {
     points: DynArray<T, 2>,
     cells: Vec<DynArray<usize, 2>>,
     elements: Vec<HashMap<ReferenceCellType, E>>,
@@ -27,7 +27,7 @@ pub struct MixedGeometry<T: RealScalar, E: FiniteElement> {
     pub(crate) insertion_indices_to_cell_indices: Vec<usize>,
 }
 
-impl<T: RealScalar, E: FiniteElement> Debug for MixedGeometry<T, E> {
+impl<T: RealScalar, E: MappedFiniteElement> Debug for MixedGeometry<T, E> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.debug_struct("MixedGeometry")
             .field("points", &self.points)
@@ -115,7 +115,7 @@ where
     }
 }
 
-impl<T: RealScalar, E: FiniteElement> MixedGeometry<T, E> {
+impl<T: RealScalar, E: MappedFiniteElement> MixedGeometry<T, E> {
     /// Create single element geometry
     pub fn new(
         cell_types_in: &[ReferenceCellType],
