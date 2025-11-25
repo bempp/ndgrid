@@ -1,5 +1,5 @@
 //! Grid builder
-use crate::{traits::Grid, types::RealScalar};
+use crate::{traits::Grid, types::Scalar};
 #[cfg(feature = "mpi")]
 use crate::{traits::ParallelGrid, types::GraphPartitioner};
 #[cfg(feature = "mpi")]
@@ -18,7 +18,7 @@ pub trait Builder {
     /// The type of the grid that the builder creates
     type Grid: Grid<EntityDescriptor = Self::EntityDescriptor>;
     /// The floating point type used for coordinates
-    type T: RealScalar;
+    type T: Scalar;
     /// The type of the data that is input to add a cell
     type CellData<'a>;
 

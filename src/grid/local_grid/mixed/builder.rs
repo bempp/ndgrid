@@ -5,7 +5,7 @@ use crate::{
     geometry::MixedGeometry,
     topology::mixed::MixedTopology,
     traits::{Builder, GeometryBuilder, GridBuilder, TopologyBuilder},
-    types::RealScalar,
+    types::Scalar,
 };
 use itertools::izip;
 use ndelement::{
@@ -20,10 +20,10 @@ use std::collections::{HashMap, HashSet};
 
 /// Grid builder for a grid with a mixture of element types
 #[derive(Debug)]
-pub struct MixedGridBuilder<T: RealScalar> {
+pub struct MixedGridBuilder<T: Scalar> {
     gdim: usize,
     element_indices: HashMap<(ReferenceCellType, usize), usize>,
-    elements: Vec<CiarletElement<T, IdentityMap>>,
+    elements: Vec<CiarletElement<T, IdentityMap, T>>,
     points_per_cell: Vec<usize>,
     pub(crate) points: Vec<T>,
     cells: Vec<usize>,
@@ -39,7 +39,7 @@ pub struct MixedGridBuilder<T: RealScalar> {
     cell_indices: HashSet<usize>,
 }
 
-impl<T: RealScalar> MixedGridBuilder<T> {
+impl<T: Scalar> MixedGridBuilder<T> {
     /// Create a new grid builder
     pub fn new(gdim: usize) -> Self {
         Self {
@@ -63,8 +63,8 @@ impl<T: RealScalar> MixedGridBuilder<T> {
     }
 }
 
-impl<T: RealScalar> Builder for MixedGridBuilder<T> {
-    type Grid = MixedGrid<T, CiarletElement<T, IdentityMap>>;
+impl<T: Scalar> Builder for MixedGridBuilder<T> {
+    type Grid = MixedGrid<T, CiarletElement<T, IdentityMap, T>>;
     type T = T;
     type CellData<'a> = (ReferenceCellType, usize, &'a [usize]);
     type EntityDescriptor = ReferenceCellType;
@@ -89,7 +89,7 @@ impl<T: RealScalar> Builder for MixedGridBuilder<T> {
             .entry((cell_data.0, cell_data.1))
             .or_insert_with(|| {
                 let n = self.cell_indices_to_ids.len();
-                self.elements.push(lagrange::create::<T>(
+                self.elements.push(lagrange::create::<T, T>(
                     cell_data.0,
                     cell_data.1,
                     Continuity::Standard,
@@ -127,7 +127,7 @@ impl<T: RealScalar> Builder for MixedGridBuilder<T> {
         self.add_cell(id, (cell_type, cell_degree, nodes));
     }
 
-    fn create_grid(&self) -> MixedGrid<T, CiarletElement<T, IdentityMap>> {
+    fn create_grid(&self) -> MixedGrid<T, CiarletElement<T, IdentityMap, T>> {
         let cell_vertices =
             self.extract_vertices(&self.cells, &self.cell_types, &self.cell_degrees);
 
@@ -209,8 +209,8 @@ impl<T: RealScalar> Builder for MixedGridBuilder<T> {
     }
 }
 
-impl<T: RealScalar> GeometryBuilder for MixedGridBuilder<T> {
-    type GridGeometry = MixedGeometry<T, CiarletElement<T, IdentityMap>>;
+impl<T: Scalar> GeometryBuilder for MixedGridBuilder<T> {
+    type GridGeometry = MixedGeometry<T, CiarletElement<T, IdentityMap, T>>;
     fn create_geometry(
         &self,
         point_ids: &[usize],
@@ -218,7 +218,7 @@ impl<T: RealScalar> GeometryBuilder for MixedGridBuilder<T> {
         cell_points: &[usize],
         cell_types: &[ReferenceCellType],
         cell_degrees: &[usize],
-    ) -> MixedGeometry<T, CiarletElement<T, IdentityMap>> {
+    ) -> MixedGeometry<T, CiarletElement<T, IdentityMap, T>> {
         let npts = point_ids.len();
         let mut points = rlst_dynamic_array!(T, [self.gdim(), npts]);
         points.data_mut().unwrap().copy_from_slice(coordinates);
@@ -229,7 +229,7 @@ impl<T: RealScalar> GeometryBuilder for MixedGridBuilder<T> {
         for degree in cell_degrees {
             cell_families.push(*ef_indices.entry(*degree).or_insert_with(|| {
                 let n = element_families.len();
-                element_families.push(LagrangeElementFamily::<T>::new(
+                element_families.push(LagrangeElementFamily::<T, T>::new(
                     *degree,
                     Continuity::Standard,
                 ));
@@ -237,7 +237,7 @@ impl<T: RealScalar> GeometryBuilder for MixedGridBuilder<T> {
             }))
         }
 
-        MixedGeometry::<T, CiarletElement<T, IdentityMap>>::new(
+        MixedGeometry::<T, CiarletElement<T, IdentityMap, T>>::new(
             cell_types,
             points,
             cell_points,
@@ -247,7 +247,7 @@ impl<T: RealScalar> GeometryBuilder for MixedGridBuilder<T> {
     }
 }
 
-impl<T: RealScalar> TopologyBuilder for MixedGridBuilder<T> {
+impl<T: Scalar> TopologyBuilder for MixedGridBuilder<T> {
     type GridTopology = MixedTopology;
     fn create_topology(
         &self,
@@ -297,7 +297,7 @@ impl<T: RealScalar> TopologyBuilder for MixedGridBuilder<T> {
     }
 }
 
-impl<T: RealScalar> GridBuilder for MixedGridBuilder<T> {
+impl<T: Scalar> GridBuilder for MixedGridBuilder<T> {
     fn create_grid_from_topology_geometry(
         &self,
         topology: <Self as TopologyBuilder>::GridTopology,

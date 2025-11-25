@@ -1,7 +1,7 @@
 //! Geometry where each entity of a given dimension is represented by the same element
 #[cfg(feature = "serde")]
 use crate::traits::ConvertToSerializable;
-use crate::types::RealScalar;
+use crate::types::Scalar;
 #[cfg(feature = "serde")]
 use ndelement::{
     ciarlet::{CiarletElement, lagrange},
@@ -18,13 +18,13 @@ use rlst::{DynArray, rlst_dynamic_array};
 use std::fmt::{Debug, Formatter};
 
 /// Single element geometry
-pub struct SingleElementGeometry<T: RealScalar, E: MappedFiniteElement> {
+pub struct SingleElementGeometry<T: Scalar, E: MappedFiniteElement> {
     points: DynArray<T, 2>,
     cells: DynArray<usize, 2>,
     elements: Vec<E>,
 }
 
-impl<T: RealScalar, E: MappedFiniteElement> Debug for SingleElementGeometry<T, E> {
+impl<T: Scalar, E: MappedFiniteElement> Debug for SingleElementGeometry<T, E> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.debug_struct("SingleElementGeometry")
             .field("points", &self.points)
@@ -36,7 +36,7 @@ impl<T: RealScalar, E: MappedFiniteElement> Debug for SingleElementGeometry<T, E
 #[cfg(feature = "serde")]
 #[derive(serde::Serialize, Debug, serde::Deserialize)]
 #[serde(bound = "for<'de2> T: serde::Deserialize<'de2>")]
-pub struct SerializableGeometry<T: RealScalar + serde::Serialize>
+pub struct SerializableGeometry<T: Scalar + serde::Serialize>
 where
     for<'de2> T: serde::Deserialize<'de2>,
 {
@@ -46,8 +46,8 @@ where
 }
 
 #[cfg(feature = "serde")]
-impl<T: RealScalar + serde::Serialize> ConvertToSerializable
-    for SingleElementGeometry<T, CiarletElement<T, IdentityMap>>
+impl<T: Scalar + serde::Serialize> ConvertToSerializable
+    for SingleElementGeometry<T, CiarletElement<T, IdentityMap, T>>
 where
     for<'de2> T: serde::Deserialize<'de2>,
 {
@@ -86,7 +86,7 @@ where
     }
 }
 
-impl<T: RealScalar, E: MappedFiniteElement> SingleElementGeometry<T, E> {
+impl<T: Scalar, E: MappedFiniteElement> SingleElementGeometry<T, E> {
     /// Create single element geometry
     pub fn new(
         cell_type: ReferenceCellType,

@@ -3,16 +3,16 @@
 use crate::{
     grid::local_grid::{SingleElementGrid, SingleElementGridBuilder},
     traits::Builder,
-    types::RealScalar,
+    types::Scalar,
 };
 use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
 
 /// Create a unit interval grid
 ///
 /// The unit interval is the interval between (0,) and (1,)
-pub fn unit_interval<T: RealScalar>(
+pub fn unit_interval<T: Scalar>(
     nx: usize,
-) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap, T>> {
     let mut b = SingleElementGridBuilder::new_with_capacity(
         1,
         nx + 1,
@@ -33,11 +33,11 @@ pub fn unit_interval<T: RealScalar>(
 /// Create a unit square grid
 ///
 /// The unit square is the square with corners at (0,0), (1,0), (0,1) and (1,1)
-pub fn unit_square<T: RealScalar>(
+pub fn unit_square<T: Scalar>(
     nx: usize,
     ny: usize,
     cell_type: ReferenceCellType,
-) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap, T>> {
     let mut b = SingleElementGridBuilder::new_with_capacity(
         2,
         (nx + 1) * (ny + 1),
@@ -99,10 +99,10 @@ pub fn unit_square<T: RealScalar>(
 /// Create a grid of the boundary of a unit square
 ///
 /// The unit square is the square with corners at (0,0), (1,0), (0,1) and (1,1)
-pub fn unit_square_boundary<T: RealScalar>(
+pub fn unit_square_boundary<T: Scalar>(
     nx: usize,
     ny: usize,
-) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap, T>> {
     let mut b = SingleElementGridBuilder::new_with_capacity(
         2,
         2 * (nx + ny),
@@ -153,12 +153,12 @@ pub fn unit_square_boundary<T: RealScalar>(
 ///
 /// The unit cube is the cube with corners at (0,0,0), (1,0,0), (0,1,0), (1,1,0), (0,0,1),
 /// (1,0,1), (0,1,1) and (1,1,1)
-pub fn unit_cube<T: RealScalar>(
+pub fn unit_cube<T: Scalar>(
     nx: usize,
     ny: usize,
     nz: usize,
     cell_type: ReferenceCellType,
-) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap, T>> {
     let mut b = SingleElementGridBuilder::new_with_capacity(
         3,
         (nx + 1) * (ny + 1) * (nz + 1),
@@ -257,12 +257,12 @@ pub fn unit_cube<T: RealScalar>(
 ///
 /// The unit cube is the cube with corners at (0,0,0), (1,0,0), (0,1,0), (1,1,0), (0,0,1),
 /// (1,0,1), (0,1,1) and (1,1,1)
-pub fn unit_cube_boundary<T: RealScalar>(
+pub fn unit_cube_boundary<T: Scalar>(
     nx: usize,
     ny: usize,
     nz: usize,
     cell_type: ReferenceCellType,
-) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap, T>> {
     let mut b = SingleElementGridBuilder::new_with_capacity(
         3,
         (nx + 1) * (ny + 1) * (nz + 1) - (nx - 1) * (ny - 1) * (nz - 1),
@@ -394,11 +394,11 @@ pub fn unit_cube_boundary<T: RealScalar>(
 ///
 /// The unit cube is the cube with corners at (0,0,0), (1,0,0), (0,1,0), (1,1,0), (0,0,1),
 /// (1,0,1), (0,1,1) and (1,1,1)
-pub fn unit_cube_edges<T: RealScalar>(
+pub fn unit_cube_edges<T: Scalar>(
     nx: usize,
     ny: usize,
     nz: usize,
-) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap, T>> {
     let mut b = SingleElementGridBuilder::new_with_capacity(
         3,
         4 * (nx + ny + nz + 1),

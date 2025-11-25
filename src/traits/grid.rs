@@ -2,7 +2,7 @@
 use super::{Entity, GeometryMap};
 #[cfg(feature = "mpi")]
 use crate::types::GraphPartitioner;
-use crate::types::{Ownership, RealScalar};
+use crate::types::{Ownership, Scalar};
 #[cfg(feature = "mpi")]
 use mpi::traits::Communicator;
 #[cfg(feature = "mpi")]
@@ -16,7 +16,7 @@ use std::rc::Rc;
 /// A grid provides access to entities, their geometrical and their topological properties.
 pub trait Grid {
     /// Scalar type
-    type T: RealScalar;
+    type T: Scalar;
 
     /// Type used as identifier of different entity types
     type Entity<'a>: Entity<EntityDescriptor = Self::EntityDescriptor, T = Self::T>
@@ -109,7 +109,7 @@ pub trait Grid {
 #[cfg(feature = "mpi")]
 pub trait ParallelGrid {
     /// Type of the Grid
-    type T: RealScalar;
+    type T: Scalar;
 
     /// Local grid type
     type LocalGrid: Grid<T = Self::T>;

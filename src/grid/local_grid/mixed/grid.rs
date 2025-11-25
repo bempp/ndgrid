@@ -16,7 +16,7 @@ use crate::{
     geometry::{GeometryMap, MixedEntityGeometry, MixedGeometry},
     topology::mixed::{MixedEntityTopology, MixedTopology},
     traits::{Entity, Grid},
-    types::{Ownership, RealScalar},
+    types::{Ownership, Scalar},
 };
 use itertools::izip;
 #[cfg(feature = "mpi")]
@@ -36,7 +36,7 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct MixedGridEntity<
     'a,
-    T: RealScalar,
+    T: Scalar,
     E: MappedFiniteElement<CellType = ReferenceCellType, T = T>,
 > {
     grid: &'a MixedGrid<T, E>,
@@ -48,7 +48,7 @@ pub struct MixedGridEntity<
     geometry_cell_index: usize,
 }
 
-impl<'e, T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>>
+impl<'e, T: Scalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>>
     MixedGridEntity<'e, T, E>
 {
     /// Create new
@@ -72,7 +72,7 @@ impl<'e, T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T =
         }
     }
 }
-impl<T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> Entity
+impl<T: Scalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> Entity
     for MixedGridEntity<'_, T, E>
 {
     type T = T;
@@ -125,7 +125,7 @@ impl<T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>>
 #[derive(Debug)]
 pub struct MixedGridEntityIter<
     'a,
-    T: RealScalar,
+    T: Scalar,
     E: MappedFiniteElement<CellType = ReferenceCellType, T = T>,
 > {
     grid: &'a MixedGrid<T, E>,
@@ -133,7 +133,7 @@ pub struct MixedGridEntityIter<
     index: usize,
 }
 
-impl<'a, T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>>
+impl<'a, T: Scalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>>
     MixedGridEntityIter<'a, T, E>
 {
     /// Create new
@@ -145,7 +145,7 @@ impl<'a, T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T =
         }
     }
 }
-impl<'a, T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> Iterator
+impl<'a, T: Scalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> Iterator
     for MixedGridEntityIter<'a, T, E>
 {
     type Item = MixedGridEntity<'a, T, E>;
@@ -158,7 +158,7 @@ impl<'a, T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T =
 
 /// Serial mixed element grid
 #[derive(Debug)]
-pub struct MixedGrid<T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> {
+pub struct MixedGrid<T: Scalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> {
     topology: MixedTopology,
     geometry: MixedGeometry<T, E>,
 }
@@ -166,7 +166,7 @@ pub struct MixedGrid<T: RealScalar, E: MappedFiniteElement<CellType = ReferenceC
 #[cfg(feature = "serde")]
 #[derive(serde::Serialize, Debug, serde::Deserialize)]
 #[serde(bound = "for<'de2> T: serde::Deserialize<'de2>")]
-pub struct SerializableGrid<T: RealScalar + serde::Serialize>
+pub struct SerializableGrid<T: Scalar + serde::Serialize>
 where
     for<'de2> T: serde::Deserialize<'de2>,
 {
@@ -175,8 +175,8 @@ where
 }
 
 #[cfg(feature = "serde")]
-impl<T: RealScalar + serde::Serialize> ConvertToSerializable
-    for MixedGrid<T, CiarletElement<T, IdentityMap>>
+impl<T: Scalar + serde::Serialize> ConvertToSerializable
+    for MixedGrid<T, CiarletElement<T, IdentityMap, T>>
 {
     type SerializableType = SerializableGrid<T>;
     fn to_serializable(&self) -> SerializableGrid<T> {
@@ -193,14 +193,14 @@ impl<T: RealScalar + serde::Serialize> ConvertToSerializable
     }
 }
 
-impl<T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> MixedGrid<T, E> {
+impl<T: Scalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> MixedGrid<T, E> {
     /// Create new
     pub fn new(topology: MixedTopology, geometry: MixedGeometry<T, E>) -> Self {
         Self { topology, geometry }
     }
 }
 
-impl<T: RealScalar> MixedGrid<T, CiarletElement<T, IdentityMap>> {
+impl<T: Scalar> MixedGrid<T, CiarletElement<T, IdentityMap, T>> {
     /// Create new from raw data
     pub fn new_from_raw_data(
         coordinates: &[T],
@@ -222,13 +222,13 @@ impl<T: RealScalar> MixedGrid<T, CiarletElement<T, IdentityMap>> {
                 *element_family_indices.entry(*d).or_insert_with(|| {
                     let index = element_families.len();
                     element_families
-                        .push(LagrangeElementFamily::<T>::new(*d, Continuity::Standard));
+                        .push(LagrangeElementFamily::<T, T>::new(*d, Continuity::Standard));
                     index
                 })
             })
             .collect::<Vec<_>>();
 
-        let geometry = MixedGeometry::<T, CiarletElement<T, IdentityMap>>::new(
+        let geometry = MixedGeometry::<T, CiarletElement<T, IdentityMap, T>>::new(
             cell_types,
             points,
             cells,
@@ -252,7 +252,7 @@ impl<T: RealScalar> MixedGrid<T, CiarletElement<T, IdentityMap>> {
     }
 }
 
-impl<T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> Grid
+impl<T: Scalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>> Grid
     for MixedGrid<T, E>
 {
     type T = T;
@@ -361,11 +361,11 @@ impl<T: RealScalar, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>>
 }
 
 #[cfg(feature = "mpi")]
-impl<T: RealScalar + Equivalence, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>>
+impl<T: Scalar + Equivalence, E: MappedFiniteElement<CellType = ReferenceCellType, T = T>>
     DistributableGrid for MixedGrid<T, E>
 {
     type ParallelGrid<'a, C: Communicator + 'a> =
-        ParallelGridImpl<'a, C, MixedGrid<T, CiarletElement<T, IdentityMap>>>;
+        ParallelGridImpl<'a, C, MixedGrid<T, CiarletElement<T, IdentityMap, T>>>;
 
     fn distribute<'a, C: Communicator>(
         &self,

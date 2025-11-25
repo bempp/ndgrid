@@ -3,16 +3,16 @@
 use crate::{
     grid::local_grid::{SingleElementGrid, SingleElementGridBuilder},
     traits::Builder,
-    types::RealScalar,
+    types::Scalar,
 };
 use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
 /// Create a square grid with triangle cells
 ///
 /// Create a grid of the square \[0,1\]^2 with triangle cells. The input ncells is the number of cells
 /// along each side of the square.
-pub fn screen_triangles<T: RealScalar>(
+pub fn screen_triangles<T: Scalar>(
     ncells: usize,
-) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap, T>> {
     if ncells == 0 {
         panic!("Cannot create a grid with 0 cells");
     }
@@ -61,9 +61,9 @@ pub fn screen_triangles<T: RealScalar>(
 ///
 /// Create a grid of the square \[0,1\]^2 with quadrilateral cells. The input ncells is the number of
 /// cells along each side of the square.
-pub fn screen_quadrilaterals<T: RealScalar>(
+pub fn screen_quadrilaterals<T: Scalar>(
     ncells: usize,
-) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap, T>> {
     if ncells == 0 {
         panic!("Cannot create a grid with 0 cells");
     }
@@ -107,7 +107,7 @@ pub fn screen_quadrilaterals<T: RealScalar>(
 /// Create a grid of the square \[0,2\]x\[0,1\] with triangle cells on the left half and quadrilateral
 /// cells on the right half. The input ncells is the number of cells along each side of the unit
 /// square.
-pub fn screen_mixed<T: Float + RealScalar>(ncells: usize) -> MixedGrid<T>
+pub fn screen_mixed<T: Float + Scalar>(ncells: usize) -> MixedGrid<T>
 {
     if ncells == 0 {
         panic!("Cannot create a grid with 0 cells");

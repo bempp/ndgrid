@@ -3,20 +3,20 @@ use super::SingleElementGeometry;
 use crate::{
     geometry::{Point, PointIter},
     traits::Geometry,
-    types::RealScalar,
+    types::Scalar,
 };
 use ndelement::traits::MappedFiniteElement;
 
 /// Geometry of an entity
 #[derive(Debug)]
-pub struct SingleElementEntityGeometry<'a, T: RealScalar, E: MappedFiniteElement> {
+pub struct SingleElementEntityGeometry<'a, T: Scalar, E: MappedFiniteElement> {
     geometry: &'a SingleElementGeometry<T, E>,
     cell_index: usize,
     sub_entity_dimension: usize,
     sub_entity_index: usize,
 }
 
-impl<'a, T: RealScalar, E: MappedFiniteElement> SingleElementEntityGeometry<'a, T, E> {
+impl<'a, T: Scalar, E: MappedFiniteElement> SingleElementEntityGeometry<'a, T, E> {
     /// Create new
     pub fn new(
         geometry: &'a SingleElementGeometry<T, E>,
@@ -33,7 +33,7 @@ impl<'a, T: RealScalar, E: MappedFiniteElement> SingleElementEntityGeometry<'a, 
     }
 }
 
-impl<T: RealScalar, E: MappedFiniteElement> Geometry for SingleElementEntityGeometry<'_, T, E> {
+impl<T: Scalar, E: MappedFiniteElement> Geometry for SingleElementEntityGeometry<'_, T, E> {
     type T = T;
     type Point<'a>
         = Point<'a, T>

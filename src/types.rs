@@ -1,17 +1,15 @@
 //! Types
 #[cfg(feature = "mpi")]
 use mpi::traits::Equivalence;
-use num::Float;
 use rlst::{
     RlstScalar,
     dense::linalg::lapack::interface::{getrf::Getrf, getri::Getri},
 };
 
-/// A real scalar
-pub trait RealScalar: Float + RlstScalar<Real = Self> + Getrf + Getri {}
+/// A scalar.
+pub trait Scalar: RlstScalar + Getrf + Getri {}
 
-impl RealScalar for f32 {}
-impl RealScalar for f64 {}
+impl<T: RlstScalar + Getrf + Getri> Scalar for T {}
 
 /// A (cell, local index) pair
 ///

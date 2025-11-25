@@ -4,7 +4,7 @@ use crate::traits::{ConvertToSerializable, RONImportParallel};
 use crate::{
     grid::local_grid::LocalGrid,
     traits::{Grid, ParallelGrid},
-    types::{Ownership, RealScalar},
+    types::{Ownership, Scalar},
 };
 use mpi::traits::Communicator;
 use rlst::distributed_tools::IndexLayout;
@@ -60,7 +60,7 @@ where
     }
 }
 
-impl<T: RealScalar, C: Communicator, G: Grid<T = T> + Sync> ParallelGrid
+impl<T: Scalar, C: Communicator, G: Grid<T = T> + Sync> ParallelGrid
     for ParallelGridImpl<'_, C, G>
 {
     type LocalGrid = LocalGrid<G>;
