@@ -31,7 +31,7 @@ crate-type = ["lib", "cdylib"]
 coupe = { git = "https://github.com/LIHPC-Computational-Geometry/coupe.git", optional = true }
 itertools = "0.14.*"
 mpi = { git = "https://github.com/rsmpi/rsmpi.git", optional = true }
-ndelement = { git = "https://github.com/bempp/ndelement" }
+ndelement = { git = "https://github.com/bempp/ndelement", branch="mscroggs/non-real2" }
 num = "0.4"
 rlst = { git = "https://github.com/linalg-rs/rlst.git" }
 serde = { version = "1", features = ["derive"], optional = true }
