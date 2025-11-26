@@ -1,10 +1,10 @@
 //! Entity geometry
-use crate::types::RealScalar;
+use crate::types::Scalar;
 
 /// A point
 pub trait Point {
     /// Scalar type
-    type T: RealScalar;
+    type T: Scalar;
 
     /// The point's index
     fn index(&self) -> usize;
@@ -21,7 +21,7 @@ pub trait Point {
 /// The geometry contains information about all points that make up the entity.
 pub trait Geometry {
     /// Scalar type
-    type T: RealScalar;
+    type T: Scalar;
 
     /// Point Type
     type Point<'a>: Point<T = Self::T>

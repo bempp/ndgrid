@@ -3,13 +3,13 @@ use super::MixedGeometry;
 use crate::{
     geometry::{Point, PointIter},
     traits::Geometry,
-    types::RealScalar,
+    types::Scalar,
 };
 use ndelement::traits::MappedFiniteElement;
 
 /// Geometry of an entity
 #[derive(Debug)]
-pub struct MixedEntityGeometry<'a, T: RealScalar, E: MappedFiniteElement> {
+pub struct MixedEntityGeometry<'a, T: Scalar, E: MappedFiniteElement> {
     geometry: &'a MixedGeometry<T, E>,
     element_index: usize,
     cell_index: usize,
@@ -17,7 +17,7 @@ pub struct MixedEntityGeometry<'a, T: RealScalar, E: MappedFiniteElement> {
     sub_entity_index: usize,
 }
 
-impl<'a, T: RealScalar, E: MappedFiniteElement> MixedEntityGeometry<'a, T, E> {
+impl<'a, T: Scalar, E: MappedFiniteElement> MixedEntityGeometry<'a, T, E> {
     /// Create new
     pub fn new(
         geometry: &'a MixedGeometry<T, E>,
@@ -36,7 +36,7 @@ impl<'a, T: RealScalar, E: MappedFiniteElement> MixedEntityGeometry<'a, T, E> {
     }
 }
 
-impl<T: RealScalar, E: MappedFiniteElement> Geometry for MixedEntityGeometry<'_, T, E> {
+impl<T: Scalar, E: MappedFiniteElement> Geometry for MixedEntityGeometry<'_, T, E> {
     type T = T;
     type Point<'a>
         = Point<'a, T>

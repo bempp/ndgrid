@@ -3,10 +3,9 @@
 use crate::{
     grid::local_grid::{SingleElementGrid, SingleElementGridBuilder},
     traits::Builder,
-    types::RealScalar,
+    types::Scalar,
 };
 use ndelement::{ciarlet::CiarletElement, map::IdentityMap, types::ReferenceCellType};
-use num::Float;
 use std::collections::{HashMap, hash_map::Entry::Vacant};
 
 /// Create a surface grid of a regular sphere
@@ -14,9 +13,9 @@ use std::collections::{HashMap, hash_map::Entry::Vacant};
 /// A regular sphere is created by starting with a regular octahedron. The shape is then refined `refinement_level` times.
 /// Each time the grid is refined, each triangle is split into four triangles (by adding lines connecting the midpoints of
 /// each edge). The new points are then scaled so that they are a distance of 1 from the origin.
-pub fn regular_sphere<T: RealScalar>(
+pub fn regular_sphere<T: Scalar>(
     refinement_level: u32,
-) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+) -> SingleElementGrid<T, CiarletElement<T, IdentityMap, T>> {
     let mut b = SingleElementGridBuilder::new_with_capacity(
         3,
         2 + usize::pow(4, refinement_level + 1),
@@ -71,8 +70,7 @@ pub fn regular_sphere<T: RealScalar>(
                             half * (v_i[1] + v_j[1]),
                             half * (v_i[2] + v_j[2]),
                         ];
-                        let size =
-                            Float::sqrt(new_pt.iter().map(|x| Float::powi(*x, 2)).sum::<T>());
+                        let size = (new_pt.iter().map(|x| x.powi(2)).sum::<T>()).sqrt();
                         for i in new_pt.iter_mut() {
                             *i /= size;
                         }

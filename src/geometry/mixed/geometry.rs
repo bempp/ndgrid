@@ -1,7 +1,7 @@
 //! Geometry where each entity of a given dimension is represented by the same element
 #[cfg(feature = "serde")]
 use crate::traits::ConvertToSerializable;
-use crate::types::RealScalar;
+use crate::types::Scalar;
 use itertools::izip;
 #[cfg(feature = "serde")]
 use ndelement::{
@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 /// Single element geometry
-pub struct MixedGeometry<T: RealScalar, E: MappedFiniteElement> {
+pub struct MixedGeometry<T: Scalar, E: MappedFiniteElement> {
     points: DynArray<T, 2>,
     cells: Vec<DynArray<usize, 2>>,
     elements: Vec<HashMap<ReferenceCellType, E>>,
@@ -27,7 +27,7 @@ pub struct MixedGeometry<T: RealScalar, E: MappedFiniteElement> {
     pub(crate) insertion_indices_to_cell_indices: Vec<usize>,
 }
 
-impl<T: RealScalar, E: MappedFiniteElement> Debug for MixedGeometry<T, E> {
+impl<T: Scalar, E: MappedFiniteElement> Debug for MixedGeometry<T, E> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.debug_struct("MixedGeometry")
             .field("points", &self.points)
@@ -39,7 +39,7 @@ impl<T: RealScalar, E: MappedFiniteElement> Debug for MixedGeometry<T, E> {
 #[cfg(feature = "serde")]
 #[derive(serde::Serialize, Debug, serde::Deserialize)]
 #[serde(bound = "for<'de2> T: serde::Deserialize<'de2>")]
-pub struct SerializableGeometry<T: RealScalar + serde::Serialize>
+pub struct SerializableGeometry<T: Scalar + serde::Serialize>
 where
     for<'de2> T: serde::Deserialize<'de2>,
 {
@@ -51,8 +51,8 @@ where
 }
 
 #[cfg(feature = "serde")]
-impl<T: RealScalar + serde::Serialize> ConvertToSerializable
-    for MixedGeometry<T, CiarletElement<T, IdentityMap>>
+impl<T: Scalar + serde::Serialize> ConvertToSerializable
+    for MixedGeometry<T, CiarletElement<T, IdentityMap, T>>
 where
     for<'de2> T: serde::Deserialize<'de2>,
 {
@@ -115,7 +115,7 @@ where
     }
 }
 
-impl<T: RealScalar, E: MappedFiniteElement> MixedGeometry<T, E> {
+impl<T: Scalar, E: MappedFiniteElement> MixedGeometry<T, E> {
     /// Create single element geometry
     pub fn new(
         cell_types_in: &[ReferenceCellType],

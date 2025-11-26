@@ -1,6 +1,6 @@
 //! Map from reference to physical space.
 
-use crate::types::RealScalar;
+use crate::types::Scalar;
 
 /// A geometry map allows the computation of maps from reference to physical space and their derivatives.
 ///
@@ -11,7 +11,7 @@ use crate::types::RealScalar;
 /// - The jacobians, transformation determinants and the normals of the physical entity.
 pub trait GeometryMap {
     /// Scalar type
-    type T: RealScalar;
+    type T: Scalar;
 
     /// The topoloical dimension of the entity being mapped.
     ///

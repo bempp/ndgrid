@@ -1,6 +1,6 @@
 //! Traits for a mesh entity
 use crate::traits::{Geometry, Topology};
-use crate::types::{Ownership, RealScalar};
+use crate::types::{Ownership, Scalar};
 use std::fmt::Debug;
 use std::hash::Hash;
 
@@ -10,7 +10,7 @@ use std::hash::Hash;
 /// provides a unified interface to any type of entity.
 pub trait Entity {
     /// Scalar type
-    type T: RealScalar;
+    type T: Scalar;
 
     /// Type used as identifier of different entity types.
     /// In most cases this is given by [ReferenceCellType](ndelement::types::ReferenceCellType).

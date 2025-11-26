@@ -1,5 +1,5 @@
 //! Geometry map
-use crate::{traits::GeometryMap as GeometryMapTrait, types::RealScalar};
+use crate::{traits::GeometryMap as GeometryMapTrait, types::Scalar};
 use ndelement::{reference_cell, traits::MappedFiniteElement, types::ReferenceCellType};
 use rlst::{Array, DynArray, RlstScalar, ValueArrayImpl};
 
@@ -43,7 +43,7 @@ fn cross<T: RlstScalar>(mat: &[T], result: &mut [T]) {
     }
 }
 
-impl<'a, T: RealScalar, B2D: ValueArrayImpl<T, 2>, C2D: ValueArrayImpl<usize, 2>>
+impl<'a, T: Scalar, B2D: ValueArrayImpl<T, 2>, C2D: ValueArrayImpl<usize, 2>>
     GeometryMap<'a, T, B2D, C2D>
 {
     /// Create new
@@ -71,7 +71,7 @@ impl<'a, T: RealScalar, B2D: ValueArrayImpl<T, 2>, C2D: ValueArrayImpl<usize, 2>
     }
 }
 
-impl<T: RealScalar, B2D: ValueArrayImpl<T, 2>, C2D: ValueArrayImpl<usize, 2>> GeometryMapTrait
+impl<T: Scalar, B2D: ValueArrayImpl<T, 2>, C2D: ValueArrayImpl<usize, 2>> GeometryMapTrait
     for GeometryMap<'_, T, B2D, C2D>
 {
     type T = T;

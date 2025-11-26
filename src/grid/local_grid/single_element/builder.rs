@@ -5,7 +5,7 @@ use crate::{
     geometry::SingleElementGeometry,
     topology::single_type::SingleTypeTopology,
     traits::{Builder, GeometryBuilder, GridBuilder, TopologyBuilder},
-    types::RealScalar,
+    types::Scalar,
 };
 use ndelement::{
     ciarlet::{CiarletElement, LagrangeElementFamily, lagrange},
@@ -41,10 +41,10 @@ use std::collections::{HashMap, HashSet};
 /// let grid = builder.create_grid();
 /// ```
 #[derive(Debug)]
-pub struct SingleElementGridBuilder<T: RealScalar> {
+pub struct SingleElementGridBuilder<T: Scalar> {
     gdim: usize,
     element_data: (ReferenceCellType, usize),
-    element: CiarletElement<T, IdentityMap>,
+    element: CiarletElement<T, IdentityMap, T>,
     points_per_cell: usize,
     pub(crate) points: Vec<T>,
     cells: Vec<usize>,
@@ -56,7 +56,7 @@ pub struct SingleElementGridBuilder<T: RealScalar> {
     cell_indices: HashSet<usize>,
 }
 
-impl<T: RealScalar> SingleElementGridBuilder<T> {
+impl<T: Scalar> SingleElementGridBuilder<T> {
     /// Create a new grid builder
     pub fn new(gdim: usize, data: (ReferenceCellType, usize)) -> Self {
         Self::new_with_capacity(gdim, 0, 0, data)
@@ -69,7 +69,7 @@ impl<T: RealScalar> SingleElementGridBuilder<T> {
         ncells: usize,
         data: (ReferenceCellType, usize),
     ) -> Self {
-        let element = lagrange::create::<T>(data.0, data.1, Continuity::Standard);
+        let element = lagrange::create::<T, T>(data.0, data.1, Continuity::Standard);
         let points_per_cell = element.dim();
         Self {
             gdim,
@@ -88,8 +88,8 @@ impl<T: RealScalar> SingleElementGridBuilder<T> {
     }
 }
 
-impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
-    type Grid = SingleElementGrid<T, CiarletElement<T, IdentityMap>>;
+impl<T: Scalar> Builder for SingleElementGridBuilder<T> {
+    type Grid = SingleElementGrid<T, CiarletElement<T, IdentityMap, T>>;
     type T = T;
     type CellData<'a> = &'a [usize];
     type EntityDescriptor = ReferenceCellType;
@@ -135,7 +135,7 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
         self.add_cell(id, nodes);
     }
 
-    fn create_grid(&self) -> SingleElementGrid<T, CiarletElement<T, IdentityMap>> {
+    fn create_grid(&self) -> SingleElementGrid<T, CiarletElement<T, IdentityMap, T>> {
         let cell_vertices =
             self.extract_vertices(&self.cells, &[self.element_data.0], &[self.element_data.1]);
 
@@ -216,8 +216,8 @@ impl<T: RealScalar> Builder for SingleElementGridBuilder<T> {
     }
 }
 
-impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
-    type GridGeometry = SingleElementGeometry<T, CiarletElement<T, IdentityMap>>;
+impl<T: Scalar> GeometryBuilder for SingleElementGridBuilder<T> {
+    type GridGeometry = SingleElementGeometry<T, CiarletElement<T, IdentityMap, T>>;
     fn create_geometry(
         &self,
         point_ids: &[usize],
@@ -225,14 +225,14 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
         cell_points: &[usize],
         _cell_types: &[ReferenceCellType],
         _cell_degrees: &[usize],
-    ) -> SingleElementGeometry<T, CiarletElement<T, IdentityMap>> {
+    ) -> SingleElementGeometry<T, CiarletElement<T, IdentityMap, T>> {
         let npts = point_ids.len();
         let mut points = rlst_dynamic_array!(T, [self.gdim(), npts]);
         points.data_mut().unwrap().copy_from_slice(coordinates);
 
-        let family = LagrangeElementFamily::<T>::new(self.element_data.1, Continuity::Standard);
+        let family = LagrangeElementFamily::<T, T>::new(self.element_data.1, Continuity::Standard);
 
-        SingleElementGeometry::<T, CiarletElement<T, IdentityMap>>::new(
+        SingleElementGeometry::<T, CiarletElement<T, IdentityMap, T>>::new(
             self.element_data.0,
             points,
             cell_points,
@@ -241,7 +241,7 @@ impl<T: RealScalar> GeometryBuilder for SingleElementGridBuilder<T> {
     }
 }
 
-impl<T: RealScalar> TopologyBuilder for SingleElementGridBuilder<T> {
+impl<T: Scalar> TopologyBuilder for SingleElementGridBuilder<T> {
     type GridTopology = SingleTypeTopology;
     fn create_topology(
         &self,
@@ -301,7 +301,7 @@ impl<T: RealScalar> TopologyBuilder for SingleElementGridBuilder<T> {
     }
 }
 
-impl<T: RealScalar> GridBuilder for SingleElementGridBuilder<T> {
+impl<T: Scalar> GridBuilder for SingleElementGridBuilder<T> {
     fn create_grid_from_topology_geometry(
         &self,
         topology: <Self as TopologyBuilder>::GridTopology,
