@@ -198,4 +198,4 @@ pub use ndelement;
 use coupe as _;
 #[cfg(not(feature = "mpi"))]
 #[cfg(feature = "scotch")]
-use coupe as _;
+use scotch as _;
