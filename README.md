@@ -1,3 +1,6 @@
+# ndgrid (archived)
+The ndgrid library is now maintained as part of the [bempp/nd repository](https://github.com/bempp/nd).
+
 # ndgrid
 [![crates.io](https://img.shields.io/crates/v/ndgrid?color=blue)](https://crates.io/crates/ndgrid)
 
